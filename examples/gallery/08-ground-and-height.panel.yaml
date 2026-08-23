@@ -1,0 +1,24 @@
+# `ground_shared_with` puts two characters on the same ground line -- their FEET,
+# not their heads.
+#
+# Alice is 7.5 heads tall and Bob is taller, deliberately. Aligning heads would put
+# them on a staircase. It also shows why there is one camera per panel and one scale:
+# scaling each actor to its own crop landmark would make everybody the same apparent
+# height and erase exactly the difference a comic uses to tell people apart.
+
+panel:
+  size: [1100, 800]
+
+camera:
+  shot: full_shot
+
+cast:
+  alice: {reference: alice, at: left_third}
+  bob:   {reference: bob,   at: right_third, facing: left}
+
+staging:
+  - alice left_of bob
+  - alice ground_shared_with bob
+
+script:
+  - say: {by: alice, text: "You have grown."}

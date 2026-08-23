@@ -1,0 +1,21 @@
+# Every shot type, on the same character, from widest to tightest.
+#
+# A shot type is a crop landmark plus headroom, measured in HEAD-HEIGHTS -- not as a
+# fraction of panel height. Watch where the frame cuts the body as you go down.
+
+panel: {size: [420, 560]}
+
+cast:
+  alice: {reference: alice, pose: pointing}
+
+panels:
+  long_shot:        {camera: {shot: long_shot}}
+  wide:             {camera: {shot: wide}}
+  full_shot:        {camera: {shot: full_shot}}
+  medium_full:      {camera: {shot: medium_full}}
+  cowboy:           {camera: {shot: cowboy}}
+  medium_shot:      {camera: {shot: medium_shot}}
+  medium_close_up:  {camera: {shot: medium_close_up}}
+  close_up:         {camera: {shot: close_up}}
+  big_close_up:     {camera: {shot: big_close_up}}
+  extreme_close_up: {camera: {shot: extreme_close_up}}

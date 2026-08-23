@@ -35,8 +35,8 @@ The scaled figure is then anchored so its crop line meets the bottom of the avai
 
 | `shot` | Crop landmark | Headroom | Reads as |
 |---|---|---|---|
-| `long_shot` (alias `wide`) | `feet` | 0.05 | Figure small in its environment |
-| `full_shot` | `feet` | 0.08 | Whole body, environment secondary |
+| `long_shot` (alias `wide`) | `feet` | 0.60 | Figure small in its environment |
+| `full_shot` | `feet` | 0.05 | Whole body, environment secondary |
 | `medium_full` (alias `cowboy`) | `mid_thigh` | 0.08 | Body language, hands visible |
 | `medium_shot` | `waist` | 0.10 | The conversational default |
 | `medium_close_up` | `chest` | 0.10 | Emphasis on the speaker |
@@ -45,6 +45,17 @@ The scaled figure is then anchored so its crop line meets the bottom of the avai
 | `extreme_close_up` | `eyes` | 0.00 | Crops through the face deliberately |
 
 Aliases are exact synonyms and resolve to the same values.
+
+The table is **monotonic**: reading down it, the figure never gets smaller. That is what
+makes it a ladder, and it is enforced by a test rather than left to inspection --
+`long_shot` and `full_shot` crop at the same landmark, so only headroom separates them,
+and having those two the wrong way round inverted the ladder at its widest end without
+anything noticing.
+
+A limitation worth stating: with no environment to show, `long_shot` and `full_shot` can
+differ only by headroom, so the gap between them is necessarily modest. In film the
+distinction is mostly about how much of the world is in frame, which this compiler does
+not yet model.
 
 ## Angle
 

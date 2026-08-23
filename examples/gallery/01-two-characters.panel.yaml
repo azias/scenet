@@ -1,0 +1,21 @@
+# The panel from the README. Two actors, an ordering constraint, a gaze, a shared
+# ground line, and two lines of dialogue.
+
+panel:
+  size: [1000, 800]
+
+camera:
+  shot: medium_shot
+
+cast:
+  alice: {reference: alice, pose: pointing,     at: left_third}
+  bob:   {reference: bob,   pose: arms_crossed, at: right_third, facing: left}
+
+staging:
+  - alice left_of bob
+  - alice looking_at bob
+  - alice ground_shared_with bob
+
+script:
+  - say: {by: alice, text: "You forgot your umbrella!", prefer: top_left}
+  - say: {by: bob,   text: "I know."}

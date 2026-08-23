@@ -194,9 +194,21 @@ def _fit_cast_across_frame(
     `CameraSolution.pulled_back_to` for why loosening the shot is the correct
     reading rather than a violation of it.
 
+    **Only applied to two or more actors.** The problem it solves is a non-overlap
+    problem, and one actor cannot overlap anybody. A lone figure that is wider than the
+    panel is simply framed tightly, which is what a close-up *is*: the head fills the
+    frame and the shoulders run off both edges. Retreating there would make
+    `close_up`, `big_close_up` and `extreme_close_up` all come out at roughly the same
+    apparent size, which is the opposite of what the shot ladder means -- and it would
+    contradict the rule that panel bounds are strong rather than required precisely so
+    that figures may bleed off the edge.
+
     Silhouette widths scale linearly, so they are measured once at unit scale and the
     fitting scale follows directly. No search required.
     """
+    if len(panel.cast) < 2:
+        return camera
+
     native_total = 0.0
     for actor, member in panel.cast.items():
         posed = resolve(

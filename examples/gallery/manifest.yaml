@@ -1,0 +1,51 @@
+# The playground example gallery, in the order it offers them.
+#
+# Each entry is a real file in this directory, compiled by the test suite -- so the
+# playground cannot offer an example that does not work.
+
+examples:
+  - file: 01-two-characters.panel.yaml
+    title: "Two characters"
+    kind: panel
+  - file: 02-shot-ladder.scene.yaml
+    title: "The shot ladder"
+    kind: scene
+  - file: 03-camera-angles.scene.yaml
+    title: "Camera angles"
+    kind: scene
+  - file: 04-balloon-kinds.panel.yaml
+    title: "Every balloon kind"
+    kind: panel
+  - file: 05-placement-zones.panel.yaml
+    title: "Placement zones"
+    kind: panel
+  - file: 06-reading-order.panel.yaml
+    title: "Reading order is a hard rule"
+    kind: panel
+  - file: 07-gaze.panel.yaml
+    title: "Gaze steers the balloons"
+    kind: panel
+  - file: 08-ground-and-height.panel.yaml
+    title: "Feet align, heads do not"
+    kind: panel
+  - file: 09-depth.panel.yaml
+    title: "Depth and overlap"
+    kind: panel
+  - file: 10-crowd-pullback.panel.yaml
+    title: "The camera retreats"
+    kind: panel
+  - file: 11-poses.panel.yaml
+    title: "Poses, facing, and one puppet twice"
+    kind: panel
+  - file: 12-sequence.scene.yaml
+    title: "A sequence, by sparse override"
+    kind: scene
+  - file: 13-comic-script.script
+    title: "Written as a comic script"
+    kind: script
+  - file: 14-lettering.panel.yaml
+    title: "How lines get broken"
+    kind: panel
+  - file: 15-margin.panel.yaml
+    title: "Margins, and bleeding off the edge"
+    kind: panel

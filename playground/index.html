@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Scenet playground</title>
+    <meta
+      name="description"
+      content="Write a comic panel as a semantic description and watch it compile to SVG, in your browser."
+    />
+    <!--
+      Everything this page loads comes from this origin: the editor, the Python
+      interpreter, the wheels, the schemas. No CDN, no analytics, no fonts fetched from
+      anywhere. That is what makes a policy this strict possible.
+
+      `wasm-unsafe-eval` is required by WebAssembly; `blob:` covers the web workers
+      Monaco and Pyodide start. `connect-src` is 'self' and means it: the font wheels
+      micropip installs are vendored at build time, so nothing is fetched from PyPI at
+      runtime either.
+
+      `frame-ancestors` is deliberately absent: it is ignored when delivered in a meta
+      element, and GitHub Pages cannot set response headers, so declaring it here would
+      only produce a console error promising protection that is not there.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+        default-src 'self';
+        script-src 'self' 'wasm-unsafe-eval' blob:;
+        worker-src 'self' blob:;
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data: blob:;
+        font-src 'self' data:;
+        connect-src 'self';
+        base-uri 'self';
+        form-action 'none';
+        object-src 'none'
+      "
+    />
+  </head>
+  <body>
+    <header>
+      <div class="masthead">
+        <h1>Scenet</h1>
+        <nav>
+          <a href="../">Documentation</a>
+          <a href="https://github.com/azias/scenet">GitHub</a>
+          <a href="https://pypi.org/project/scenet/">PyPI</a>
+        </nav>
+      </div>
+      <p class="tagline">
+        A semantic DSL for comic panels, compiled to SVG. Deterministic geometry — no
+        generative image model. The compiler below is the same Python that runs on the
+        command line, executing in your browser under WebAssembly.
+      </p>
+      <!--
+        In the header, not the footer. A page this tall hides its footer, and anyone can
+        reach this one with a single click and start using it without reading anything
+        else. They are entitled to know what they are looking at first.
+      -->
+      <p class="disclosure">
+        <strong>⚠️ This project is deliberately AI-generated.</strong> It exists as a
+        personal training ground for learning to work with AI coding tools — an
+        experiment first, a usable tool second.
+      </p>
+    </header>
+
+    <main>
+      <section class="pane" id="editor-pane">
+        <div class="pane-head">
+          <label for="examples">Example</label>
+          <select id="examples" aria-label="Load an example"></select>
+          <span class="spacer"></span>
+          <span class="hint" id="kind" aria-live="polite"></span>
+        </div>
+        <div id="editor" role="application" aria-label="Panel source"></div>
+        <p class="blurb" id="blurb"></p>
+      </section>
+
+      <section class="pane" id="output-pane">
+        <div class="pane-head" role="tablist" aria-label="Output view">
+          <button id="tab-panel" role="tab" aria-selected="true" aria-controls="output">
+            Panel
+          </button>
+          <button id="tab-debug" role="tab" aria-selected="false" aria-controls="output">
+            Overlay
+          </button>
+          <button id="tab-core" role="tab" aria-selected="false" aria-controls="output">
+            Panel Core
+          </button>
+          <span class="spacer"></span>
+          <span class="hint" id="notes" aria-live="polite"></span>
+        </div>
+        <div id="output" role="tabpanel" aria-label="Compiled output"></div>
+        <pre id="core" hidden></pre>
+        <pre id="error" hidden role="alert"></pre>
+        <p id="status" role="status">Loading the compiler…</p>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        <a href="https://pyodide.org/">Pyodide</a> runs the compiler unmodified in your
+        browser, so nothing here is a reimplementation — the page installs the same wheel
+        that goes to PyPI.
+      </p>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

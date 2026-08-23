@@ -247,3 +247,35 @@ class TestFrontendDispatch:
             f"---\ncast: {{A: {common_cast}}}\n---\nPANEL 1\n@shot: close_up\nA\nSame words.\n"
         )["1"]
         assert yaml_ir == script_ir
+
+
+class TestLineEndings:
+    """Source arrives as a string, and not every string came from a file.
+
+    Python's text mode normalises CRLF on read, which hides this everywhere the tests
+    look. The browser playground does not: it hands over exactly the bytes it was given,
+    so a script written by a Windows editor -- or pasted out of one -- reaches the parser
+    with CRLF intact. It took running the gallery in a browser to notice.
+    """
+
+    SCRIPT = "---\ncast:\n  ALICE: {reference: alice}\n---\n\nPANEL 1\n\nALICE\nHello.\n"
+
+    def test_crlf_script_parses(self):
+        panels = parse_script(self.SCRIPT.replace("\n", "\r\n"))
+        assert list(panels) == ["1"]
+        assert panels["1"].script[0].text == "Hello."
+
+    def test_cr_only_script_parses(self):
+        """Classic Mac line endings. Rare, free to support, and free to get wrong."""
+        panels = parse_script(self.SCRIPT.replace("\n", "\r"))
+        assert list(panels) == ["1"]
+
+    def test_line_endings_do_not_change_the_result(self):
+        lf = parse_script(self.SCRIPT)
+        crlf = parse_script(self.SCRIPT.replace("\n", "\r\n"))
+        assert lf == crlf
+
+    def test_crlf_panel_documents_parse(self):
+        """PyYAML already handles this, but nothing said so."""
+        source = "cast:\n  a: {reference: alice}\n"
+        assert parse_panel(source) == parse_panel(source.replace("\n", "\r\n"))

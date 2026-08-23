@@ -1,21 +1,28 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ES2022",
+    "target": "ES2023",
+    "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "outDir": "public",
-    "rootDir": "src",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "rootDir": ".",
+    "noEmit": true,
+
+    // TypeScript 6 made `types` default to empty, so anything needed must be named.
+    // `vite/client` is what types `?worker` imports and `import.meta.env`.
+    "types": ["vite/client", "node"],
 
     // strict is the project rule, wherever JavaScript would otherwise be used.
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "exactOptionalPropertyTypes": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "scripts/**/*.ts", "vite.config.ts"]
 }

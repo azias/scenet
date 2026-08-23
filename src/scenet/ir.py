@@ -49,10 +49,15 @@ class Strict(BaseModel):
 class ShotType(StrEnum):
     """How tightly the camera frames the cast.
 
-    Ordered from widest to tightest. A shot type is defined by a **crop landmark** plus
-    a headroom fraction, both measured in head-heights -- not as a percentage of panel
-    height, which would make the same shot mean different things in a tall panel and a
-    wide one. `docs/reference/shot_types.md` is normative.
+    Ordered from widest to tightest, and the order is enforced by a test: reading down
+    the ladder, the figure never gets smaller.
+
+    A shot type is defined by two things in two different units. The **crop landmark**
+    is anatomical -- the waist, the chest, the shoulders -- which is what stops a shot
+    type baking in one body and one pose; naming a fraction of panel height instead
+    would do exactly that. The **headroom** is a plain fraction of panel height, because
+    it is about composition within the frame rather than anatomy.
+    `docs/reference/shot_types.md` is normative.
 
     The requested shot is an *upper bound on tightness*, not a promise. If the cast
     cannot fit across the panel at that framing the camera retreats, and says so in

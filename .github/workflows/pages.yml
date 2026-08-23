@@ -1,4 +1,14 @@
-name: Playground
+name: Pages
+
+# One Pages site per repository, so everything shares an origin:
+#
+#   /                     the documentation
+#   /playground/          the browser playground
+#   /schemas/*.json       the JSON Schemas, at stable URLs anyone can validate against
+#
+# The playground is self-contained: the Python runtime, the wheels, the editor and the
+# schemas are all served from here. It makes no request to any other origin, which is
+# what lets its Content-Security-Policy say 'self' and mean it.
 
 on:
   push:
@@ -7,8 +17,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # Never cancel a deploy midway; queue instead.
 concurrency:
@@ -19,39 +27,48 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: "22"
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: playground/package-lock.json
+
+      - run: uv sync --frozen --group docs
 
       # The playground installs the wheel `uv build` produces, unmodified. There is no
-      # browser-specific build of the compiler, so nothing here can diverge from what
+      # browser-specific build of the compiler, so nothing there can diverge from what
       # the command line runs.
       - name: Build the wheel
         run: uv build --wheel
 
-      - name: Build the playground
-        working-directory: playground
-        run: |
-          npm ci
-          npm run build
+      # Builds the documentation with warnings as errors, builds the playground with the
+      # right base path, and assembles both into site/.
+      - name: Build the site
+        run: uv run python scripts/build_site.py --base /${{ github.event.repository.name }}
 
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: playground/public
+          path: site
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

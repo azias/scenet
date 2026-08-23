@@ -26,9 +26,17 @@ class ShotSpec:
 
 
 SHOT_TABLE: dict[ShotType, ShotSpec] = {
-    ShotType.LONG_SHOT: ShotSpec(Landmark.FEET, 0.05),
-    ShotType.WIDE: ShotSpec(Landmark.FEET, 0.05),
-    ShotType.FULL_SHOT: ShotSpec(Landmark.FEET, 0.08),
+    # long_shot and full_shot both crop at the feet, so headroom is the only thing that
+    # separates them -- and it separated them the wrong way round. A long shot puts the
+    # figure *small in its environment*, so it needs MORE air above the head, not less.
+    # At 0.05 against full_shot's 0.08 it drew the figure larger than a full shot,
+    # inverting the ladder at its widest end with nothing to notice.
+    #
+    # The honest limitation: with no environment to show, these two can differ only by
+    # headroom, so the gap stays modest however the numbers are set.
+    ShotType.LONG_SHOT: ShotSpec(Landmark.FEET, 0.14),
+    ShotType.WIDE: ShotSpec(Landmark.FEET, 0.14),
+    ShotType.FULL_SHOT: ShotSpec(Landmark.FEET, 0.05),
     ShotType.MEDIUM_FULL: ShotSpec(Landmark.MID_THIGH, 0.08),
     ShotType.COWBOY: ShotSpec(Landmark.MID_THIGH, 0.08),
     ShotType.MEDIUM_SHOT: ShotSpec(Landmark.WAIST, 0.10),
@@ -152,7 +160,13 @@ class CameraSolution:
 
 
 def headroom_for(shot: ShotType, angle: CameraAngle) -> float:
-    """Empty space to leave above the head, in head-heights.
+    """Empty space to leave above the head, as a fraction of panel height.
+
+    A shot type has two halves and they use different units. The **crop landmark** is
+    anatomical -- the waist, the chest, the shoulders -- which is what stops a shot type
+    baking in one body and one pose. The **headroom** is a plain fraction of panel
+    height, because it is about composition within the frame rather than about anatomy.
+    See `docs/reference/shot_types.md`, which is normative.
 
     Angle changes headroom rather than perspective. This compiler is orthographic, so a
     tilted camera cannot foreshorten anything -- but the amount of air above the head is
@@ -167,7 +181,8 @@ def headroom_for(shot: ShotType, angle: CameraAngle) -> float:
         angle: The camera height.
 
     Returns:
-        Headroom in head-heights, never below `MINIMUM_ANGLE_HEADROOM` for a tilted
+        Headroom as a fraction of panel height, never below `MINIMUM_ANGLE_HEADROOM`
+        for a tilted
         camera -- so that `extreme_close_up`, whose base headroom is zero, still shifts
         under an angle instead of staying flush against the top edge.
 

@@ -1,0 +1,31 @@
+# Four characters at a close-up cannot fit side by side. A real camera operator
+# would step backwards, so that is what happens: everybody gets smaller and more of
+# the body comes into view.
+#
+# The requested shot is an UPPER BOUND ON TIGHTNESS, not a promise -- and the retreat
+# is reported rather than done silently, because a panel that is quietly not the shot
+# you asked for is a panel you cannot debug. Look at the note under the picture.
+
+panel:
+  size: [1400, 700]
+
+camera:
+  shot: close_up
+
+cast:
+  alice: {reference: alice}
+  bob:   {reference: bob,   pose: arms_crossed}
+  carol: {reference: alice, pose: hands_on_hips}
+  dave:  {reference: bob,   pose: pointing}
+
+staging:
+  - alice left_of bob
+  - bob left_of carol
+  - carol left_of dave
+  - alice ground_shared_with bob
+  - bob ground_shared_with carol
+  - carol ground_shared_with dave
+
+script:
+  - say: {by: alice, text: "Is everyone here?"}
+  - say: {by: dave,  text: "Looks like it."}

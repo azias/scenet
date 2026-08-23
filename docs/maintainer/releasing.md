@@ -87,6 +87,31 @@ release a patch version. Yanking is the recovery mechanism; deleting is not.
 **The GitHub Release step failed after PyPI succeeded.** The package is out. Re-run just
 that job from the Actions tab; it is idempotent apart from the release already existing.
 
+## The AI-generation disclosure is a release requirement
+
+Every published surface must carry the statement that this project is deliberately
+AI-generated. Not as a courtesy — as a condition of publishing. Anyone who finds the
+package on PyPI, installs the extension, or opens the playground is entitled to know what
+they are looking at before they decide to rely on it.
+
+| Surface | Where it comes from |
+|---|---|
+| The PyPI project page | `README.md`, via `readme = "README.md"` |
+| The GitHub landing page | `README.md` |
+| The documentation site | `docs/index.md` |
+| The playground | the header of `playground/index.html` |
+| The VS Code extension | the `description` in `editor/package.json`, and `editor/README.md` |
+
+`tests/test_disclosure.py` checks all of them, and checks that the README's disclosure is
+above the fold and is a heading rather than a footnote. It is tested rather than trusted
+because it is exactly the kind of thing that quietly disappears: somebody rewrites a
+description, trims a README, restructures a page, and it goes with them. Nobody notices,
+because nothing was watching.
+
+**Adding a new published surface means adding it to that test.** A new marketplace
+listing, a new landing page, a package on another index — each is a place a stranger can
+arrive without having read anything else.
+
 ## Versioning
 
 [Semantic versioning](https://semver.org/spec/v2.0.0.html), applied to two things:

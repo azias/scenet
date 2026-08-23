@@ -1,7 +1,7 @@
 {
   "name": "scenet",
   "displayName": "Scenet",
-  "description": "Authoring support for Scenet comic-panel documents: schema-driven completion, validation, and a live preview.",
+  "description": "Authoring support for Scenet comic-panel documents: schema-driven completion, validation, and a live preview. Deliberately AI-generated -- an experiment first, a usable tool second.",
   "version": "0.1.0",
   "publisher": "scenet",
   "license": "0BSD",

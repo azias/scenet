@@ -5,6 +5,8 @@ fraction of panel height. That definition is the tempting wrong answer, so sever
 tests below exist specifically to fail against it.
 """
 
+from itertools import pairwise
+
 import pytest
 
 from scenet.assets.contract import Landmark, PuppetLibrary, PuppetSpec, default_library
@@ -194,3 +196,61 @@ class TestValidation:
                 panel_height=PANEL,
                 footroom=0.95,
             )
+
+
+class TestTheLadderIsALadder:
+    """Reading the shot table from widest to tightest, the figure never gets smaller.
+
+    That is what makes it a ladder, and it is worth a test rather than an inspection.
+    `long_shot` and `full_shot` crop at the same landmark, so only headroom separates
+    them -- and having those two the wrong way round inverted the ladder at its widest
+    end while every other test stayed green.
+    """
+
+    ORDER = [
+        ShotType.LONG_SHOT,
+        ShotType.FULL_SHOT,
+        ShotType.MEDIUM_FULL,
+        ShotType.MEDIUM_SHOT,
+        ShotType.MEDIUM_CLOSE_UP,
+        ShotType.CLOSE_UP,
+        ShotType.BIG_CLOSE_UP,
+        ShotType.EXTREME_CLOSE_UP,
+    ]
+
+    def _scales(self) -> list[float]:
+        reference = default_library().get("alice")
+        return [
+            solve_camera(
+                reference, shot=shot, angle=CameraAngle.EYE_LEVEL, panel_height=1000.0
+            ).scale
+            for shot in self.ORDER
+        ]
+
+    def test_scale_never_decreases(self):
+        scales = self._scales()
+        inverted = [
+            (self.ORDER[index].value, self.ORDER[index + 1].value)
+            for index, (wider, tighter) in enumerate(pairwise(scales))
+            if tighter < wider
+        ]
+        assert inverted == [], "a tighter shot drew the figure smaller than a wider one"
+
+    def test_the_ladder_actually_climbs(self):
+        """Monotonic is not enough -- a table of identical values is monotonic."""
+        scales = self._scales()
+        assert scales[-1] > scales[0] * 4
+
+    def test_aliases_are_exact_synonyms(self):
+        reference = default_library().get("alice")
+        for shot, alias in (
+            (ShotType.LONG_SHOT, ShotType.WIDE),
+            (ShotType.MEDIUM_FULL, ShotType.COWBOY),
+        ):
+            first = solve_camera(
+                reference, shot=shot, angle=CameraAngle.EYE_LEVEL, panel_height=1000.0
+            )
+            second = solve_camera(
+                reference, shot=alias, angle=CameraAngle.EYE_LEVEL, panel_height=1000.0
+            )
+            assert first.scale == second.scale, f"{shot.value} and {alias.value} must agree"

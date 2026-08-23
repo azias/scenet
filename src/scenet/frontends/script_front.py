@@ -213,6 +213,14 @@ def _read_cue(line: str) -> tuple[str, BalloonKind] | None:
 
 def parse_script(text: str, *, source: Path | None = None) -> dict[str, PanelIR]:
     """Parse comic script into one validated panel per PANEL heading."""
+    # Normalise line endings first. Python's text mode does this silently when reading
+    # a file, which is why it took a browser to notice: the playground hands over the
+    # bytes it was given, and a script saved by a Windows editor -- or pasted from one --
+    # arrives with CRLF. The front-matter pattern then does not match, the `---` fence is
+    # read as prose, and the whole document is rejected for having content before the
+    # first PANEL heading. Anything that reaches here as a string gets the same treatment
+    # a file would have had.
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
     front_matter, body = _split_front_matter(text, source)
     panels = _read_panels(body, source)
 

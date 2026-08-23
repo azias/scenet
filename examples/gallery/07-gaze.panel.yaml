@@ -1,0 +1,26 @@
+# `looking_at` moves nothing. It gives a character a gaze vector, and the space in
+# front of their eyes becomes expensive for a balloon to occupy -- because a balloon
+# parked in somebody line of sight reads as an obstruction.
+#
+# Delete the `looking_at` lines and compile again. The figures do not move; the
+# balloons do.
+
+panel:
+  size: [1200, 800]
+
+camera:
+  shot: medium_full
+
+cast:
+  alice: {reference: alice, pose: pointing,     at: left_third}
+  bob:   {reference: bob,   pose: arms_crossed, at: right_third, facing: left}
+
+staging:
+  - alice left_of bob
+  - alice looking_at bob
+  - bob looking_at alice
+  - alice ground_shared_with bob
+
+script:
+  - say: {by: alice, text: "Look at me when I am talking to you."}
+  - say: {by: bob,   text: "I am looking."}

@@ -1,0 +1,24 @@
+# Four kinds of balloon: speech, thought, whisper, shout.
+#
+# The kind changes the outline and the tail, never the placement. A whisper obeys
+# exactly the same face-avoidance and reading-order rules as a shout.
+
+panel:
+  size: [1300, 900]
+
+camera:
+  shot: medium_full
+
+cast:
+  alice: {reference: alice, pose: pointing,     at: left_third}
+  bob:   {reference: bob,   pose: arms_crossed, at: right_third, facing: left}
+
+staging:
+  - alice left_of bob
+  - alice ground_shared_with bob
+
+script:
+  - say: {by: alice, text: "Did you take the last one?", kind: whisper, prefer: top_left}
+  - say: {by: bob,   text: "I did not!",                 kind: shout,   prefer: top_right}
+  - say: {by: alice, text: "Then where is it?",          kind: speech,  prefer: bottom_left}
+  - say: {by: bob,   text: "She is going to notice.",    kind: thought, prefer: bottom_right}

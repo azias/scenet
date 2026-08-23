@@ -1,0 +1,36 @@
+# Consecutive panels share nearly everything. `over:` names a parent and states only
+# the difference -- borrowed from OpenUSD composition arcs, where it means exactly
+# this.
+#
+# Mappings merge recursively; lists replace wholesale. Anything alongside `panels:` is
+# a default every panel inherits.
+
+panel: {size: [700, 560]}
+
+cast:
+  alice: {reference: alice, pose: pointing,     at: left_third}
+  bob:   {reference: bob,   pose: arms_crossed, at: right_third, facing: left}
+
+staging:
+  - alice left_of bob
+  - alice ground_shared_with bob
+
+panels:
+  establishing:
+    camera: {shot: full_shot}
+    script:
+      - say: {by: alice, text: "We need to talk."}
+
+  reaction:
+    over: establishing
+    camera: {shot: medium_close_up}
+    script:
+      - say: {by: bob, text: "Do we.", kind: whisper}
+
+  closer:
+    over: reaction
+    camera: {shot: close_up, angle: low}
+    cast:
+      bob: {pose: hands_on_hips}
+    script:
+      - say: {by: bob, text: "Fine. Talk.", kind: shout}

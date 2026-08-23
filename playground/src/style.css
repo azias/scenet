@@ -1,148 +1,277 @@
+/* Two panes, source on the left and result on the right, because that is the shape of
+   the question the page answers. Everything else gets out of the way. */
+
 :root {
   --ink: #16181d;
-  --paper: #ffffff;
-  --muted: #6b7280;
-  --line: #d6d9e0;
-  --accent: #2f6fd0;
-  --surface: #f6f7f9;
+  --muted: #5c6270;
+  --line: #d9dce3;
+  --page: #f7f7f5;
+  --card: #ffffff;
+  --accent: #2f5d9e;
+  --warn: #8a5a12;
+  --error-bg: #fdf0ee;
+  --error-ink: #8c2f22;
   color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --ink: #e8eaee;
-    --paper: #14161a;
-    --muted: #9aa1ad;
-    --line: #2c3038;
-    --accent: #6fa8ff;
-    --surface: #1b1e24;
+    --ink: #e8e9ec;
+    --muted: #9aa1b1;
+    --line: #333844;
+    --page: #16181d;
+    --card: #1d2027;
+    --accent: #8fb4e8;
+    --warn: #d8b073;
+    --error-bg: #35211f;
+    --error-ink: #f0a79a;
   }
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
 
 body {
-  margin: 0;
-  padding: 1.5rem;
-  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  background: var(--page);
   color: var(--ink);
-  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
-header { max-width: 62rem; margin: 0 auto 1.25rem; }
-h1 { margin: 0; font-size: 1.5rem; letter-spacing: -0.01em; }
-.tagline { margin: 0.4rem 0 0; color: var(--muted); max-width: 46rem; }
+header {
+  padding: 1rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.masthead {
+  display: flex;
+  align-items: baseline;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.35rem;
+  letter-spacing: -0.01em;
+}
+
+nav {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85rem;
+}
+
+nav a,
+footer a {
+  color: var(--accent);
+}
+
+.tagline {
+  margin: 0.4rem 0 0;
+  max-width: 68ch;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
 
 main {
-  max-width: 82rem;
-  margin: 0 auto;
+  flex: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 1rem;
+  gap: 1px;
+  background: var(--line);
+  min-height: 0;
 }
 
-@media (max-width: 60rem) {
-  main { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 900px) {
+  main {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(320px, 1fr) minmax(320px, 1fr);
+  }
 }
 
 .pane {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
   display: flex;
   flex-direction: column;
-  min-height: 26rem;
-  overflow: hidden;
+  background: var(--card);
+  min-height: 0;
+  min-width: 0;
 }
 
 .pane-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.6rem 0.85rem;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--line);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.pane-head label {
   font-weight: 600;
 }
 
-.hint { font-weight: 400; color: var(--accent); font-size: 0.78rem; text-align: right; }
-
 select {
   font: inherit;
-  font-size: 0.82rem;
-  padding: 0.2rem 0.4rem;
-  border-radius: 6px;
+  padding: 0.2rem 0.35rem;
   border: 1px solid var(--line);
-  background: var(--paper);
+  border-radius: 4px;
+  background: var(--card);
   color: var(--ink);
+  max-width: 22ch;
 }
 
-textarea {
+[role="tab"] {
+  font: inherit;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+[role="tab"][aria-selected="true"] {
+  border-color: var(--line);
+  background: var(--page);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+#editor {
   flex: 1;
-  min-height: 22rem;
-  border: 0;
-  padding: 0.85rem;
-  resize: vertical;
-  background: transparent;
-  color: var(--ink);
-  font: 13px/1.5 ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
-  tab-size: 2;
+  min-height: 0;
 }
 
-textarea:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+.blurb {
+  margin: 0;
+  padding: 0.4rem 0.75rem;
+  border-top: 1px solid var(--line);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+#output {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  overflow: auto;
+  min-height: 0;
+}
+
+#output svg {
+  max-width: 100%;
+  max-height: 100%;
+  height: auto;
+  /* A white panel on a white card has no edge. This gives it one without pretending to
+     be part of the drawing. */
+  box-shadow: 0 1px 3px rgb(0 0 0 / 18%);
+}
+
+#core {
+  flex: 1;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  overflow: auto;
+  min-height: 0;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+#error {
+  margin: 0;
+  padding: 0.7rem 1rem;
+  border-top: 1px solid var(--line);
+  background: var(--error-bg);
+  color: var(--error-ink);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+  max-height: 30%;
+  overflow: auto;
+}
 
 #status {
   margin: 0;
-  padding: 0.5rem 0.85rem;
+  padding: 0.4rem 0.75rem;
   border-top: 1px solid var(--line);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--muted);
 }
 
 #status.busy::after {
   content: "";
   display: inline-block;
-  width: 0.5rem;
-  height: 0.5rem;
-  margin-left: 0.4rem;
+  width: 0.55em;
+  height: 0.55em;
+  margin-left: 0.5em;
   border-radius: 50%;
-  background: var(--accent);
+  background: currentColor;
   animation: pulse 1s ease-in-out infinite;
 }
 
-@keyframes pulse { 50% { opacity: 0.25; } }
-
-#output {
-  flex: 1;
-  display: grid;
-  place-items: center;
-  padding: 0.85rem;
-  overflow: auto;
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
-/* The panel is white regardless of theme -- it is a drawing, not chrome. */
-#output svg { max-width: 100%; height: auto; background: #fff; border-radius: 4px; }
-
-#error {
-  margin: 0;
-  padding: 0.7rem 0.85rem;
-  border-top: 1px solid var(--line);
-  background: #b91c1c14;
-  color: #b91c1c;
-  font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace;
-  white-space: pre-wrap;
-  max-height: 9rem;
-  overflow: auto;
+.hint {
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
-@media (prefers-color-scheme: dark) { #error { color: #f87171; } }
+/* A note means the compiler did something you did not ask for -- retreated the camera,
+   bent a tail. Worth noticing, not worth alarming anyone. */
+.hint.has-notes {
+  color: var(--warn);
+  font-weight: 600;
+}
 
 footer {
-  max-width: 62rem;
-  margin: 1.25rem auto 0;
+  padding: 0.6rem 1.25rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.78rem;
   color: var(--muted);
-  font-size: 0.82rem;
 }
 
-a { color: var(--accent); }
+footer p {
+  margin: 0;
+  max-width: 90ch;
+}
+
+/* The AI-generation disclosure. Visible without scrolling, and styled to be read
+   rather than skipped -- but not alarming. It is a statement of provenance, not a
+   warning about danger. */
+.disclosure {
+  margin: 0.5rem 0 0;
+  padding: 0.45rem 0.7rem;
+  max-width: 80ch;
+  border-left: 3px solid var(--warn);
+  border-radius: 0 4px 4px 0;
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+  font-size: 0.8rem;
+  color: var(--ink);
+}

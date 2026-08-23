@@ -1,0 +1,27 @@
+name: Bug report
+description: Something behaves incorrectly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Reminder: this project is pre-alpha and largely AI-generated. Rough edges are expected.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you expect, and what did you get instead?
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Panel source
+      description: The `.panel.yaml` that triggers it, as small as you can make it.
+      render: yaml
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+    validations:
+      required: true

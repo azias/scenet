@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest a language construct or capability
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What can't you express today?
+      description: Describe the panel you want to describe and cannot.
+    validations:
+      required: true
+  - type: textarea
+    id: sketch
+    attributes:
+      label: Syntax sketch
+      description: What might it look like in the DSL?
+      render: yaml
+  - type: markdown
+    attributes:
+      value: |
+        Note: constructs that introduce a left/right *disjunction* ("A beside B", unordered)
+        are hard for the solver, which requires a linear system. Ordering must be resolvable
+        before solving. See `docs/spec/language.md`.

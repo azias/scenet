@@ -1,0 +1,11 @@
+# Normalise line endings so the repo is identical on every platform.
+# This matters here beyond tidiness: the compiler is required to be deterministic,
+# and golden-file tests compare exact bytes.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary

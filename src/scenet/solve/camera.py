@@ -69,6 +69,12 @@ class CameraSolution:
 
     @property
     def was_pulled_back(self) -> bool:
+        """Whether the camera had to retreat from the requested framing.
+
+        Surfaced to the user through
+        [`CompileResult.notes`][scenet.pipeline.CompileResult.notes]. Retreating
+        silently would leave a panel that quietly is not the shot that was asked for.
+        """
         return self.pullback < 1.0
 
     def pulled_back_to(self, scale: float) -> "CameraSolution":
@@ -115,15 +121,65 @@ class CameraSolution:
         return ground_y - self.feet_below_root(puppet)
 
     def feet_below_root(self, puppet: PuppetSpec) -> float:
+        """How far below the root joint this puppet's feet sit, at this camera scale.
+
+        Args:
+            puppet: The character being placed.
+
+        Returns:
+            Distance in panel units.
+        """
         return (
             puppet.landmarks[Landmark.FEET] - puppet.landmarks[puppet.root_landmark]
         ) * self.scale
 
     def ground_y_of(self, puppet: PuppetSpec, root_y: float) -> float:
+        """The ground line a puppet stands on, given where its root joint is.
+
+        The inverse of
+        [`root_y_on_ground`][scenet.solve.camera.CameraSolution.root_y_on_ground], and
+        how `ground_shared_with` gets its target: take one actor's ground line, then
+        place the other so their feet meet it.
+
+        Args:
+            puppet: The character.
+            root_y: Where its root joint sits vertically.
+
+        Returns:
+            The y coordinate of its feet.
+        """
         return root_y + self.feet_below_root(puppet)
 
 
 def headroom_for(shot: ShotType, angle: CameraAngle) -> float:
+    """Empty space to leave above the head, in head-heights.
+
+    Angle changes headroom rather than perspective. This compiler is orthographic, so a
+    tilted camera cannot foreshorten anything -- but the amount of air above the head is
+    the compositional cue readers actually take from an angle, and it is one that
+    survives being drawn flat.
+
+    A **low** camera looks up and the subject looms, so headroom tightens; a **high**
+    camera looks down and it opens out.
+
+    Args:
+        shot: The requested framing.
+        angle: The camera height.
+
+    Returns:
+        Headroom in head-heights, never below `MINIMUM_ANGLE_HEADROOM` for a tilted
+        camera -- so that `extreme_close_up`, whose base headroom is zero, still shifts
+        under an angle instead of staying flush against the top edge.
+
+    Example:
+        >>> from scenet import CameraAngle, ShotType
+        >>> from scenet.solve.camera import headroom_for
+        >>> [
+        ...     headroom_for(ShotType.MEDIUM_SHOT, angle)
+        ...     for angle in (CameraAngle.LOW, CameraAngle.EYE_LEVEL, CameraAngle.HIGH)
+        ... ]
+        [0.05, 0.1, 0.16000000000000003]
+    """
     base = SHOT_TABLE[shot].headroom
     scaled = base * ANGLE_HEADROOM_FACTOR[angle]
     if angle is CameraAngle.EYE_LEVEL:

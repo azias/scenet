@@ -20,13 +20,13 @@ to creep in, which is exactly the continuity error comics readers notice.
 
 from typing import Any
 
+from scenet.errors import CompositionError
+
+__all__ = ["OVER_KEY", "merge", "resolve_overrides"]
+
 # The key naming a panel's parent. Spelled as USD spells it, since the semantics are
 # deliberately the same.
 OVER_KEY = "over"
-
-
-class CompositionError(ValueError):
-    """An override chain that cannot be resolved."""
 
 
 def merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:

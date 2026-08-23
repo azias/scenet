@@ -63,6 +63,11 @@ class TextBlock:
 
     @property
     def aspect(self) -> float:
+        """Width divided by height, or `0.0` for an empty block.
+
+        The quantity the line breaker optimises. Lettering convention wants a balloon
+        wider than it is tall -- see `TARGET_ASPECT`.
+        """
         return self.width / self.height if self.height else 0.0
 
     @property
@@ -83,6 +88,17 @@ class FontMetrics:
     """
 
     def __init__(self, path: Path = DEFAULT_FONT_PATH) -> None:
+        """Open a font and read the tables needed for measurement.
+
+        Args:
+            path: A TrueType or OpenType file. Defaults to the font that ships as an
+                ordinary dependency of this package -- never a system font lookup,
+                because determinism requires the same metrics everywhere.
+
+        Raises:
+            ValueError: The font has no usable Unicode character map, so no text could
+                be measured against it at all.
+        """
         self.path = path
         self._font = TTFont(str(path), lazy=True)
         self._units_per_em: float = self._font["head"].unitsPerEm  # ty: ignore[unresolved-attribute]
@@ -99,6 +115,7 @@ class FontMetrics:
 
     @property
     def units_per_em(self) -> float:
+        """The font's design grid size, from its `head` table."""
         return self._units_per_em
 
     def advance(self, character: str) -> float:
@@ -108,9 +125,35 @@ class FontMetrics:
         return raw / self._units_per_em
 
     def measure(self, text: str, font_size: float) -> float:
+        """Width of a string set at a given size.
+
+        Args:
+            text: The string to measure. Not wrapped; measured as one run.
+            font_size: Type size in panel units.
+
+        Returns:
+            Width in panel units. Slightly generous, since kerning is ignored -- which
+            errs toward balloons a shade too large rather than text that overflows.
+
+        Example:
+            >>> from scenet.solve.text import load_metrics
+            >>> metrics = load_metrics()
+            >>> metrics.measure("mm", 100) > metrics.measure("ii", 100)
+            True
+        """
         return sum(self.advance(character) for character in text) * font_size
 
     def line_height(self, font_size: float) -> float:
+        """Baseline-to-baseline distance for a given type size.
+
+        Args:
+            font_size: Type size in panel units.
+
+        Returns:
+            `font_size * LINE_HEIGHT_FACTOR`. A fixed multiple rather than the font's
+            own ascent-plus-descent, because comics lettering is set to a chosen
+            leading rather than to whatever the typeface suggests.
+        """
         return font_size * LINE_HEIGHT_FACTOR
 
     def glyph_outlines(self, text: str) -> list[tuple[str, float]]:
@@ -226,7 +269,15 @@ def layout_text(
         if score < best_score:
             best, best_score = block, score
 
-    assert best is not None
+    if best is None:
+        # Only reachable if every candidate measure was narrower than the longest
+        # word -- a single word longer than any proposed line. Set it on one line and
+        # let the balloon be as wide as it must be; refusing to letter a long word
+        # would be worse than an over-wide balloon.
+        widths = (widest_word,)
+        best = TextBlock(
+            (" ".join(words),), widest_word, line_height, font_size, line_height, widths
+        )
     return best
 
 

@@ -41,9 +41,13 @@ class TestBasics:
         assert exc.value.code == 0
         assert __version__ in capsys.readouterr().out
 
-    def test_bare_invocation_prints_help(self, capsys: pytest.CaptureFixture[str]):
-        assert main([]) == 0
-        assert "usage: scenet" in capsys.readouterr().out
+    def test_bare_invocation_prints_help_to_stderr_and_fails(
+        self, capsys: pytest.CaptureFixture[str]
+    ):
+        # Exit 2, not 0: a bare `scenet` did nothing, and a shell script chaining off
+        # its status must not read that as success.
+        assert main([]) == 2
+        assert "usage: scenet" in capsys.readouterr().err
 
     def test_unknown_argument_is_rejected(self):
         with pytest.raises(SystemExit) as exc:

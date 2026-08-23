@@ -29,6 +29,17 @@ dependencies = [
     "font-source-sans-pro>=0.0.1",
 ]
 
+# Deliberately no `author_email`. A published address on PyPI is a well-known spam
+# magnet, and the project has no need for one: bug reports and questions belong in the
+# issue tracker below, which PyPI renders as the contact route.
+[project.urls]
+Homepage = "https://github.com/azias/scenet"
+Documentation = "https://azias.github.io/scenet/"
+Repository = "https://github.com/azias/scenet"
+Issues = "https://github.com/azias/scenet/issues"
+Changelog = "https://github.com/azias/scenet/blob/main/CHANGELOG.md"
+Playground = "https://azias.github.io/scenet/playground/"
+
 [project.scripts]
 scenet = "scenet.cli:main"
 
@@ -36,12 +47,25 @@ scenet = "scenet.cli:main"
 dev = [
     "pytest>=8.3",
     "pytest-cov>=6.0",
-    "hypothesis>=6.120",
+    # Executes the code blocks in docs/ and README.md as part of the test run, so a
+    # documented example that is incomplete -- a missing import, most often -- fails
+    # the build instead of wasting a reader's afternoon.
+    "sybil>=10.1",
     "ruff>=0.14",
     "ty>=0.0.73",
     "basedpyright>=1.31",
     "pip-licenses>=5.0",
     "types-pyyaml>=6.0",
+]
+docs = [
+    "sphinx>=9.1",
+    "myst-parser>=5.1",
+    "pydata-sphinx-theme>=0.20",
+    "sphinx-design>=0.7",
+    "sphinx-copybutton>=0.5.2",
+    "sphinx-autodoc-typehints>=3.13",
+    "sphinx-autobuild>=2025.8.25",
+    "linkify-it-py>=2.0",
 ]
 
 [build-system]
@@ -70,10 +94,25 @@ select = [
     "PT",        # pytest style
     "PL",        # pylint
     "RUF",       # ruff-specific
+    "D",         # pydocstyle -- documentation is a deliverable here, so it is gated
+    "S",         # flake8-bandit -- security
+    "A",         # builtins shadowing
+    "RET",       # return statements
+    "PTH",       # prefer pathlib over os.path
+    "TRY",       # exception antipatterns
 ]
 ignore = [
     "PLR0913",  # many arguments: geometry/solver functions legitimately take several
     "PLR2004",  # magic values: the shot-type tables are full of deliberate constants
+    # TRY003 wants long messages moved inside the exception class. Declined: a language
+    # diagnostic is written for the person who wrote the panel, it names the offending
+    # construct, and it is only meaningful at the point that construct was found. A
+    # library of pre-baked message classes would make every one of them vaguer.
+    "TRY003",
+    # TRY004 wants a TypeError whenever an isinstance check fails. Malformed input here
+    # raises from Scenet's own hierarchy instead, so that one `except ScenetError`
+    # catches everything the compiler can object to. See src/scenet/errors.py.
+    "TRY004",
     # TC001-TC003 want annotation-only imports moved into `if TYPE_CHECKING` blocks.
     # Declined deliberately, for two reasons:
     #   1. Pydantic resolves annotations at runtime to build validators. An import
@@ -91,8 +130,29 @@ ignore = [
 # imports need no `if TYPE_CHECKING` dance and no `from __future__ import annotations`.
 quote-annotations = false
 
+[tool.ruff.lint.pydocstyle]
+# Google style: readable in source, and understood by Sphinx's napoleon extension
+# without further configuration.
+convention = "google"
+
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["ANN", "PLR2004", "S101"]
+# Tests are not a published API: they need no annotations, assert freely, and their
+# names document them better than a docstring would.
+"tests/**" = [
+    "ANN",
+    "PLR2004",
+    "S101",   # asserting is what tests do
+    "S314",   # the XML being parsed is SVG this suite just generated
+    "D",
+    "RUF012", # parametrise tables on test classes are never mutated
+    "SLF001", # tests may reach into private helpers; that is part of testing them
+]
+# `__all__` there is grouped by role -- compiling, parsing, rendering, errors -- with a
+# comment per group. That is far more use to a reader than alphabetical order, and the
+# test suite checks the contents rather than the arrangement.
+"src/scenet/__init__.py" = ["RUF022"]
+# Sphinx configuration is a script, not a module anyone imports.
+"docs/conf.py" = ["D", "A", "INP"]
 
 [tool.ruff.format]
 docstring-code-format = true
@@ -113,6 +173,20 @@ reportMissingTypeStubs = false
 
 # ---------------------------------------------------------------- pytest
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "-q --strict-markers --strict-config"
+# `--doctest-modules` is what makes every example in a docstring executable rather than
+# decorative. An example that forgets an import fails here, which is the single most
+# common complaint about Python library documentation.
+testpaths = ["tests", "src", "docs", "README.md"]
+addopts = """    -q --strict-markers --strict-config --doctest-modules     --cov=scenet --cov-report=term-missing --cov-fail-under=90"""
 xfail_strict = true
+
+[tool.coverage.run]
+branch = true
+source = ["src/scenet"]
+
+[tool.coverage.report]
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]

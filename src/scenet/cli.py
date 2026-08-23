@@ -8,17 +8,12 @@ from pathlib import Path
 from typing import Any
 
 from scenet import __version__
-from scenet.assets.contract import UnknownPuppetError
-from scenet.compose import CompositionError
 from scenet.emit.debug_svg import render_debug
 from scenet.emit.strip import render_strip
 from scenet.emit.svg import render
-from scenet.frontends.script_front import ScriptSyntaxError
-from scenet.frontends.yaml_front import PanelSyntaxError
+from scenet.errors import ScenetError
 from scenet.ir import PanelIR
 from scenet.pipeline import compile_document
-from scenet.solve.balloons import BalloonPlacementError
-from scenet.solve.staging import LayoutError
 
 DESCRIPTION = "Compile a semantic comic-panel description into SVG."
 
@@ -31,6 +26,14 @@ See docs/spec/language.md for the language.
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the argument parser for the `scenet` command.
+
+    Exposed separately from [`main`][scenet.cli.main] so that tests, shell-completion
+    generators and documentation tooling can inspect the interface without running it.
+
+    Returns:
+        A parser with the `build` and `schema` subcommands defined.
+    """
     parser = argparse.ArgumentParser(
         prog="scenet",
         description=DESCRIPTION,
@@ -93,6 +96,19 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def run_build(args: argparse.Namespace) -> int:
+    """Run the `build` subcommand: compile a document and write its outputs.
+
+    Args:
+        args: Parsed arguments from [`build_parser`][scenet.cli.build_parser].
+
+    Returns:
+        A process exit status: `0` on success, `1` when the document could not be
+        compiled, `2` when the source file does not exist.
+
+    Every error the compiler can raise inherits `ScenetError`, and all of them mean
+    "your panel cannot be compiled" rather than "scenet broke" -- so they are reported
+    as a plain one-line message rather than a traceback.
+    """
     source: Path = args.source
     if not source.exists():
         print(f"scenet: no such file: {source}", file=sys.stderr)
@@ -100,16 +116,9 @@ def run_build(args: argparse.Namespace) -> int:
 
     try:
         results = compile_document(source)
-    except (
-        PanelSyntaxError,
-        ScriptSyntaxError,
-        LayoutError,
-        BalloonPlacementError,
-        UnknownPuppetError,
-        CompositionError,
-    ) as exc:
-        # These are all "your panel cannot be compiled" rather than "scenet broke", so
-        # they get a plain message instead of a traceback.
+    except ScenetError as exc:
+        # Every ScenetError is "your panel cannot be compiled" rather than "scenet
+        # broke", so they all get a plain message instead of a traceback.
         #
         # KeyError stringifies as repr(args[0]), which wraps the message in whichever
         # quote style avoids escaping -- so a message containing an apostrophe comes
@@ -230,14 +239,34 @@ def run_schema(args: argparse.Namespace) -> int:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    """Entry point for the `scenet` command.
+
+    Args:
+        argv: Arguments to parse. Defaults to `sys.argv[1:]`, which is what happens
+            when the installed console script runs; pass a list explicitly from tests.
+
+    Returns:
+        A process exit status. `0` on success, `1` for a document that will not
+        compile, `2` for a usage error or a missing file.
+
+    Example:
+        >>> from scenet.cli import main
+        >>> main(["--definitely-not-a-flag"])
+        Traceback (most recent call last):
+          ...
+        SystemExit: 2
+    """
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command == "build":
         return run_build(args)
     if args.command == "schema":
         return run_schema(args)
-    parser.print_help()
-    return 0
+    # No subcommand. Help goes to stderr and the status is 2, matching the convention
+    # argparse itself uses for a usage error -- a bare `scenet` did not do anything,
+    # and a script that runs it should not read that as success.
+    parser.print_help(sys.stderr)
+    return 2
 
 
 if __name__ == "__main__":

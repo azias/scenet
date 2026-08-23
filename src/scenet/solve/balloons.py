@@ -13,11 +13,13 @@ one, so it is enforced as a hard filter rather than scored.
 """
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from shapely.geometry import Polygon, box
 
 from scenet.assets.kinematics import ResolvedPuppet
+from scenet.errors import BalloonPlacementError
 from scenet.geom import BBox, Circle, Point, segment_intersects_circle
 from scenet.ir import BalloonKind, PlacementZone, SayEvent
 from scenet.solve.text import FontMetrics, TextBlock, balloon_size, layout_text
@@ -43,10 +45,6 @@ FONT_SIZE_FRACTION = 0.035
 GAZE_REACH_FACTOR = 3.0
 
 
-class BalloonPlacementError(ValueError):
-    """No legal position exists for a balloon."""
-
-
 @dataclass(frozen=True, slots=True)
 class TailRoute:
     """The pointer from balloon to mouth.
@@ -61,11 +59,28 @@ class TailRoute:
 
     @property
     def is_curved(self) -> bool:
+        """Whether this tail had to bend around a face.
+
+        Reported in [`CompileResult.notes`][scenet.pipeline.CompileResult.notes], since
+        a curved tail is a sign the panel is crowded enough to be worth a second look.
+        """
         return self.control is not None
 
 
 @dataclass(frozen=True, slots=True)
 class PlacedBalloon:
+    """One balloon after placement, before it is reduced to a Core document.
+
+    Attributes:
+        id: Stable identifier, `b0`, `b1`, ... in script order.
+        speaker: Actor id of whoever is talking.
+        order: Position in reading order, counting from zero.
+        kind: Which sort of balloon to draw.
+        box: Where it ended up.
+        block: The text, already broken into lines and measured.
+        tail: The route from balloon to mouth.
+    """
+
     id: str
     speaker: str
     order: int
@@ -147,17 +162,22 @@ def _segment_hits_box(start: Point, end: Point, target: BBox) -> bool:
     return False
 
 
-def _reading_order_allows(previous: BBox | None, candidate: BBox) -> bool:
-    """Whether `candidate` may follow `previous` in reading order.
+def _reading_order_allows(placed: Sequence[BBox], candidate: BBox) -> bool:
+    """Whether `candidate` may be read after everything in `placed`.
 
-    Western reading is left to right, top to bottom, so a balloon may sit below its
-    predecessor, or to its right, but never both above *and* left of it.
+    Western reading is left to right, top to bottom, so a balloon may sit below an
+    earlier one, or to its right, but never both above *and* left of it.
+
+    Checked against **every** predecessor rather than only the immediately preceding
+    balloon. The relation is not transitive: with balloons 0, 1, 2, it is entirely
+    possible for 2 to be legal after 1 while sitting above and left of 0, and a reader
+    following the page would then take them in the wrong order.
     """
-    if previous is None:
-        return True
-    below = candidate.y >= previous.y - READING_EPSILON
-    right_of = candidate.x >= previous.right - READING_EPSILON
-    return below or right_of
+    return all(
+        candidate.y >= previous.y - READING_EPSILON
+        or candidate.x >= previous.right - READING_EPSILON
+        for previous in placed
+    )
 
 
 def _score(
@@ -338,7 +358,6 @@ def place_balloons(
 
     placed: list[BBox] = []
     results: list[PlacedBalloon] = []
-    previous: BBox | None = None
 
     for order, event in enumerate(events):
         speaker = actors[event.by]
@@ -348,7 +367,7 @@ def place_balloons(
         best: BBox | None = None
         best_cost = math.inf
         for candidate in _candidate_positions(speaker, balloon_box, panel):
-            if not _reading_order_allows(previous, candidate):
+            if not _reading_order_allows(placed, candidate):
                 continue
             cost = _score(
                 candidate,
@@ -385,6 +404,5 @@ def place_balloons(
             )
         )
         placed.append(best)
-        previous = best
 
     return tuple(results)

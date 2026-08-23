@@ -17,6 +17,8 @@ from typing import Self
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from scenet.errors import AssetError, UnknownPuppetError
+
 
 class Landmark(StrEnum):
     """Vertical body landmarks, measured downward from the top of the head.
@@ -35,15 +37,14 @@ class Landmark(StrEnum):
     FEET = "feet"
 
 
-class UnknownPuppetError(KeyError):
-    """A panel referenced a character the library does not have.
+class Strict(BaseModel):
+    """Base for every puppet model: frozen, and rejecting unknown keys.
 
-    A distinct type rather than a bare KeyError so the CLI can report it as the
-    user error it is, instead of letting a traceback escape.
+    A misspelled key in a puppet file that was silently ignored would produce a
+    character that is subtly wrong -- an arm the wrong length, an anchor in the wrong
+    place -- with nothing to point at.
     """
 
-
-class Strict(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
@@ -103,6 +104,16 @@ class FaceSpec(Strict):
 
 
 class GazeSpec(Strict):
+    """Where a character's line of sight starts.
+
+    Attributes:
+        origin: Name of a declared anchor, conventionally `eyes`. Validated to exist.
+
+    The *direction* is not stored: it is derived at solve time from whom the character
+    is looking at, so a `looking_at` relation is enough and nobody has to compute an
+    angle by hand.
+    """
+
     origin: str = "eyes"
 
 
@@ -127,6 +138,19 @@ class PuppetSpec(Strict):
 
     @model_validator(mode="after")
     def check_landmarks_complete_and_ordered(self) -> Self:
+        """Require every landmark, in head-to-foot order.
+
+        Returns:
+            The validated puppet.
+
+        Raises:
+            ValueError: A landmark is missing, `head_top` is not zero, or the values do
+                not increase downward.
+
+        All nine landmarks are required rather than optional-with-defaults because any
+        shot type may crop at any of them, so a puppet missing one is a puppet that
+        cannot be framed at some perfectly ordinary shot.
+        """
         missing = [landmark for landmark in Landmark if landmark not in self.landmarks]
         if missing:
             raise ValueError(
@@ -147,6 +171,19 @@ class PuppetSpec(Strict):
 
     @model_validator(mode="after")
     def check_skeleton_is_a_tree(self) -> Self:
+        """Require the skeleton to be a tree rooted at `root`.
+
+        Returns:
+            The validated puppet.
+
+        Raises:
+            ValueError: The root is undefined or has a parent, a joint names a parent
+                that does not exist, or a joint sits in a cycle.
+
+        Forward kinematics accumulates each joint's transform from its parent's. A
+        cycle would make that non-terminating and an orphan would leave a limb with no
+        defined position, so both are rejected here rather than discovered at pose time.
+        """
         if self.root not in self.joints:
             raise ValueError(f"puppet '{self.name}': root joint '{self.root}' is not defined")
         if self.joints[self.root].parent is not None:
@@ -171,6 +208,18 @@ class PuppetSpec(Strict):
 
     @model_validator(mode="after")
     def check_joint_references(self) -> Self:
+        """Require every joint name mentioned anywhere to exist.
+
+        Covers parts, anchors, the face, the gaze origin, and every angle in every
+        declared pose.
+
+        Returns:
+            The validated puppet.
+
+        Raises:
+            ValueError: Something references a joint or anchor that is not declared.
+        """
+
         def require(joint: str, context: str) -> None:
             if joint not in self.joints:
                 raise ValueError(
@@ -198,13 +247,33 @@ class PuppetSpec(Strict):
 
     @property
     def total_height(self) -> float:
+        """Head top to feet, in the puppet's own native units."""
         return self.landmarks[Landmark.FEET]
 
     @property
     def heads_tall(self) -> float:
+        """Height in head-heights -- the classic figure-drawing proportion.
+
+        The unit the camera works in. Two puppets of different `heads_tall` framed at
+        the same shot produce figures of visibly different build, which is the whole
+        reason the shipped library has a 7.5-head character and a taller one.
+        """
         return self.total_height / self.units_per_head
 
     def pose_angles(self, pose: str) -> dict[str, float]:
+        """Look up the joint angles for a named pose.
+
+        Args:
+            pose: Name of a pose this puppet declares.
+
+        Returns:
+            Joint name to angle in degrees. Joints absent from the mapping keep their
+            rest angle.
+
+        Raises:
+            KeyError: This puppet has no pose by that name. The message lists the ones
+                it does have.
+        """
         if pose not in self.poses:
             raise KeyError(
                 f"puppet '{self.name}' has no pose '{pose}'; available: {sorted(self.poses)}"
@@ -216,10 +285,33 @@ class PuppetLibrary:
     """Puppets loaded from a directory of `*.puppet.yaml` files."""
 
     def __init__(self, puppets: dict[str, PuppetSpec]) -> None:
+        """Wrap an already-loaded mapping of puppets.
+
+        Args:
+            puppets: Puppet name to specification. Usually built by
+                [`from_directory`][scenet.assets.contract.PuppetLibrary.from_directory]
+                rather than passed in directly -- but constructing one by hand is how
+                you supply your own characters without touching the filesystem.
+        """
         self._puppets = puppets
 
     @classmethod
     def from_directory(cls, directory: Path) -> Self:
+        """Load every `*.puppet.yaml` in a directory.
+
+        Args:
+            directory: Directory to scan. Not searched recursively.
+
+        Returns:
+            A library containing every puppet found.
+
+        Raises:
+            ValueError: Two files declare the same puppet name.
+            AssetError: A file is not a YAML mapping.
+
+        Files are visited in sorted order so that a duplicate-name collision reports the
+        same offender on every platform, whatever order the filesystem hands them back.
+        """
         puppets: dict[str, PuppetSpec] = {}
         # Sorted so that a duplicate-name collision reports the same offender on
         # every platform, whatever order the filesystem hands files back in.
@@ -231,6 +323,18 @@ class PuppetLibrary:
         return cls(puppets)
 
     def get(self, name: str) -> PuppetSpec:
+        """Look up one puppet by name.
+
+        Args:
+            name: The name a cast member's `reference` field points at.
+
+        Returns:
+            That puppet's specification.
+
+        Raises:
+            UnknownPuppetError: No puppet by that name. The message lists what is
+                available, because the usual cause is a typo.
+        """
         if name not in self._puppets:
             raise UnknownPuppetError(
                 f"unknown character '{name}'; the library has {sorted(self._puppets)}"
@@ -238,13 +342,47 @@ class PuppetLibrary:
         return self._puppets[name]
 
     def names(self) -> tuple[str, ...]:
+        """Every puppet name in this library, sorted.
+
+        Example:
+            >>> from scenet import default_library
+            >>> default_library().names()
+            ('alice', 'bob')
+        """
         return tuple(sorted(self._puppets))
 
 
 def load_puppet(path: Path) -> PuppetSpec:
+    """Read one `*.puppet.yaml` file into a validated specification.
+
+    Args:
+        path: The puppet file to read.
+
+    Returns:
+        The validated puppet, ready to be posed.
+
+    Raises:
+        AssetError: The file is not a YAML mapping.
+        pydantic.ValidationError: The mapping is not a well-formed puppet -- an
+            out-of-order landmark, a skeleton that is not a tree, a joint referring
+            to a parent that does not exist.
+
+    Example:
+        >>> from scenet import default_library, load_puppet
+        >>> from scenet.assets.contract import DEFAULT_LIBRARY_PATH
+        >>> alice = load_puppet(DEFAULT_LIBRARY_PATH / "alice.puppet.yaml")
+        >>> alice.name
+        'alice'
+        >>> round(alice.heads_tall, 1)
+        7.5
+
+    See Also:
+        [`PuppetLibrary.from_directory`][scenet.assets.contract.PuppetLibrary.from_directory],
+        to read a whole directory at once.
+    """
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
-        raise ValueError(f"{path}: expected a mapping at the top level")
+        raise AssetError(f"{path}: expected a mapping at the top level")
     return PuppetSpec.model_validate(data)
 
 
@@ -252,4 +390,18 @@ DEFAULT_LIBRARY_PATH = Path(__file__).parent / "library"
 
 
 def default_library() -> PuppetLibrary:
+    """Load the puppets shipped with Scenet.
+
+    Two characters of deliberately different build, so that a bug in camera scaling
+    cannot hide behind two figures that happen to be the same height.
+
+    Returns:
+        A library containing `alice` and `bob`.
+
+    Example:
+        >>> from scenet import default_library
+        >>> library = default_library()
+        >>> round(library.get("alice").heads_tall, 1)
+        7.5
+    """
     return PuppetLibrary.from_directory(DEFAULT_LIBRARY_PATH)

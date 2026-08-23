@@ -1,6 +1,7 @@
 {
   "$defs": {
     "AnchorX": {
+      "description": "Where along the panel width an actor would like to stand.\n\nHorizontal only. Actors stand on a ground line, so their vertical position is\nderived from the camera rather than requested -- which is why this has no vertical\ncounterpart and [`PlacementZone`][scenet.ir.PlacementZone], used for balloons, does.\n\nThese are *weak* preferences. Non-overlap and declared left-to-right ordering are\nrequired constraints and will override an anchor without complaint; two actors both\nasking for `center` will simply be pushed apart around it.",
       "enum": [
         "left_edge",
         "left_third",
@@ -12,6 +13,7 @@
       "type": "string"
     },
     "BalloonKind": {
+      "description": "What kind of balloon carries a line, which is how it gets drawn.\n\nThe kind changes the outline and the tail, never the placement: a whisper is\nsubject to exactly the same face-avoidance and reading-order rules as a shout.\n\n| Kind | Outline | Tail |\n|---|---|---|\n| `speech` | plain ellipse | tapered pointer |\n| `thought` | scalloped cloud | trail of bubbles |\n| `whisper` | dashed ellipse | tapered pointer |\n| `shout` | jagged burst | tapered pointer |",
       "enum": [
         "speech",
         "thought",
@@ -22,6 +24,7 @@
       "type": "string"
     },
     "CameraAngle": {
+      "description": "The camera's height relative to the subject.\n\nAffects headroom rather than perspective: this is a flat, orthographic compiler, so\na tilted camera does not foreshorten anything. What it changes is how much air sits\nabove the head -- which is the compositional cue readers actually take from an\nangle, and one that survives being drawn flat.\n\nA **low** camera looks up and the subject looms, so the head rides high in the frame\nwith little space above it. A **high** camera looks down, so the head sits lower and\nmore space opens up above. See\n[`headroom_for`][scenet.solve.camera.headroom_for] for the exact factors.",
       "enum": [
         "low",
         "eye_level",
@@ -32,6 +35,7 @@
     },
     "CameraSpec": {
       "additionalProperties": false,
+      "description": "How the panel is framed.\n\nAttributes:\n    shot: Requested framing; an upper bound on tightness, see\n        [`ShotType`][scenet.ir.ShotType].\n    angle: Camera height, see [`CameraAngle`][scenet.ir.CameraAngle].\n\nThere is exactly **one camera per panel**, and every actor is drawn at the scale it\nimplies. Scaling each actor to its own crop landmark instead would make everybody\nthe same apparent height and erase the body differences a comic uses to tell\ncharacters apart.",
       "properties": {
         "angle": {
           "$ref": "#/$defs/CameraAngle",
@@ -47,6 +51,7 @@
     },
     "CastMember": {
       "additionalProperties": false,
+      "description": "One character present in the panel.\n\nAttributes:\n    reference: Name of a puppet in the library. This is what gets drawn; the key\n        this member is filed under in `cast` is the actor id used everywhere else.\n    pose: Named pose from that puppet's declared set.\n    at: Preferred horizontal anchor.\n    facing: Which way the figure is turned.\n\nThe split between actor id and `reference` is what lets one puppet appear twice in\na panel as two different people:\n\n    cast:\n      guard_left:  {reference: bob, pose: arms_crossed}\n      guard_right: {reference: bob, pose: standing_neutral, facing: left}",
       "properties": {
         "at": {
           "$ref": "#/$defs/AnchorX",
@@ -73,6 +78,7 @@
       "type": "object"
     },
     "Facing": {
+      "description": "Which way an actor is turned.\n\nMirroring the whole puppet, gaze vector included. Defaults to `right`, so a cast\nwritten left to right ends up looking into the panel rather than out of it.",
       "enum": [
         "left",
         "right"
@@ -82,6 +88,7 @@
     },
     "PanelSpec": {
       "additionalProperties": false,
+      "description": "The panel's own dimensions.\n\nAttributes:\n    size: `(width, height)` in panel units. Everything else in the language is\n        expressed relative to these, so they set what a unit means.\n    margin: Inset on all four sides. Balloons are kept inside it; actors may bleed\n        past it, which is ordinary comics practice.\n\nExample:\n    >>> from scenet import PanelSpec\n    >>> PanelSpec(size=(1200.0, 600.0)).width\n    1200.0",
       "properties": {
         "margin": {
           "default": 0.0,
@@ -128,7 +135,7 @@
       "type": "string"
     },
     "Predicate": {
-      "description": "Relation predicates, drawn from the spatial subset of the Visual Genome\nvocabulary rather than invented, so a scene stays convertible to and from the\nscene-graph representations used elsewhere in computer vision.",
+      "description": "How one actor stands in relation to another.\n\nDrawn from the spatial subset of the Visual Genome vocabulary rather than invented,\nso a scene stays convertible to and from the scene-graph representations used\nelsewhere in computer vision.\n\n`left_of` and `right_of` are the load-bearing ones: they are resolved at parse time\ninto a linear ordering, because Cassowary cannot express the disjunction \"A left of\nB *or* B left of A\".",
       "enum": [
         "left_of",
         "right_of",
@@ -142,6 +149,7 @@
     },
     "Relation": {
       "additionalProperties": false,
+      "description": "One staging fact, written as a sentence.\n\nAttributes:\n    subject: Actor id the sentence is about.\n    predicate: What relation holds.\n    object: The other actor id.\n\nAuthored as `alice left_of bob` rather than a three-key mapping because staging is\nread far more often than it is written, and a sentence is legible at a glance.\n\nRaises:\n    pydantic.ValidationError: The subject and object are the same actor. No\n        predicate here is meaningful reflexively.",
       "properties": {
         "object": {
           "title": "Object",
@@ -165,6 +173,7 @@
     },
     "SayEvent": {
       "additionalProperties": false,
+      "description": "One line of dialogue.\n\nAttributes:\n    by: Actor id of the speaker; must be in the cast.\n    text: What is said. Line breaking is the compiler's job, so write it as one\n        string and do not insert newlines yourself.\n    prefer: Optional hint about where the balloon should sit. The weakest of all\n        the placement terms -- face avoidance and reading order override it.\n    kind: Which sort of balloon carries it.\n\nScript order **is** reading order, and reading order is a hard constraint. Reorder\nthese and you reorder the panel.",
       "properties": {
         "by": {
           "title": "By",
@@ -199,6 +208,7 @@
       "type": "object"
     },
     "ShotType": {
+      "description": "How tightly the camera frames the cast.\n\nOrdered from widest to tightest. A shot type is defined by a **crop landmark** plus\na headroom fraction, both measured in head-heights -- not as a percentage of panel\nheight, which would make the same shot mean different things in a tall panel and a\nwide one. `docs/reference/shot_types.md` is normative.\n\nThe requested shot is an *upper bound on tightness*, not a promise. If the cast\ncannot fit across the panel at that framing the camera retreats, and says so in\n[`CompileResult.notes`][scenet.pipeline.CompileResult.notes].\n\nExample:\n    >>> from scenet import ShotType\n    >>> ShotType(\"close_up\")\n    <ShotType.CLOSE_UP: 'close_up'>",
       "enum": [
         "long_shot",
         "wide",
@@ -245,6 +255,7 @@
     "panels": {
       "additionalProperties": {
         "additionalProperties": false,
+        "description": "A complete, validated panel: the language's real definition.\n\nEvery frontend produces one of these and nothing else, which is what lets the YAML\nsyntax and the comic-script syntax coexist without the solver knowing either exists.\n**Nothing here carries a coordinate** -- computing those is the solver's job, and\nkeeping them out is what makes a panel reusable at any size.\n\nAttributes:\n    panel: Dimensions and margin.\n    camera: Framing and angle.\n    cast: Actor id to character. Declaration order is not significant; `staging`\n        decides left-to-right order.\n    staging: Spatial and attentional relations between actors.\n    script: Dialogue, in reading order.\n\nValidation is strict and total: unknown keys are rejected, every actor id mentioned\nin `staging` or `script` must exist in `cast`, and the ordering relations must not\ncontain a cycle. A misspelled key that was silently ignored would produce a panel\nthat is subtly wrong with no indication of why, which for a language meant to be\nprecise is the worst possible failure.\n\nExample:\n    >>> from scenet import parse_panel\n    >>> panel = parse_panel(\"panel: {size: [800.0, 600.0]}\")\n    >>> panel.panel.width, panel.camera.shot.value\n    (800.0, 'medium_shot')\n\nSee Also:\n    [`compile_ir`][scenet.pipeline.compile_ir], to turn one of these into geometry.",
         "properties": {
           "camera": {
             "$ref": "#/$defs/CameraSpec",

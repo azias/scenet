@@ -24,6 +24,13 @@ class ResolvedCapsule:
 
 @dataclass(frozen=True, slots=True)
 class ResolvedBlob:
+    """A rounded mass -- head, hand, foot -- after posing.
+
+    Attributes:
+        centre: Where it sits, in panel coordinates.
+        radius: Radius in panel units, already scaled by the camera.
+    """
+
     centre: Point
     radius: float
 
@@ -50,11 +57,24 @@ class ResolvedPuppet:
 
     @property
     def bounds(self) -> BBox:
+        """Axis-aligned bounds of the posed silhouette."""
         xs = [point.x for point in self.hull]
         ys = [point.y for point in self.hull]
         return BBox(min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
 
     def anchor(self, name: str) -> Point:
+        """Look up one named attachment point in panel coordinates.
+
+        Args:
+            name: An anchor the puppet declared -- `mouth` and `eyes` are the ones the
+                compiler itself relies on.
+
+        Returns:
+            Where that anchor ended up after posing, scaling and mirroring.
+
+        Raises:
+            KeyError: This puppet declares no anchor by that name.
+        """
         if name not in self.anchors:
             raise KeyError(
                 f"puppet '{self.name}' has no anchor '{name}'; has {sorted(self.anchors)}"

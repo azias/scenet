@@ -40,7 +40,8 @@ import yaml
 from pydantic import ValidationError
 
 from scenet.compose import merge
-from scenet.frontends.yaml_front import PanelSyntaxError, _normalise, _summarise
+from scenet.errors import PanelSyntaxError, ScriptSyntaxError
+from scenet.frontends.yaml_front import _normalise, _summarise
 from scenet.ir import BalloonKind, PanelIR
 
 # Leading blank lines are tolerated. A script pasted out of an editor or produced by a
@@ -68,10 +69,6 @@ KIND_MODIFIERS = {
 
 # Directives that name a camera property rather than a top-level panel key.
 CAMERA_DIRECTIVES = {"shot", "angle"}
-
-
-class ScriptSyntaxError(PanelSyntaxError):
-    """A comic script that could not be understood."""
 
 
 @dataclass
@@ -235,4 +232,17 @@ def parse_script(text: str, *, source: Path | None = None) -> dict[str, PanelIR]
 
 
 def load_script(path: Path) -> dict[str, PanelIR]:
+    """Read and validate a comic script from disk.
+
+    Args:
+        path: A `*.script` file in the comic-script format writers already use.
+
+    Returns:
+        Panel name to scene graph, in the order the panels appear.
+
+    Raises:
+        OSError: The file cannot be read.
+        ScriptSyntaxError: The script cannot be parsed -- dialogue before the first
+            `PANEL` heading, or no `PANEL` headings at all.
+    """
     return parse_script(path.read_text(encoding="utf-8"), source=path)

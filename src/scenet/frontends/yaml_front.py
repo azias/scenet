@@ -12,23 +12,12 @@ from typing import Any
 import yaml
 from pydantic import ValidationError
 
-from scenet.compose import CompositionError, merge, resolve_overrides
+from scenet.compose import merge, resolve_overrides
+from scenet.errors import CompositionError, PanelSyntaxError
 from scenet.ir import PanelIR, Predicate, Relation
 
 # `alice left_of bob` -- subject, predicate, object, separated by whitespace.
 RELATION_RE = re.compile(r"^\s*(\S+)\s+(\S+)\s+(\S+)\s*$")
-
-
-class PanelSyntaxError(ValueError):
-    """A panel source that could not be understood.
-
-    Distinct from pydantic's ValidationError so a caller can tell a malformed
-    document from a well-formed but invalid one, and report each usefully.
-    """
-
-    def __init__(self, message: str, *, source: Path | None = None) -> None:
-        self.source = source
-        super().__init__(f"{source}: {message}" if source else message)
 
 
 def parse_relation(text: str) -> Relation:
@@ -100,8 +89,19 @@ def _normalise(data: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def parse_panel(text: str, *, source: Path | None = None) -> PanelIR:
-    """Parse panel source into validated IR."""
+def _load_document(text: str, source: Path | None) -> dict[str, Any]:
+    """Read YAML text and check it is a mapping, or raise a language diagnostic.
+
+    Args:
+        text: The document source.
+        source: Path it came from, used only to prefix error messages.
+
+    Returns:
+        The parsed top-level mapping.
+
+    Raises:
+        PanelSyntaxError: The text is not valid YAML, is empty, or is not a mapping.
+    """
     try:
         # safe_load, never load: panel sources are untrusted input and full YAML can
         # construct arbitrary Python objects.
@@ -115,7 +115,22 @@ def parse_panel(text: str, *, source: Path | None = None) -> PanelIR:
         raise PanelSyntaxError(
             f"expected a mapping at the top level, found {type(data).__name__}", source=source
         )
+    return data
 
+
+def _validate_panel(data: dict[str, Any], source: Path | None) -> PanelIR:
+    """Normalise a parsed mapping and validate it into IR.
+
+    Args:
+        data: A parsed top-level panel mapping.
+        source: Path it came from, used only to prefix error messages.
+
+    Returns:
+        The validated scene graph.
+
+    Raises:
+        PanelSyntaxError: The document is well-formed YAML but not a valid panel.
+    """
     try:
         return PanelIR.model_validate(_normalise(data))
     except PanelSyntaxError as exc:
@@ -124,7 +139,25 @@ def parse_panel(text: str, *, source: Path | None = None) -> PanelIR:
         raise PanelSyntaxError(_summarise(exc), source=source) from exc
 
 
+def parse_panel(text: str, *, source: Path | None = None) -> PanelIR:
+    """Parse panel source into validated IR."""
+    return _validate_panel(_load_document(text, source), source)
+
+
 def load_panel(path: Path) -> PanelIR:
+    """Read and validate a single-panel document from disk.
+
+    Args:
+        path: A `*.panel.yaml` file.
+
+    Returns:
+        The validated scene graph. No coordinates yet -- that is the solver's job.
+
+    Raises:
+        OSError: The file cannot be read.
+        PanelSyntaxError: The document is malformed or invalid. The path is included in
+            the message.
+    """
     return parse_panel(path.read_text(encoding="utf-8"), source=path)
 
 
@@ -153,20 +186,13 @@ def parse_scene(text: str, *, source: Path | None = None) -> dict[str, PanelIR]:
 
     Panel order follows declaration order, which is reading order.
     """
-    try:
-        data = yaml.safe_load(text)
-    except yaml.YAMLError as exc:
-        raise PanelSyntaxError(f"invalid YAML: {exc}", source=source) from exc
-
-    if data is None:
-        raise PanelSyntaxError("panel source is empty", source=source)
-    if not isinstance(data, dict):
-        raise PanelSyntaxError(
-            f"expected a mapping at the top level, found {type(data).__name__}", source=source
-        )
+    data = _load_document(text, source)
 
     if "panels" not in data:
-        return {"panel": parse_panel(text, source=source)}
+        # A document with no `panels:` key is a single panel. Validated from the mapping
+        # already in hand rather than by handing the text back to parse_panel, which
+        # would run the YAML parser over it a second time.
+        return {"panel": _validate_panel(data, source)}
 
     panels = data["panels"]
     if not isinstance(panels, dict):
@@ -188,13 +214,25 @@ def parse_scene(text: str, *, source: Path | None = None) -> dict[str, PanelIR]:
     for name, document in composed.items():
         merged = merge(defaults, document) if defaults else document
         try:
-            result[name] = PanelIR.model_validate(_normalise(merged))
+            result[name] = _validate_panel(merged, None)
         except PanelSyntaxError as exc:
             raise PanelSyntaxError(f"in panel '{name}': {exc}", source=source) from exc
-        except ValidationError as exc:
-            raise PanelSyntaxError(f"in panel '{name}': {_summarise(exc)}", source=source) from exc
     return result
 
 
 def load_scene(path: Path) -> dict[str, PanelIR]:
+    """Read and validate a multi-panel document from disk.
+
+    Args:
+        path: A `*.scene.yaml` file. A single-panel document also works and comes back
+            as one entry named `panel`.
+
+    Returns:
+        Panel name to scene graph, in declaration order -- which is reading order.
+
+    Raises:
+        OSError: The file cannot be read.
+        PanelSyntaxError: A panel is malformed or invalid.
+        CompositionError: An `over:` chain is unresolvable or cyclic.
+    """
     return parse_scene(path.read_text(encoding="utf-8"), source=path)

@@ -24,6 +24,7 @@ from kiwisolver import Solver, UnsatisfiableConstraint, Variable, strength
 
 from scenet.assets.contract import PuppetLibrary, PuppetSpec
 from scenet.assets.kinematics import ResolvedPuppet, resolve
+from scenet.errors import LayoutError
 from scenet.geom import Point
 from scenet.ir import AnchorX, Facing, PanelIR, Predicate
 from scenet.solve.camera import CameraSolution, solve_camera
@@ -49,10 +50,6 @@ MIN_GAP_FRACTION = 0.015
 FIT_SLACK = 0.96
 
 
-class LayoutError(ValueError):
-    """A panel whose required constraints cannot all be satisfied."""
-
-
 @dataclass(frozen=True, slots=True)
 class Placement:
     """Where one actor's root joint ends up, and how it is drawn."""
@@ -68,6 +65,7 @@ class Placement:
 
     @property
     def origin(self) -> Point:
+        """Where this actor's root joint lands, as a point."""
         return Point(self.x, self.y)
 
 

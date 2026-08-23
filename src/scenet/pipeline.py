@@ -49,6 +49,28 @@ class CompileResult:
 
     @property
     def notes(self) -> tuple[str, ...]:
+        """Human-readable diagnostics about how this panel was compiled.
+
+        Returns:
+            Zero or more sentences describing decisions the compiler had to make that
+            were not literally what the source asked for -- a camera that retreated to
+            fit the cast, a balloon tail that had to bend around a face.
+
+        These are returned rather than logged so that tooling can put them in front of
+        the person who wrote the panel. A camera that silently retreats leaves you with
+        a panel that is quietly not the shot you asked for, which you would eventually
+        notice and have no way to explain.
+
+        Example:
+            >>> from scenet import compile_source
+            >>> crowded = compile_source(
+            ...     "{panel: {size: [600.0, 400.0]}, camera: {shot: close_up},"
+            ...     " cast: {a: {reference: alice}, b: {reference: bob}},"
+            ...     " staging: [a left_of b]}"
+            ... )
+            >>> any("camera retreated" in note for note in crowded.notes)
+            True
+        """
         notes: list[str] = []
         if self.camera.was_pulled_back:
             notes.append(
@@ -156,6 +178,44 @@ def compile_source(
     library: PuppetLibrary | None = None,
     metrics: FontMetrics | None = None,
 ) -> CompileResult:
+    """Compile one panel from a source string.
+
+    The usual entry point, and the one to reach for first.
+
+    Args:
+        text: A single-panel document in the YAML surface syntax.
+        source: Path the text came from, used only to prefix error messages. Pass it
+            when you have one; the diagnostics are much more useful with it.
+        library: Characters to draw from. Defaults to the two shipped puppets.
+        metrics: Font to measure lettering against. Defaults to the font that ships as
+            a dependency of this package.
+
+    Returns:
+        The compiled panel, with the intermediate results kept for inspection.
+
+    Raises:
+        PanelSyntaxError: The document is malformed or invalid.
+        UnknownPuppetError: A cast member references a character the library lacks.
+        LayoutError: The required constraints cannot all be satisfied.
+        BalloonPlacementError: A balloon has no legal position.
+
+    Example:
+        >>> from scenet import compile_source, render
+        >>> result = compile_source(
+        ...     "{cast: {alice: {reference: alice}}, script: [{say: {by: alice, text: Hello.}}]}"
+        ... )
+        >>> len(result.core.balloons)
+        1
+        >>> result.core.balloons[0].lines
+        ('Hello.',)
+        >>> svg = render(result.core)
+
+    See Also:
+        [`compile_file`][scenet.pipeline.compile_file], to read from disk.
+        [`compile_scene`][scenet.pipeline.compile_scene], for multi-panel documents.
+        [`compile_document`][scenet.pipeline.compile_document], to dispatch on
+        extension and accept any supported syntax.
+    """
     return compile_ir(parse_panel(text, source=source), library=library, metrics=metrics)
 
 
@@ -165,6 +225,21 @@ def compile_file(
     library: PuppetLibrary | None = None,
     metrics: FontMetrics | None = None,
 ) -> CompileResult:
+    """Compile one panel from a file.
+
+    Args:
+        path: A `*.panel.yaml` document.
+        library: Characters to draw from. Defaults to the two shipped puppets.
+        metrics: Font to measure lettering against.
+
+    Returns:
+        The compiled panel.
+
+    Raises:
+        OSError: The file cannot be read.
+        PanelSyntaxError: The document is malformed or invalid. The path is included
+            in the message.
+    """
     return compile_ir(load_panel(path), library=library, metrics=metrics)
 
 
@@ -194,6 +269,23 @@ def compile_scene_file(
     library: PuppetLibrary | None = None,
     metrics: FontMetrics | None = None,
 ) -> dict[str, CompileResult]:
+    """Compile every panel in a multi-panel file.
+
+    Args:
+        path: A `*.scene.yaml` document. A single-panel document also works and comes
+            back as one entry named `panel`.
+        library: Characters to draw from. Defaults to the two shipped puppets.
+        metrics: Font to measure lettering against.
+
+    Returns:
+        Panel name to compiled panel, in declaration order -- which is reading order.
+
+    Raises:
+        OSError: The file cannot be read.
+        PanelSyntaxError: A panel is malformed or invalid.
+        CompositionError: An `over:` chain refers to a panel that does not exist, or
+            forms a cycle.
+    """
     library = library or default_library()
     return {
         name: compile_ir(panel, library=library, metrics=metrics)

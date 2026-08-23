@@ -7,10 +7,13 @@ from pathlib import Path
 
 from scenet import __version__
 from scenet.assets.contract import UnknownPuppetError
+from scenet.compose import CompositionError
 from scenet.emit.debug_svg import render_debug
+from scenet.emit.strip import render_strip
 from scenet.emit.svg import render
+from scenet.frontends.script_front import ScriptSyntaxError
 from scenet.frontends.yaml_front import PanelSyntaxError
-from scenet.pipeline import compile_file
+from scenet.pipeline import compile_document
 from scenet.solve.balloons import BalloonPlacementError
 from scenet.solve.staging import LayoutError
 
@@ -35,7 +38,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     subcommands = parser.add_subparsers(dest="command")
     build = subcommands.add_parser("build", help="compile a panel source to SVG")
-    build.add_argument("source", type=Path, help="a *.panel.yaml file")
+    build.add_argument(
+        "source",
+        type=Path,
+        help="a *.panel.yaml or *.scene.yaml document, or a *.script comic script",
+    )
     build.add_argument(
         "-o", "--output", type=Path, help="output SVG path (default: alongside the source)"
     )
@@ -57,6 +64,11 @@ def build_parser() -> argparse.ArgumentParser:
             "reader having a metrically compatible font installed"
         ),
     )
+    build.add_argument(
+        "--strip",
+        action="store_true",
+        help="for a multi-panel document, also lay the panels out as a strip",
+    )
     build.add_argument("--quiet", action="store_true", help="suppress diagnostic notes")
     return parser
 
@@ -68,8 +80,15 @@ def run_build(args: argparse.Namespace) -> int:
         return 2
 
     try:
-        result = compile_file(source)
-    except (PanelSyntaxError, LayoutError, BalloonPlacementError, UnknownPuppetError) as exc:
+        results = compile_document(source)
+    except (
+        PanelSyntaxError,
+        ScriptSyntaxError,
+        LayoutError,
+        BalloonPlacementError,
+        UnknownPuppetError,
+        CompositionError,
+    ) as exc:
         # These are all "your panel cannot be compiled" rather than "scenet broke", so
         # they get a plain message instead of a traceback.
         #
@@ -81,26 +100,51 @@ def run_build(args: argparse.Namespace) -> int:
         return 1
 
     # `foo.panel.yaml` becomes `foo.svg`, not `foo.panel.svg`.
-    stem = source.name.removesuffix(".yaml").removesuffix(".panel")
-    output: Path = args.output or source.with_name(f"{stem}.svg")
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(render(result.core, live_text=args.live_text), encoding="utf-8")
-    written = [output]
+    stem = (
+        source.name.removesuffix(".yaml")
+        .removesuffix(".script")
+        .removesuffix(".panel")
+        .removesuffix(".scene")
+    )
+    base: Path = args.output or source.with_name(f"{stem}.svg")
+    base.parent.mkdir(parents=True, exist_ok=True)
 
-    if args.core:
-        core_path = output.with_suffix(".core.json")
-        core_path.write_text(result.core.to_json(), encoding="utf-8")
-        written.append(core_path)
+    single = len(results) == 1 and "panel" in results
+    written: list[Path] = []
+    notes: list[str] = []
 
-    if args.debug:
-        debug_path = output.with_name(f"{output.stem}.debug.svg")
-        debug_path.write_text(render_debug(result.core), encoding="utf-8")
-        written.append(debug_path)
+    for name, result in results.items():
+        # A single-panel document writes to the requested name; a sequence suffixes
+        # each panel with its own name, so the mapping back to source is obvious.
+        target = base if single else base.with_name(f"{base.stem}.{name}{base.suffix}")
+        target.write_text(render(result.core, live_text=args.live_text), encoding="utf-8")
+        written.append(target)
+
+        if args.core:
+            core_path = target.with_suffix(".core.json")
+            core_path.write_text(result.core.to_json(), encoding="utf-8")
+            written.append(core_path)
+        if args.debug:
+            debug_path = target.with_name(f"{target.stem}.debug.svg")
+            debug_path.write_text(render_debug(result.core), encoding="utf-8")
+            written.append(debug_path)
+        notes.extend(f"{name}: {note}" if not single else note for note in result.notes)
+
+    if args.strip and not single:
+        strip_path = base.with_name(f"{base.stem}.strip.svg")
+        strip_path.write_text(
+            render_strip(
+                [(name, result.core) for name, result in results.items()],
+                live_text=args.live_text,
+            ),
+            encoding="utf-8",
+        )
+        written.append(strip_path)
 
     if not args.quiet:
         for path in written:
             print(f"wrote {path}")
-        for note in result.notes:
+        for note in notes:
             print(f"note: {note}")
     return 0
 

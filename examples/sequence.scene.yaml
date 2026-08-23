@@ -1,0 +1,34 @@
+# A sequence of panels. Each states only what changed from the one before, which is
+# how comics actually work: the cast and staging persist while the camera moves.
+#
+# Everything outside `panels:` is a default inherited by every panel.
+
+panel:
+  size: [900, 700]
+
+panels:
+  establishing:
+    camera: {shot: full_shot}
+    cast:
+      alice: {reference: alice, pose: standing_neutral, at: left_third}
+      bob:   {reference: bob,   pose: arms_crossed,     at: right_third}
+    staging:
+      - alice left_of bob
+      - alice looking_at bob
+      - alice ground_shared_with bob
+    script:
+      - say: {by: alice, text: "We need to talk about the umbrella."}
+
+  reaction:
+    over: establishing          # same cast, same staging, same ground
+    camera: {shot: medium_shot} # move in
+    script:
+      - say: {by: bob, text: "Must we?"}
+
+  closer:
+    over: reaction              # inherits the medium shot in turn
+    camera: {shot: close_up}
+    cast:
+      alice: {pose: pointing}   # only Alice's pose changes; Bob is untouched
+    script:
+      - say: {by: alice, text: "Yes. We must."}

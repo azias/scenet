@@ -12,6 +12,7 @@ from typing import Any
 import yaml
 from pydantic import ValidationError
 
+from scenet.compose import CompositionError, merge, resolve_overrides
 from scenet.ir import PanelIR, Predicate, Relation
 
 # `alice left_of bob` -- subject, predicate, object, separated by whitespace.
@@ -141,3 +142,59 @@ def _summarise(exc: ValidationError) -> str:
         message = error["msg"].removeprefix("Value error, ")
         lines.append(f"  at {location}: {message}")
     return "invalid panel:\n" + "\n".join(lines)
+
+
+def parse_scene(text: str, *, source: Path | None = None) -> dict[str, PanelIR]:
+    """Parse a multi-panel document, resolving `over` inheritance.
+
+    A document with a top-level `panels:` mapping holds a sequence; anything else is
+    treated as a single panel named "panel", so the two forms share one entry point
+    and a single-panel file needs no ceremony.
+
+    Panel order follows declaration order, which is reading order.
+    """
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        raise PanelSyntaxError(f"invalid YAML: {exc}", source=source) from exc
+
+    if data is None:
+        raise PanelSyntaxError("panel source is empty", source=source)
+    if not isinstance(data, dict):
+        raise PanelSyntaxError(
+            f"expected a mapping at the top level, found {type(data).__name__}", source=source
+        )
+
+    if "panels" not in data:
+        return {"panel": parse_panel(text, source=source)}
+
+    panels = data["panels"]
+    if not isinstance(panels, dict):
+        raise PanelSyntaxError("'panels' must be a mapping of name to panel", source=source)
+    for name, document in panels.items():
+        if not isinstance(document, dict):
+            raise PanelSyntaxError(f"panel '{name}' must be a mapping", source=source)
+
+    # Anything alongside `panels` is a default every panel inherits, which saves
+    # restating the panel size and camera on each one.
+    defaults = {key: value for key, value in data.items() if key != "panels"}
+
+    try:
+        composed = resolve_overrides(panels)
+    except CompositionError as exc:
+        raise PanelSyntaxError(str(exc), source=source) from exc
+
+    result: dict[str, PanelIR] = {}
+    for name, document in composed.items():
+        merged = merge(defaults, document) if defaults else document
+        try:
+            result[name] = PanelIR.model_validate(_normalise(merged))
+        except PanelSyntaxError as exc:
+            raise PanelSyntaxError(f"in panel '{name}': {exc}", source=source) from exc
+        except ValidationError as exc:
+            raise PanelSyntaxError(f"in panel '{name}': {_summarise(exc)}", source=source) from exc
+    return result
+
+
+def load_scene(path: Path) -> dict[str, PanelIR]:
+    return parse_scene(path.read_text(encoding="utf-8"), source=path)

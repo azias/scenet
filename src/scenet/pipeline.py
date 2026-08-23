@@ -24,7 +24,8 @@ from scenet.core import (
     round_pairs,
     vector_pair,
 )
-from scenet.frontends.yaml_front import load_panel, parse_panel
+from scenet.frontends.script_front import load_script
+from scenet.frontends.yaml_front import load_panel, load_scene, parse_panel, parse_scene
 from scenet.geom import BBox, rounded
 from scenet.ir import PanelIR
 from scenet.solve.balloons import place_balloons
@@ -165,3 +166,65 @@ def compile_file(
     metrics: FontMetrics | None = None,
 ) -> CompileResult:
     return compile_ir(load_panel(path), library=library, metrics=metrics)
+
+
+def compile_scene(
+    text: str,
+    *,
+    source: Path | None = None,
+    library: PuppetLibrary | None = None,
+    metrics: FontMetrics | None = None,
+) -> dict[str, CompileResult]:
+    """Compile every panel in a multi-panel document.
+
+    Each panel is compiled independently. A panel's composition must not depend on
+    what sits beside it, or the same source would compile differently in isolation --
+    which would make panels non-reusable and golden tests meaningless.
+    """
+    library = library or default_library()
+    return {
+        name: compile_ir(panel, library=library, metrics=metrics)
+        for name, panel in parse_scene(text, source=source).items()
+    }
+
+
+def compile_scene_file(
+    path: Path,
+    *,
+    library: PuppetLibrary | None = None,
+    metrics: FontMetrics | None = None,
+) -> dict[str, CompileResult]:
+    library = library or default_library()
+    return {
+        name: compile_ir(panel, library=library, metrics=metrics)
+        for name, panel in load_scene(path).items()
+    }
+
+
+# Which frontend handles which extension. Adding a syntax means adding a line here and
+# nothing else, because every frontend produces the same IR.
+FRONTENDS = {
+    ".script": load_script,
+    ".yaml": load_scene,
+    ".yml": load_scene,
+}
+
+
+def compile_document(
+    path: Path,
+    *,
+    library: PuppetLibrary | None = None,
+    metrics: FontMetrics | None = None,
+) -> dict[str, CompileResult]:
+    """Compile any supported document, choosing the frontend by extension."""
+    loader = FRONTENDS.get(path.suffix.lower())
+    if loader is None:
+        supported = ", ".join(sorted(FRONTENDS))
+        raise ValueError(
+            f"{path}: unsupported extension '{path.suffix}'; expected one of {supported}"
+        )
+    library = library or default_library()
+    return {
+        name: compile_ir(panel, library=library, metrics=metrics)
+        for name, panel in loader(path).items()
+    }

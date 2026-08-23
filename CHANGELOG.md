@@ -21,5 +21,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Text measurement from real font metrics, with line breaking scored on lettering craft.
 - Balloon placement with face avoidance, reading-order enforcement and tail routing.
 - SVG emitter using glyph outlines, a diagnostic overlay, and the `scenet build` command.
+- Multi-panel documents with USD-style `over` sparse override, so a panel states only
+  what changed from the one before.
+- A comic-script frontend, so panels can be written in the format writers already use.
+- A minimal strip emitter for reading a sequence in order.
 
 Single panels compile end to end — see the README for current status.

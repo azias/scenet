@@ -45,7 +45,35 @@ script:
   - say: {by: bob,   text: "I know."}
 ```
 
-…and the compiler works out the rest: how large each figure must be for a medium shot, where they
+You can also write a sequence, where each panel states only what changed from the one
+before — borrowed from OpenUSD's sparse override, because consecutive panels in a scene
+share nearly all their staging:
+
+```yaml
+panels:
+  establishing:
+    camera: {shot: full_shot}
+    cast: {alice: {reference: alice}, bob: {reference: bob}}
+  reaction:
+    over: establishing        # same cast, same staging
+    camera: {shot: close_up}  # move in
+```
+
+Or in comic script, the format writers already use:
+
+```
+PANEL 1
+@shot: full_shot
+Alice and Bob face each other on a rainy street corner.
+
+ALICE
+You forgot your umbrella!
+
+BOB (whisper)
+I know.
+```
+
+From any of these, the compiler works out the rest: how large each figure must be for a medium shot, where they
 stand, which way they face, how big each balloon needs to be for its text, where a balloon can sit
 without covering a face, and how its tail reaches the speaker's mouth — all while preserving
 reading order.
@@ -55,13 +83,16 @@ computational geometry. The same input always produces byte-identical output.
 
 ## Status
 
-**Alpha — single panels compile end to end.** Framing, actor placement, balloon placement,
-reading order, tail routing and SVG emission all work. Not yet built: multi-panel pages,
-a comic-script frontend, and the interpretation layer that would give a panel a *style*.
-See [the phase plan](docs/spec/README.md) for detail.
+**Alpha — panels and sequences compile end to end.** Framing, actor placement, balloon
+placement, reading order, tail routing and SVG emission all work, from either of two
+frontends. Not yet built: page composition (tiers, panels of varying size) and the
+interpretation layer that would give a panel a *style*. See
+[the phase plan](docs/spec/README.md) for detail.
 
 ```bash
 uv run scenet build examples/duel.panel.yaml --core --debug
+uv run scenet build examples/sequence.scene.yaml --strip
+uv run scenet build examples/umbrella.script --strip
 ```
 
 `--core` writes the resolved intermediate tier as JSON; `--debug` writes an overlay showing

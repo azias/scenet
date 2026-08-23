@@ -21,7 +21,7 @@ attribution. A notation is only worth having if it is not owned.
 | 2 | Camera scale resolution and actor placement (Cassowary) | **Done** |
 | 3 | Text metrics, balloon placement, reading order, tails | **Done** |
 | 4 | SVG emitter, debug overlay and CLI | **Done** |
-| 5 | Comic-script frontend; multi-panel `over` inheritance | Not started |
+| 5 | Comic-script frontend; multi-panel `over` inheritance | **Done** |
 | 6 | Browser playground (Pyodide); VS Code extension | Not started |
 
 Single panels compile end to end. Constructs described in `language.md` are the specification,

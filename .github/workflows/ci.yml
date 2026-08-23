@@ -6,6 +6,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Least privilege by default. A job that needs more says so itself; nothing here does.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -13,6 +17,11 @@ concurrency:
 env:
   # uv resolves and installs the Python version itself, pinned by .python-version.
   UV_FROZEN: "1"
+
+# Every third-party action is pinned to a full commit SHA with the tag in a comment.
+# A mutable tag can be re-pointed at different code by whoever controls the repository,
+# which is the standard supply-chain attack on Actions; a SHA cannot. Dependabot keeps
+# these current -- see .github/dependabot.yml.
 
 jobs:
   check:
@@ -24,14 +33,18 @@ jobs:
         # 3.12 is the floor and is not decoration. Before Python 3.14 and PEP 649,
         # annotations are evaluated eagerly, so a self-referential `-> Point` inside
         # `class Point` raises NameError at import. Developing only on 3.14 hides that
-        # entirely -- it surfaced first in the browser, where Pyodide runs an older
+        # entirely -- it surfaced first in the browser, where Pyodide ran an older
         # Python. This job is what stops it coming back.
         python: ["3.12", "3.14"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The checkout token is not needed after checkout, and leaving it in the
+          # local git config is how a later step exfiltrates it.
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
 
@@ -52,17 +65,42 @@ jobs:
         if: matrix.python == '3.14'
         run: uv run ty check
 
-      - name: Tests
+      # Runs the unit tests, every docstring example, and every fenced Python block in
+      # the Markdown documentation. A documented example that no longer works fails
+      # here, which is the whole point.
+      - name: Tests, doctests and documentation examples
         run: uv run pytest
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+
+      - run: uv sync --frozen --group docs
+
+      # -W turns warnings into errors: a broken cross-reference, a document missing
+      # from the table of contents, or an autodoc import failure fails the build rather
+      # than quietly producing a worse site.
+      - name: Build the documentation
+        run: uv run sphinx-build -W --keep-going -b html docs docs/_build/html
 
   licenses:
     name: Dependency licenses
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
 
@@ -88,8 +126,10 @@ jobs:
     # pyright catches. This job covers that gap without gating the build on a beta.
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
       - run: uv sync --frozen --all-groups
@@ -101,10 +141,12 @@ jobs:
     # The project rule is TypeScript wherever JavaScript would be used, with strict
     # enabled. That is only meaningful if something checks it.
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: "22"
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
 
       - name: Playground
         working-directory: playground

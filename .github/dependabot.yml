@@ -1,0 +1,52 @@
+version: 2
+
+# The CI actions in this repository were, before this file existed, a full major
+# version behind across the board -- and on a Node runtime GitHub was about to remove.
+# Nothing told anyone. That is what this is for.
+updates:
+  # Actions are pinned to commit SHAs for supply-chain safety, which makes them
+  # invisible to a human reading the file. Dependabot understands the `# vX.Y.Z`
+  # comment convention and updates both the SHA and the comment together.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    commit-message:
+      prefix: "ci"
+
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      python-minor:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: npm
+    directory: /playground
+    schedule:
+      interval: weekly
+    groups:
+      playground:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: npm
+    directory: /editor
+    schedule:
+      interval: weekly
+    groups:
+      editor:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    commit-message:
+      prefix: "deps"

@@ -1,0 +1,99 @@
+name: TestPyPI rehearsal
+
+# Manual only. PyPI never lets you re-upload a version, so the first real release
+# should not be the first time this pipeline has ever run end to end. This publishes
+# the current version to TestPyPI, which is a throwaway index, and then installs it
+# back from there in a clean environment to prove the artifact actually works.
+#
+# Run it from the Actions tab: "TestPyPI rehearsal" -> Run workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      suffix:
+        description: >-
+          Optional dev suffix, e.g. "dev1". TestPyPI also refuses a duplicate version,
+          so re-rehearsing the same release needs a fresh one each time.
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+
+      - name: Apply the dev suffix
+        if: inputs.suffix != ''
+        run: uv version "$(uv version --short).${{ inputs.suffix }}"
+
+      - id: version
+        run: echo "value=$(uv version --short)" >> "$GITHUB_OUTPUT"
+
+      - run: uv build
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: testpypi-distributions
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: Publish to TestPyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/scenet
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: testpypi-distributions
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  install:
+    name: Install it back from TestPyPI
+    needs: [build, publish]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      # TestPyPI does not mirror the real index, so dependencies have to come from
+      # PyPI proper. This is the shape of command a user would run, not a special case
+      # invented to make the test pass.
+      - name: Install and exercise the published wheel
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if uv run --no-project \
+                 --index "https://test.pypi.org/simple/" \
+                 --index-strategy unsafe-best-match \
+                 --with "scenet==${{ needs.build.outputs.version }}" \
+                 python -c "
+          import scenet
+          result = scenet.compile_source('{cast: {a: {reference: alice}}}')
+          print('installed', scenet.__version__, 'actors:', len(result.core.actors))
+          "; then
+              exit 0
+            fi
+            echo "index not caught up yet, attempt $attempt"
+            sleep 20
+          done
+          echo "::error::could not install scenet from TestPyPI"
+          exit 1

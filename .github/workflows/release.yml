@@ -1,0 +1,188 @@
+name: Release
+
+# Tag-driven. `uv version --bump minor`, commit, tag, push -- and the tag is the single
+# source of truth for what gets published. See docs/maintainer/releasing.md.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  # Everything that can fail runs BEFORE anything is published. PyPI does not allow
+  # re-uploading a version, ever, so a release that is half-done is a version number
+  # burned for good.
+  verify:
+    name: Verify the tag is releasable
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+
+      - name: Tag must match the declared version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          DECLARED=$(uv version --short)
+          echo "tag=$TAG declared=$DECLARED"
+          if [ "$TAG" != "$DECLARED" ]; then
+            echo "::error::tag v$TAG does not match project.version $DECLARED in pyproject.toml"
+            exit 1
+          fi
+
+      - name: CHANGELOG must have a section for this version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          if ! grep -qE "^## \[$TAG\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## [$TAG]' section"
+            exit 1
+          fi
+
+      - run: uv sync --frozen --all-groups
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run ty check
+      - run: uv run pytest
+
+  build:
+    name: Build distributions
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+
+      - name: Build sdist and wheel
+        run: uv build
+
+      # Proves the wheel is installable and exposes the public API, from a clean
+      # environment with no project checkout on the path. `import scenet` succeeding in
+      # the repository root proves nothing -- the source tree is right there.
+      - name: Smoke-test the wheel in isolation
+        run: |
+          cd "$(mktemp -d)"
+          uv run --no-project --with "$GITHUB_WORKSPACE"/dist/*.whl python - <<'PY'
+          import importlib.resources
+          import scenet
+          assert scenet.__version__ != "0.0.0+unknown", "version metadata missing"
+          assert importlib.resources.files("scenet").joinpath("py.typed").is_file(), \
+              "py.typed missing from the wheel: downstream type checkers will ignore us"
+          result = scenet.compile_source("{cast: {a: {reference: alice}}}")
+          assert len(result.core.actors) == 1
+          assert scenet.render(result.core).lstrip().startswith("<?xml")
+          print("wheel OK:", scenet.__version__, len(scenet.__all__), "public names")
+          PY
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: distributions
+          path: dist/
+          if-no-files-found: error
+
+  extension:
+    name: Package the VS Code extension
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
+      # A .vsix is the zip a VS Code extension ships in. Attached to the release, it
+      # installs via "Extensions: Install from VSIX..." with no marketplace account
+      # involved anywhere -- and so no credential that can expire or leak.
+      - name: Build and package
+        working-directory: editor
+        run: |
+          npm ci
+          npm run build
+          npx --yes @vscode/vsce package --no-dependencies --out scenet.vsix
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: extension
+          path: editor/scenet.vsix
+          if-no-files-found: error
+
+  publish:
+    name: Publish to PyPI
+    needs: [build, extension]
+    runs-on: ubuntu-latest
+    # A GitHub Environment with a required reviewer. The run pauses here until a human
+    # approves, so an accidental tag push cannot reach PyPI unattended.
+    environment:
+      name: pypi
+      url: https://pypi.org/p/scenet
+    permissions:
+      # Set on this job only, never workflow-wide: it is the credential, and every
+      # other job in this file would otherwise be able to mint one.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: distributions
+          path: dist/
+
+      # Trusted Publishing: GitHub's OIDC token is exchanged for a short-lived PyPI
+      # token scoped to this one run. There is no API token to create, store, rotate
+      # or leak -- the repository holds no PyPI secret of any kind.
+      #
+      # Attestations (PEP 740) are on by default: each artifact is signed via Sigstore
+      # with this workflow's identity, so anyone can verify the file on PyPI was built
+      # here and not uploaded from somebody's laptop.
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+
+  github-release:
+    name: Create the GitHub release
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # to create the release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: distributions
+          path: dist/
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: extension
+          path: dist/
+
+      # The release notes are the CHANGELOG section for this version, which `verify`
+      # has already confirmed exists. Written by a person, for people -- generated
+      # notes are a list of commit subjects, which is not the same thing.
+      - name: Extract the changelog section
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          awk -v v="$TAG" '
+            $0 ~ "^## \\[" v "\\]" { found = 1; next }
+            found && /^## \[/       { exit }
+            found                   { print }
+          ' CHANGELOG.md > release-notes.md
+          cat release-notes.md
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file release-notes.md \
+            dist/*

@@ -120,11 +120,15 @@ jobs:
           uv run --no-sync pip-licenses --allow-only="$ALLOWED"
 
   typecheck-strict:
-    name: Strict type check (advisory)
+    name: Strict type check
     runs-on: ubuntu-latest
-    # ty is pre-1.0 and is documented to miss some advanced typing patterns that
-    # pyright catches. This job covers that gap without gating the build on a beta.
-    continue-on-error: true
+    # ty is pre-1.0 and is documented to miss some advanced typing patterns that pyright
+    # catches, so this job covers the gap. It used to be `continue-on-error: true`, which
+    # meant it failed on every single run while the run itself reported green -- 92
+    # findings, of which 87 were untyped third-party libraries and nobody could act on
+    # any of them. A red job inside a green run teaches you to ignore CI, which is worse
+    # than having no job. The rules that only fire on untyped dependencies are now off,
+    # what remains is actionable, and the job blocks.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

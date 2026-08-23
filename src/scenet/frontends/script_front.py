@@ -41,7 +41,7 @@ from pydantic import ValidationError
 
 from scenet.compose import merge
 from scenet.errors import PanelSyntaxError, ScriptSyntaxError
-from scenet.frontends.yaml_front import _normalise, _summarise
+from scenet.frontends.common import normalise, summarise
 from scenet.ir import BalloonKind, PanelIR
 
 # Leading blank lines are tolerated. A script pasted out of an editor or produced by a
@@ -231,11 +231,11 @@ def parse_script(text: str, *, source: Path | None = None) -> dict[str, PanelIR]
     for name, draft in panels.items():
         combined = merge(front_matter, draft.as_document())
         try:
-            result[name] = PanelIR.model_validate(_normalise(combined))
+            result[name] = PanelIR.model_validate(normalise(combined))
         except PanelSyntaxError as exc:
             raise ScriptSyntaxError(f"in PANEL {name}: {exc}", source=source) from exc
         except ValidationError as exc:
-            raise ScriptSyntaxError(f"in PANEL {name}: {_summarise(exc)}", source=source) from exc
+            raise ScriptSyntaxError(f"in PANEL {name}: {summarise(exc)}", source=source) from exc
     return result
 
 

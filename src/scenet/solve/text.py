@@ -18,7 +18,9 @@ from pathlib import Path
 
 # The `fonts` packages publish each face through entry_points at install time, so
 # the attribute exists at runtime but cannot be seen statically.
-from fonts.ttf import SourceSansPro  # ty: ignore[unresolved-import]
+from fonts.ttf import (
+    SourceSansPro,  # ty: ignore[unresolved-import]  # pyright: ignore[reportAttributeAccessIssue]
+)
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.ttLib import TTFont
 
@@ -101,7 +103,10 @@ class FontMetrics:
         """
         self.path = path
         self._font = TTFont(str(path), lazy=True)
-        self._units_per_em: float = self._font["head"].unitsPerEm  # ty: ignore[unresolved-attribute]
+        # fontTools builds table objects dynamically, so `unitsPerEm` exists at runtime
+        # but not in any stub. Both checkers are told, each in its own dialect.
+        head = self._font["head"]
+        self._units_per_em: float = head.unitsPerEm  # ty: ignore[unresolved-attribute]  # pyright: ignore[reportAttributeAccessIssue]
         # A font with no usable Unicode cmap cannot be measured against text at all,
         # so this is worth failing on loudly rather than limping along with no glyphs.
         cmap = self._font.getBestCmap()

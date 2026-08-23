@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from scenet.frontends.yaml_front import PanelSyntaxError, load_panel, parse_panel, parse_relation
+from scenet.frontends.common import parse_relation
+from scenet.frontends.yaml_front import PanelSyntaxError, load_panel, parse_panel
 from scenet.ir import BalloonKind, PlacementZone, Predicate, ShotType
 
 MINIMAL = """

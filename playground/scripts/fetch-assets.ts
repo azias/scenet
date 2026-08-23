@@ -20,7 +20,7 @@
 
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { copyFile, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -248,17 +248,56 @@ async function main(): Promise<void> {
     throw new Error(`expected one wheel in ${dist}, found ${wheels.length}: ${wheels.join(", ")}`);
   } else {
     const wheel = wheels[0]!;
+
+    // Refuse a wheel older than the source it was built from.
+    //
+    // `npm run assets` copies whatever is in ../dist. If you edit the compiler and
+    // forget `uv build`, the playground silently serves the previous version -- and
+    // since it still works, nothing looks wrong. That happened, and the hour it cost
+    // was spent looking at caches and deployments rather than at the obvious.
+    const wheelAge = (await stat(join(dist, wheel))).mtimeMs;
+    const sources = join(playground, "..", "src");
+    const newest = async (dir: string): Promise<number> => {
+      let latest = 0;
+      for (const entry of await readdir(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        latest = Math.max(latest, entry.isDirectory() ? await newest(full) : (await stat(full)).mtimeMs);
+      }
+      return latest;
+    };
+    if ((await newest(sources)) > wheelAge) {
+      throw new Error(
+        `${wheel} is older than src/ -- run \`uv build --wheel\` from the repository root. ` +
+          "Serving it would run a compiler that no longer matches this checkout.",
+      );
+    }
+
     const bytes = await readFile(join(dist, wheel));
-    await writeFile(join(publicDir, wheel), bytes);
-    // The page discovers the wheel by name at runtime. Hardcoding it in TypeScript
-    // would break the playground on the next version bump -- and break it in the
-    // browser only, where nothing in CI would notice.
     const digest = createHash("sha256").update(bytes).digest("hex");
-    await writeFile(
-      join(publicDir, "wheel.json"),
-      `${JSON.stringify({ wheel, sha256: digest }, null, 2)}\n`,
-    );
-    console.log(`wheel: ${wheel} (${(bytes.byteLength / 1e3).toFixed(0)} kB)`);
+
+    // The wheel goes into a directory named after its own content hash.
+    //
+    // Its filename cannot carry the hash: a wheel name must parse as
+    // {name}-{version}-{python}-{abi}-{platform}.whl and agree with the metadata
+    // inside, so micropip would reject anything else. A query string is no good
+    // either, for the same reason -- micropip identifies the package from the filename.
+    //
+    // Without this, every rebuild at the same version reuses one URL, so a returning
+    // visitor keeps running whichever compiler their browser cached. That failure is
+    // unusually nasty: the deployment is correct, the site is correct, and only people
+    // who have been here before see stale behaviour. It cost an hour to diagnose once.
+    const short = digest.slice(0, 12);
+    const wheelDir = join(publicDir, "wheels", short);
+    await mkdir(wheelDir, { recursive: true });
+    await writeFile(join(wheelDir, wheel), bytes);
+
+    // The page discovers the path at runtime. Hardcoding it in TypeScript would break
+    // the playground on the next version bump -- and break it in the browser only,
+    // where nothing in CI would notice.
+    const manifest = { wheel, path: `wheels/${short}/${wheel}`, sha256: digest };
+    await writeFile(join(publicDir, "wheel.json"), `${JSON.stringify(manifest, null, 2)}
+`);
+    console.log(`wheel: ${manifest.path} (${(bytes.byteLength / 1e3).toFixed(0)} kB)`);
   }
 }
 

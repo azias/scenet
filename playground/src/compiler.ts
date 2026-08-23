@@ -32,6 +32,8 @@ export type ProgressReporter = (message: string) => void;
 
 interface WheelManifest {
   readonly wheel: string;
+  /** Content-addressed path, so a rebuild at the same version is never served stale. */
+  readonly path: string;
   readonly sha256: string;
 }
 
@@ -138,7 +140,7 @@ export async function bootCompiler(report: ProgressReporter): Promise<Compiler> 
 
   const fontWheels = (await (await fetch(assetUrl("font-wheels.json"))).json()) as string[];
 
-  pyodide.globals.set("_scenet_wheel", assetUrl(manifest.wheel));
+  pyodide.globals.set("_scenet_wheel", assetUrl(manifest.path));
   pyodide.globals.set(
     "_scenet_fonts",
     fontWheels.map((name) => assetUrl(`pyodide/${name}`)),

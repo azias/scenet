@@ -61,6 +61,26 @@ You will get an email when the run reaches `publish`. Open it, click **Review
 deployments**, tick `pypi`, **Approve and deploy**. That click is the last gate between a
 tag and PyPI.
 
+## PyPI is opt-in
+
+The `publish` job is skipped unless the repository variable `PYPI_TRUSTED_PUBLISHER`
+is `true`:
+
+```bash
+gh variable set PYPI_TRUSTED_PUBLISHER --body true
+```
+
+That exists because a trusted publisher has to be registered through a web form on
+pypi.org -- there is no API, deliberately, since it is the thing that grants publishing
+rights. Until somebody has done that, the job cannot succeed, and gating it on an
+explicit switch is better than every release failing on a step nobody enabled.
+
+**A release still happens without it.** The GitHub Release is created either way, with
+the sdist, the wheel and the `.vsix` attached, and the notes say to install from the
+wheel URL rather than claiming a `pip install scenet` that would not work. The release
+is only blocked if PyPI is enabled *and* fails -- announcing a version whose upload
+broke halfway would be worse than not announcing it.
+
 ## Rehearsing first
 
 Before the *first* real release, or any release you are nervous about, run the **TestPyPI

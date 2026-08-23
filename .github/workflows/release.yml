@@ -120,6 +120,17 @@ jobs:
     name: Publish to PyPI
     needs: [build, extension]
     runs-on: ubuntu-latest
+    # Skipped until the repository variable PYPI_TRUSTED_PUBLISHER is "true".
+    #
+    # A trusted publisher has to be registered on pypi.org through a web form -- there
+    # is no API for it, by design, because it is the thing that grants publishing
+    # rights. Until that exists, this job cannot succeed, and gating it on an explicit
+    # variable is better than letting every release fail on a step nobody has enabled
+    # yet. Set it with:
+    #
+    #     gh variable set PYPI_TRUSTED_PUBLISHER --body true
+    if: vars.PYPI_TRUSTED_PUBLISHER == 'true'
+
     # A GitHub Environment with a required reviewer. The run pauses here until a human
     # approves, so an accidental tag push cannot reach PyPI unattended.
     environment:
@@ -146,7 +157,18 @@ jobs:
 
   github-release:
     name: Create the GitHub release
-    needs: publish
+    needs: [build, extension, publish]
+    # Runs when PyPI succeeded *or* was skipped, but never after it failed. A GitHub
+    # Release is a real release on its own -- the wheel is attached and installable
+    # from its URL -- so it should not be held hostage to a PyPI account that has not
+    # been configured. It must still not announce a version whose PyPI upload broke
+    # halfway.
+    if: >-
+      always()
+      && needs.build.result == 'success'
+      && needs.extension.result == 'success'
+      && needs.publish.result != 'failure'
+      && needs.publish.result != 'cancelled'
     runs-on: ubuntu-latest
     permissions:
       contents: write # to create the release
@@ -175,6 +197,35 @@ jobs:
         run: |
           python scripts/changelog_section.py "${GITHUB_REF_NAME#v}" --output release-notes.md
           cat release-notes.md
+
+      # Tell people how to install *this* release, truthfully. If the PyPI job was
+      # skipped, saying `pip install scenet` would be a lie -- the wheel attached below
+      # is installable from its own URL, and that is what the notes should say.
+      - name: Append installation instructions
+        env:
+          PUBLISHED: ${{ needs.publish.result }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          WHEEL="scenet-${VERSION}-py3-none-any.whl"
+          BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          {
+            echo
+            echo "## Install"
+            echo
+            if [ "$PUBLISHED" = "success" ]; then
+              printf '```bash\npip install scenet==%s\n```\n' "$VERSION"
+            else
+              echo "Not on PyPI yet. Install the attached wheel directly:"
+              echo
+              printf '```bash\npip install %s/%s\n```\n' "$BASE" "$WHEEL"
+            fi
+            echo
+            echo "The VS Code extension is the attached scenet.vsix:"
+            echo "**Extensions** -> **...** -> **Install from VSIX...**"
+            echo
+            echo "[Documentation](https://azias.github.io/scenet/) |"
+            echo "[Playground](https://azias.github.io/scenet/playground/)"
+          } >> release-notes.md
 
       - name: Publish the release
         env:

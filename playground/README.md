@@ -42,3 +42,24 @@ both need real requests.
 ```bash
 python -m http.server 8123 --directory public
 ```
+
+## Pinned dependencies, and why
+
+**`monaco-editor` is pinned to exactly 0.54.0.** Version 0.55 replaced its wildcard
+exports map, so `monaco-editor/esm/vs/...` no longer resolves, and 0.56 changed the worker
+`initialize` contract. `monaco-worker-manager` — a transitive dependency of `monaco-yaml`
+— still uses the old path and the old contract, so on 0.55 or later the YAML worker never
+registers a handler.
+
+The symptom is quiet, which is what makes it worth pinning: the page loads and the editor
+appears, but schema validation, completion and hover are gone, and the console fills with
+`Missing requestHandler or method: doValidation` on every keystroke.
+
+`monaco-yaml` declares `monaco-editor: >=0.36`, a range written before any of this. The
+fix has to come from `monaco-yaml` shipping an updated worker manager, so that is the
+dependency to watch. Dependabot is told to ignore monaco-editor 0.55.x and 0.56.x
+specifically — 0.57 and later will still be proposed.
+
+**`dompurify` is overridden forward to ^3.4.14.** monaco-editor pins 3.4.8 exactly, and
+four advisories affect everything up to 3.4.12. npm's own `audit fix --force` suggests
+*downgrading* monaco to 0.53 instead, which fixes nothing.

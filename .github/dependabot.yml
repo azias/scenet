@@ -39,6 +39,17 @@ updates:
         update-types: [minor, patch]
     commit-message:
       prefix: "deps"
+    ignore:
+      # monaco-editor 0.55 replaced its wildcard exports map and 0.56 changed the worker
+      # `initialize` contract. `monaco-worker-manager`, which monaco-yaml depends on,
+      # still uses the old deep import path -- so on 0.55+ the YAML worker never
+      # registers a handler and schema validation, completion and hover silently stop
+      # working. The page still loads, which is what makes it worth pinning.
+      #
+      # Narrow on purpose: a future 0.57 will still be proposed, and monaco-yaml updates
+      # are unaffected -- and monaco-yaml is where the fix has to come from.
+      - dependency-name: monaco-editor
+        versions: ["0.55.x", "0.56.x"]
 
   - package-ecosystem: npm
     directory: /editor

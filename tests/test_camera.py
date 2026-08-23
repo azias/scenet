@@ -6,6 +6,7 @@ tests below exist specifically to fail against it.
 """
 
 from itertools import pairwise
+from pathlib import Path
 
 import pytest
 
@@ -43,9 +44,21 @@ class TestShotTable:
         """A shot type with no entry would raise a KeyError deep in the solver."""
         assert set(SHOT_TABLE) == set(ShotType)
 
-    def test_aliases_resolve_identically(self):
+    def test_wide_is_a_synonym_for_long_shot(self):
+        """The literature uses them interchangeably: "a long shot (also called a wide
+        shot)". The language keeps both because writers reach for both."""
         assert SHOT_TABLE[ShotType.WIDE] == SHOT_TABLE[ShotType.LONG_SHOT]
-        assert SHOT_TABLE[ShotType.COWBOY] == SHOT_TABLE[ShotType.MEDIUM_FULL]
+
+    def test_medium_full_and_cowboy_are_different_shots(self):
+        """These were the same entry, which silently collapsed a rung of the ladder.
+
+        Medium full -- the three-quarter shot -- cuts at the knees. The cowboy or
+        American shot cuts at mid-thigh, from 1930s Western framing that had to include
+        the holster. Naming two shots and drawing one is worse than not offering both.
+        """
+        assert SHOT_TABLE[ShotType.MEDIUM_FULL].crop is Landmark.KNEES
+        assert SHOT_TABLE[ShotType.COWBOY].crop is Landmark.MID_THIGH
+        assert SHOT_TABLE[ShotType.MEDIUM_FULL] != SHOT_TABLE[ShotType.COWBOY]
 
     def test_tighter_shots_crop_higher_up_the_body(self, alice: PuppetSpec):
         """The ordering that gives shot types their meaning."""
@@ -242,19 +255,26 @@ class TestTheLadderIsALadder:
         scales = self._scales()
         assert scales[-1] > scales[0] * 4
 
-    def test_aliases_are_exact_synonyms(self):
+    def test_wide_and_long_shot_are_exact_synonyms(self):
         reference = default_library().get("alice")
-        for shot, alias in (
-            (ShotType.LONG_SHOT, ShotType.WIDE),
-            (ShotType.MEDIUM_FULL, ShotType.COWBOY),
-        ):
-            first = solve_camera(
-                reference, shot=shot, angle=CameraAngle.EYE_LEVEL, panel_height=1000.0
-            )
-            second = solve_camera(
-                reference, shot=alias, angle=CameraAngle.EYE_LEVEL, panel_height=1000.0
-            )
-            assert first.scale == second.scale, f"{shot.value} and {alias.value} must agree"
+        first = solve_camera(
+            reference, shot=ShotType.LONG_SHOT, angle=CameraAngle.EYE_LEVEL, panel_height=1000.0
+        )
+        second = solve_camera(
+            reference, shot=ShotType.WIDE, angle=CameraAngle.EYE_LEVEL, panel_height=1000.0
+        )
+        assert first.scale == second.scale
+
+    def test_cowboy_is_tighter_than_medium_full(self):
+        """Mid-thigh is above the knees, so the cowboy shot draws the figure larger."""
+        reference = default_library().get("alice")
+        looser = solve_camera(
+            reference, shot=ShotType.MEDIUM_FULL, angle=CameraAngle.EYE_LEVEL, panel_height=1000.0
+        )
+        tighter = solve_camera(
+            reference, shot=ShotType.COWBOY, angle=CameraAngle.EYE_LEVEL, panel_height=1000.0
+        )
+        assert tighter.scale > looser.scale
 
 
 class TestTheRetreatNoteNamesTheShot:
@@ -290,3 +310,75 @@ staging: [alice left_of bob]
         result = compile_source(self.SOURCE)
         assert result.camera.reference == "alice"
         assert result.camera.shot is ShotType.CLOSE_UP
+
+
+class TestShotsThatShowFeetActuallyShowThem:
+    """A long shot that cuts the feet off is not a long shot.
+
+    The crop lands the FEET *landmark* on the frame edge, but the drawing continues past
+    it: the ankle joint sits exactly on that landmark and the shin capsule has a round
+    cap, so half its width is drawn below. With no footroom the figure was clipped by
+    that much -- 9 panel units at long shot -- which is invisible in the numbers and
+    obvious on the page.
+    """
+
+    FEET_SHOTS = [ShotType.LONG_SHOT, ShotType.WIDE, ShotType.FULL_SHOT]
+
+    @pytest.mark.parametrize("shot", FEET_SHOTS)
+    def test_the_whole_figure_fits_inside_the_panel(self, shot: ShotType):
+        result = compile_source(
+            f"panel: {{size: [420, 560]}}\ncamera: {{shot: {shot.value}}}\n"
+            "cast: {alice: {reference: alice, pose: pointing}}\n"
+        )
+        bounds = result.core.actor("alice").bounds
+        assert bounds.y >= 0, f"{shot.value} clips the head"
+        assert bounds.y + bounds.height <= result.core.height, f"{shot.value} clips the feet"
+
+    @pytest.mark.parametrize("shot", FEET_SHOTS)
+    def test_they_reserve_ground_beneath_the_feet(self, shot: ShotType):
+        """Not merely un-clipped: a figure on the exact bottom edge reads as falling out
+        of the panel rather than standing on anything."""
+        assert SHOT_TABLE[shot].footroom > 0
+
+    def test_shots_cropping_above_the_feet_reserve_none(self):
+        """There is no ground in frame to leave."""
+        for shot, spec in SHOT_TABLE.items():
+            if spec.crop is not Landmark.FEET:
+                assert spec.footroom == 0.0, f"{shot.value} crops above the feet"
+
+
+class TestTheNormativeTableMatchesTheCode:
+    """`docs/reference/shot_types.md` calls itself normative, so it had better be true.
+
+    It drifted: it claimed `long_shot` had a headroom of 0.60 when the code used 0.14,
+    and listed `cowboy` as an alias of `medium_full` after they had become different
+    shots. A specification nobody checks is a comment in a different file.
+    """
+
+    DOC = Path(__file__).parent.parent / "docs" / "reference" / "shot_types.md"
+
+    def _row(self, shot: ShotType) -> str:
+        """Find the table row for a shot.
+
+        Synonyms share a row -- `long_shot` is written "`long_shot` (alias `wide`)" --
+        so the name is looked for anywhere in the first cell rather than at its start.
+        """
+        for line in self.DOC.read_text(encoding="utf-8").splitlines():
+            if not line.startswith("| `"):
+                continue
+            first_cell = line.split("|")[1]
+            if f"`{shot.value}`" in first_cell:
+                return line
+        raise AssertionError(f"{shot.value} has no row in the normative table")
+
+    @pytest.mark.parametrize("shot", list(ShotType))
+    def test_every_shot_has_a_row(self, shot: ShotType):
+        assert self._row(shot)
+
+    @pytest.mark.parametrize("shot", list(ShotType))
+    def test_the_crop_landmark_matches(self, shot: ShotType):
+        assert f"`{SHOT_TABLE[shot].crop.value}`" in self._row(shot)
+
+    @pytest.mark.parametrize("shot", list(ShotType))
+    def test_the_headroom_matches(self, shot: ShotType):
+        assert f"{SHOT_TABLE[shot].headroom:.2f}" in self._row(shot)

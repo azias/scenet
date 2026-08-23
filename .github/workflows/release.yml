@@ -227,11 +227,19 @@ jobs:
             echo "[Playground](https://azias.github.io/scenet/playground/)"
           } >> release-notes.md
 
-      - name: Publish the release
+      # Idempotent, because a release workflow gets re-run. The first v0.1.0 run
+      # created the release with PyPI skipped; enabling PyPI and re-running then failed
+      # here with "a release with the same tag name already exists" -- after the upload
+      # to PyPI had already succeeded. A job that cannot survive being run twice turns
+      # every retry into manual cleanup.
+      - name: Publish or update the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
-            --notes-file release-notes.md \
-            dist/*
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "release $GITHUB_REF_NAME exists; updating notes and assets"
+            gh release edit "$GITHUB_REF_NAME" --notes-file release-notes.md
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file release-notes.md dist/*
+          fi

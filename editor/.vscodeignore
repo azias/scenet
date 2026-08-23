@@ -1,0 +1,12 @@
+# What NOT to ship in the .vsix.
+#
+# An extension package should contain what the editor runs and what a user reads before
+# installing -- nothing else. Sources belong in the repository, which the README links to.
+
+src/**
+out/**/*.map
+tsconfig.json
+.gitignore
+.vscodeignore
+node_modules/**
+*.vsix

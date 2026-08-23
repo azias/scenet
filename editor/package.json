@@ -7,7 +7,7 @@
   "license": "0BSD",
   "private": true,
   "engines": {
-    "vscode": "^1.90.0"
+    "vscode": "^1.100.0"
   },
   "categories": [
     "Programming Languages",
@@ -80,8 +80,9 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@types/vscode": "^1.90.0",
-    "typescript": "^5.7.0"
+    "@types/node": "^26.2.0",
+    "@types/vscode": "^1.100.0",
+    "@vscode/vsce": "^3.9.2",
+    "typescript": "^7.0.2"
   }
 }

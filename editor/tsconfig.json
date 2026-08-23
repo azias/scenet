@@ -4,6 +4,10 @@
     "module": "Node16",
     "moduleResolution": "Node16",
     "lib": ["ES2022"],
+
+    // TypeScript 6 made `types` default to empty, so anything an extension needs from
+    // the ambient environment has to be named explicitly.
+    "types": ["node", "vscode"],
     "outDir": "out",
     "rootDir": "src",
     "sourceMap": true,

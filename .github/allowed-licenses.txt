@@ -21,6 +21,12 @@ Apache Software License
 ISC
 ISC License (ISCL)
 PSF-2.0
+# The SIL Open Font License is permissive for our purposes: it explicitly allows
+# bundling and redistributing a font alongside software, provided its notice travels
+# with it. See THIRD_PARTY_NOTICES.md.
+SIL Open Font License 1.1 (OFL-1.1)
+SIL OFL 1.1
+OFL-1.1
 Python Software Foundation License
 The Unlicense (Unlicense)
 CC0-1.0

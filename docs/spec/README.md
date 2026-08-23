@@ -17,12 +17,12 @@ attribution. A notation is only worth having if it is not owned.
 | Phase | Scope | State |
 |---|---|---|
 | 0 | Toolchain, CI, specification, project scaffolding | **Done** |
-| 1 | IR, Panel Core schema, YAML frontend, puppets and forward kinematics | Not started |
-| 2 | Camera scale resolution and actor placement (Cassowary) | Not started |
-| 3 | Text metrics, balloon placement, reading order, tails | Not started |
-| 4 | SVG emitter | Not started |
+| 1 | IR, Panel Core schema, YAML frontend, puppets and forward kinematics | **Done** |
+| 2 | Camera scale resolution and actor placement (Cassowary) | **Done** |
+| 3 | Text metrics, balloon placement, reading order, tails | **Done** |
+| 4 | SVG emitter, debug overlay and CLI | **Done** |
 | 5 | Comic-script frontend; multi-panel `over` inheritance | Not started |
 | 6 | Browser playground (Pyodide); VS Code extension | Not started |
 
-Nothing compiles yet. Constructs described in `language.md` are the specification, not a report of
-what is implemented — the table above is authoritative on what actually runs.
+Single panels compile end to end. Constructs described in `language.md` are the specification,
+not a report of what is implemented — the table above is authoritative on what actually runs.

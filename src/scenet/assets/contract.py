@@ -35,6 +35,14 @@ class Landmark(StrEnum):
     FEET = "feet"
 
 
+class UnknownPuppetError(KeyError):
+    """A panel referenced a character the library does not have.
+
+    A distinct type rather than a bare KeyError so the CLI can report it as the
+    user error it is, instead of letting a traceback escape.
+    """
+
+
 class Strict(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -224,7 +232,9 @@ class PuppetLibrary:
 
     def get(self, name: str) -> PuppetSpec:
         if name not in self._puppets:
-            raise KeyError(f"unknown puppet '{name}'; library has {sorted(self._puppets)}")
+            raise UnknownPuppetError(
+                f"unknown character '{name}'; the library has {sorted(self._puppets)}"
+            )
         return self._puppets[name]
 
     def names(self) -> tuple[str, ...]:

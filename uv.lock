@@ -102,6 +102,24 @@ wheels = [
 ]
 
 [[package]]
+name = "font-source-sans-pro"
+version = "0.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/62/db/6be92aed80a2a328d3632c59aeb0986f82403096ea1a3896468bfcbc2987/font-source-sans-pro-0.0.1.tar.gz", hash = "sha256:3f81d8e52b0d7e930e2c867c0d3ee549312d03f97b71b664a8361006311f72e5", size = 2159156, upload-time = "2018-10-26T16:10:15.908Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4c/95/3d29d2f821bd368f74ab5fe5e7d5bf0a55a0a26d3202a56526f475e51c1b/font_source_sans_pro-0.0.1-py3-none-any.whl", hash = "sha256:2250396f565a0fea35726e56059216d1d5d75071d64d075ebdfec183b4b85765", size = 2169233, upload-time = "2018-10-26T16:10:12.053Z" },
+]
+
+[[package]]
+name = "fonts"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3b/ef/0204fef272c9bf52b4bea9b547f6135948a1a44241064456b39b0ad2ce98/fonts-0.1.0.tar.gz", hash = "sha256:3fd4cc544dd1dcf1de1fdaf77980329bcfb7ccd22018070b4270261169c6ff92", size = 3111, upload-time = "2026-07-05T21:28:05.45Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/91/af/d6c3cedfe9de1f449c3378ee7e4c1a7b75dc387d4402468236a853ab2a22/fonts-0.1.0-py3-none-any.whl", hash = "sha256:af4fb8f5b62301236a797bbf7483d1b1a0d99a566f683d84652a211dcf756def", size = 3475, upload-time = "2026-07-05T21:28:04.362Z" },
+]
+
+[[package]]
 name = "fonttools"
 version = "4.63.0"
 source = { registry = "https://pypi.org/simple" }
@@ -491,6 +509,8 @@ name = "scenet"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "font-source-sans-pro" },
+    { name = "fonts" },
     { name = "fonttools" },
     { name = "kiwisolver" },
     { name = "numpy" },
@@ -513,6 +533,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "font-source-sans-pro", specifier = ">=0.0.1" },
+    { name = "fonts", specifier = ">=0.1" },
     { name = "fonttools", specifier = ">=4.55" },
     { name = "kiwisolver", specifier = ">=1.4" },
     { name = "numpy", specifier = ">=2.1" },

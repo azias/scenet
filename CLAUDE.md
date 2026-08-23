@@ -44,8 +44,9 @@ uv run ty check
   linear system. Any new construct that reintroduces a disjunction must be resolved in the frontend.
 - **Shot types are defined by a crop landmark plus a headroom fraction**, in head-height units — not
   by a percentage of panel height. See `docs/spec/shot_types.md`, which is normative.
-- **Balloon size depends on real font metrics.** Text is measured with `fontTools` against the
-  bundled font. Measurement and rendering must agree exactly or output stops being deterministic.
+- **Balloon size depends on real font metrics.** Text is measured with `fontTools` against a font
+  supplied as a declared dependency, never a system lookup. Measurement and rendering must agree
+  exactly, which is why lettering is emitted as glyph outlines by default.
 - **Reading order is a hard constraint**, not a preference: a balloon may never sit above-and-left
   of the one that precedes it in the script.
 

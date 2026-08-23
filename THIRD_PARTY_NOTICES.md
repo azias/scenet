@@ -3,19 +3,24 @@
 Scenet is distributed under the [BSD Zero Clause License](LICENSE) (0BSD). It incorporates and depends on the
 third-party components listed below.
 
-## Bundled assets
+## Fonts
 
-### Comic Neue (font)
+### Source Sans Pro
 
-Licensed under the [SIL Open Font License 1.1][ofl]. Copyright The Comic Neue Project Authors.
+Licensed under the [SIL Open Font License 1.1][ofl]. Copyright Adobe Systems Incorporated.
 
-The OFL explicitly permits bundling and redistribution alongside software, provided the copyright
-notice and license accompany the font. The full license text ships as `fonts/LICENSE-OFL.txt`. The
-font is redistributed unmodified, so the Reserved Font Name provision is not engaged.
+The OFL explicitly permits bundling and redistributing a font alongside software, provided the
+copyright notice and license accompany it. Here the font is not vendored into this repository at
+all: it arrives through the `font-source-sans-pro` package as an ordinary declared dependency, so
+`uv.lock` pins it and the license travels with the package.
 
-The font is bundled rather than merely referenced because the compiler measures glyph advance
-widths to size speech balloons. Measurement and rendering must agree exactly for output to be
-deterministic, which is only guaranteed if the font is fixed and shipped with the compiler.
+That indirection is deliberate. The compiler measures glyph advance widths to size speech balloons,
+and measurement must agree exactly with rendering or the output stops being deterministic. Looking
+up a system font would make the result depend on whichever machine compiled it, which is precisely
+what a reproducible compiler cannot allow.
+
+Source Sans Pro is a legible humanist sans rather than a comic lettering face. That is a placeholder
+choice: style belongs to the deferred interpretation layer, and the font is configurable.
 
 [ofl]: https://openfontlicense.org/
 

@@ -39,6 +39,14 @@ class Box(CoreModel):
     width: float
     height: float
 
+    @property
+    def right(self) -> float:
+        return self.x + self.width
+
+    @property
+    def bottom(self) -> float:
+        return self.y + self.height
+
     @classmethod
     def of(cls, bbox: BBox) -> Self:
         return cls(

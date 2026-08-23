@@ -14,7 +14,7 @@ Treat it accordingly: an experiment first, a usable tool second.
 
 ![License: 0BSD](https://img.shields.io/badge/License-0BSD-brightgreen.svg)
 ![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)
-![Status: pre-alpha](https://img.shields.io/badge/status-pre--alpha-red.svg)
+![Status: alpha](https://img.shields.io/badge/status-alpha-orange.svg)
 
 ## What this is
 
@@ -55,8 +55,18 @@ computational geometry. The same input always produces byte-identical output.
 
 ## Status
 
-**Pre-alpha — nothing compiles yet.** Phase 0 (project scaffolding) is complete. See
-[the phase plan](docs/spec/README.md) for what works and what does not.
+**Alpha — single panels compile end to end.** Framing, actor placement, balloon placement,
+reading order, tail routing and SVG emission all work. Not yet built: multi-panel pages,
+a comic-script frontend, and the interpretation layer that would give a panel a *style*.
+See [the phase plan](docs/spec/README.md) for detail.
+
+```bash
+uv run scenet build examples/duel.panel.yaml --core --debug
+```
+
+`--core` writes the resolved intermediate tier as JSON; `--debug` writes an overlay showing
+the geometry the solver was working against — silhouette hulls, face exclusion zones, anchors,
+gaze vectors and tail routes.
 
 ## How it works
 
@@ -106,8 +116,9 @@ MIT: you may use, copy, modify and distribute this software for any purpose, wit
 obligation to preserve a copyright notice or reproduce the license. No attribution is
 required, though it is always welcome.
 
-Third-party components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md);
-the bundled font carries its own license and that one does require its notice be kept.
+Third-party components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The
+lettering font arrives as an ordinary dependency under the SIL Open Font License, which does
+require its own notice be kept with it.
 
 **The language specification is free to implement.** Anyone may build their own compiler, editor,
 renderer or tooling for this language, in any project, commercial or otherwise, without restriction

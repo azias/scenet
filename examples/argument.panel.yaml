@@ -1,0 +1,24 @@
+# Whisper and shout in one panel, and a deliberate depth ordering.
+#
+# Note that alice never declares a facing: `looking_at` resolves it, turning her
+# toward bob because he stands to her right.
+
+panel:
+  size: [1200, 700]
+
+camera:
+  shot: medium_full
+
+cast:
+  alice: {reference: alice, pose: pointing,     at: left_third}
+  bob:   {reference: bob,   pose: arms_crossed, at: right_third, facing: left}
+
+staging:
+  - alice left_of bob
+  - alice looking_at bob
+  - alice ground_shared_with bob
+  - alice in_front_of bob
+
+script:
+  - say: {by: alice, text: "Did you take the last one?", kind: whisper}
+  - say: {by: bob,   text: "I did not!", kind: shout}

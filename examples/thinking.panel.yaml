@@ -1,0 +1,15 @@
+# A single figure, framed tight. With one actor and no competing anchors the camera
+# uses the requested framing exactly -- no retreat is needed.
+
+panel:
+  size: [800, 800]
+
+camera:
+  shot: medium_close_up
+  angle: low
+
+cast:
+  bob: {reference: bob, pose: hands_on_hips, at: center, facing: right}
+
+script:
+  - say: {by: bob, text: "She is going to be furious about this.", kind: thought}

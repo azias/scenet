@@ -1,0 +1,25 @@
+# Four characters at a close-up: impossible as asked, so the camera retreats.
+#
+# The requested shot behaves as an upper bound on tightness rather than an exact
+# contract. `scenet build` reports the retreat rather than performing it silently.
+
+panel:
+  size: [1400, 700]
+
+camera:
+  shot: close_up
+
+cast:
+  alice:  {reference: alice, pose: standing_neutral}
+  bob:    {reference: bob,   pose: arms_crossed}
+  carol:  {reference: alice, pose: hands_on_hips}
+  dave:   {reference: bob,   pose: pointing}
+
+staging:
+  - alice ground_shared_with bob
+  - bob ground_shared_with carol
+  - carol ground_shared_with dave
+
+script:
+  - say: {by: alice, text: "Is everyone here?"}
+  - say: {by: dave,  text: "Looks like it."}

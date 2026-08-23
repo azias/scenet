@@ -32,3 +32,4 @@ site/
 
 # Packaged VS Code extension (built, not committed)
 *.vsix
+docs/_linkcheck/

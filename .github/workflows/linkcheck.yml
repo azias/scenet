@@ -1,0 +1,50 @@
+name: Link check
+
+# Weekly, and on demand. Deliberately NOT part of CI: external links rot on somebody
+# else's schedule, and a pull request should not fail because an unrelated site is down
+# for maintenance. But rotted links in published documentation are still a real defect,
+# so something has to look.
+#
+# This exists because of a bug it would have caught. MyST's linkify extension treats
+# anything shaped like a domain as a URL, and `.id`, `.by`, `.at`, `.name`, `.ir` and
+# `.cy` are all real top-level domains -- so every `CoreActor.id` and `SayEvent.by` in
+# the API reference shipped as a live hyperlink to a stranger's website. The HTML build
+# was clean; only linkcheck saw it.
+
+on:
+  schedule:
+    # Mondays, 07:00 UTC. Early enough in the week to be worth acting on.
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linkcheck:
+    name: Documentation links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+
+      - run: uv sync --frozen --group docs
+
+      - name: Check every link in the documentation
+        run: uv run sphinx-build -b linkcheck docs docs/_linkcheck
+
+      - name: Report
+        if: always()
+        run: |
+          if [ -f docs/_linkcheck/output.txt ]; then
+            echo '### Link check' >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            grep -E 'broken|redirect' docs/_linkcheck/output.txt >> "$GITHUB_STEP_SUMMARY" || \
+              echo 'no broken links' >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi

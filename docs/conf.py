@@ -54,6 +54,13 @@ myst_enable_extensions = [
 ]
 myst_heading_anchors = 3
 
+# linkify, left to itself, treats anything shaped like a domain as a link -- and `.id`,
+# `.by`, `.at`, `.name`, `.ir` and `.cy` are all real top-level domains. So every
+# `CoreActor.id` and `SayEvent.by` in the API reference became a hyperlink to somebody
+# else's website. Fuzzy linking off: an explicit scheme is now required, which still
+# covers every real URL in these documents.
+myst_linkify_fuzzy_links = False
+
 # -- autodoc ------------------------------------------------------------------
 
 autodoc_default_options = {

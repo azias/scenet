@@ -5,10 +5,27 @@
   "description": "Browser playground for Scenet, running the Python compiler under Pyodide.",
   "type": "module",
   "scripts": {
-    "build": "tsc && node build.js",
+    "assets": "tsx scripts/fetch-assets.ts",
+    "dev": "npm run assets && vite",
+    "build": "npm run assets && tsc --noEmit && vite build",
+    "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "monaco-editor": "^0.56.0",
+    "monaco-yaml": "^5.5.1",
+    "pyodide": "^314.0.5"
+  },
   "devDependencies": {
-    "typescript": "^5.7.0"
+    "@types/node": "^26.2.0",
+    "tsx": "^4.20.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  },
+  "overrides": {
+    "dompurify": "^3.4.14"
   }
 }

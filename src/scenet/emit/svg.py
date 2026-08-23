@@ -9,7 +9,7 @@ byte-identical across platforms, whose float repr differs in the last digit.
 """
 
 import math
-from xml.sax.saxutils import escape
+from xml.sax.saxutils import escape, quoteattr
 
 from scenet.core import CoreActor, CoreBalloon, PanelCore, Tail
 from scenet.ir import BalloonKind
@@ -77,9 +77,39 @@ def render(
     return "\n".join(parts) + "\n"
 
 
+def attr(value: str) -> str:
+    r"""Quote a string for use as an XML attribute value, delimiters included.
+
+    Returns the value *with* its surrounding quotes, because choosing the quote
+    character is part of escaping correctly -- `quoteattr` picks whichever one avoids
+    the most escaping.
+
+    This exists because `xml.sax.saxutils.escape` does **not** escape quotation marks.
+    That is fine for element content and wrong for an attribute: identifiers here come
+    from user documents -- a cast key, a panel name -- and one containing a double quote
+    would close the attribute early and let the rest of it be read as markup. The output
+    is injected with `innerHTML` by the browser playground, so that is a scripting
+    vector, not merely malformed XML.
+
+    Args:
+        value: Any string, trusted or not.
+
+    Returns:
+        The value, escaped and wrapped in quotes.
+
+    Example:
+        >>> from scenet.emit.svg import attr
+        >>> attr("alice")
+        '"alice"'
+        >>> attr('a" onload=x')
+        '\'a" onload=x\''
+    """
+    return quoteattr(value)
+
+
 def _render_actor(actor: CoreActor) -> str:
     lines = [
-        f'    <g id="actor-{escape(actor.id)}" fill="{FILL_FIGURE}" '
+        f'    <g id={attr("actor-" + actor.id)} fill="{FILL_FIGURE}" '
         f'stroke-width="{fmt(FIGURE_STROKE_WIDTH)}">'
     ]
 
@@ -111,7 +141,7 @@ def _render_actor(actor: CoreActor) -> str:
 
 def _render_balloon(balloon: CoreBalloon, metrics: FontMetrics, *, live_text: bool) -> str:
     box = balloon.box
-    lines = [f'    <g id="balloon-{escape(balloon.id)}">']
+    lines = [f"    <g id={attr('balloon-' + balloon.id)}>"]
 
     lines.append(_tail_shape(balloon))
     lines.append(_balloon_outline(balloon))

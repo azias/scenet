@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 project = "Scenet"
 # No personal name here or anywhere else in the repository, deliberately.
-copyright = f"{datetime.now(UTC).year}, Scenet contributors"  # noqa: A001
+copyright = f"{datetime.now(UTC).year}, Scenet contributors"
 author = "Scenet contributors"
 release = package_version("scenet")
 version = ".".join(release.split(".")[:2])

@@ -16,9 +16,10 @@ import pytest
 from scenet.assets.contract import default_library
 from scenet.core import PanelCore
 from scenet.emit.debug_svg import render_debug
+from scenet.emit.strip import render_strip
 from scenet.emit.svg import fmt, render
 from scenet.geom import BBox, Circle
-from scenet.pipeline import compile_file, compile_source
+from scenet.pipeline import compile_file, compile_scene, compile_source
 from scenet.solve.balloons import READING_EPSILON
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
@@ -234,3 +235,44 @@ class TestGeometryHelpers:
         """A naive centre-distance test would wrongly report a hit here."""
         box = BBox(0, 0, 10, 10)
         assert not box.intersects_circle(Circle(13, 13, 4))
+
+
+class TestIdentifiersCannotInjectMarkup:
+    """Identifiers come from user documents and end up in SVG attributes.
+
+    The output is injected into the page with `innerHTML` by the browser playground, so
+    an identifier that can close its own attribute is a scripting vector and not merely
+    malformed XML. `xml.sax.saxutils.escape` does not escape quotation marks, which is
+    exactly the gap this covers.
+    """
+
+    HOSTILE = 'x" onload=alert(1) y="'
+
+    def test_actor_id_stays_inside_its_attribute(self):
+        source = f"cast:\n  '{self.HOSTILE}': {{reference: alice}}\n"
+        svg = render(compile_source(source).core)
+
+        assert "onload" in svg, "the identifier should survive, escaped"
+        root = ElementTree.fromstring(svg)
+        groups = root.iter("{http://www.w3.org/2000/svg}g")
+        assert any(g.get("id") == f"actor-{self.HOSTILE}" for g in groups)
+        # No element anywhere gained an attribute called `onload`.
+        assert all("onload" not in element.attrib for element in root.iter())
+
+    def test_panel_name_stays_inside_its_attribute(self):
+        source = f"panels:\n  '{self.HOSTILE}': {{cast: {{a: {{reference: alice}}}}}}\n"
+        panels = compile_scene(source)
+        strip = render_strip([(name, result.core) for name, result in panels.items()])
+
+        root = ElementTree.fromstring(strip)
+        groups = root.iter("{http://www.w3.org/2000/svg}g")
+        assert any(g.get("id") == f"panel-{self.HOSTILE}" for g in groups)
+
+    def test_dialogue_stays_inside_its_element(self):
+        source = 'cast: {a: {reference: alice}}\nscript: [{say: {by: a, text: "</text><script/>"}}]'
+        svg = render(compile_source(source).core, live_text=True)
+
+        root = ElementTree.fromstring(svg)
+        assert not list(root.iter("{http://www.w3.org/2000/svg}script"))
+        texts = [t.text for t in root.iter("{http://www.w3.org/2000/svg}text")]
+        assert "</text><script/>" in texts

@@ -11,7 +11,7 @@ element that distinguishes comics from a series of illustrations.
 """
 
 from scenet.core import PanelCore
-from scenet.emit.svg import fmt, render
+from scenet.emit.svg import attr, fmt, render
 
 # Space between panels, as a fraction of the tallest panel.
 GUTTER_FRACTION = 0.04
@@ -50,7 +50,9 @@ def render_strip(panels: list[tuple[str, PanelCore]], *, live_text: bool = False
         # unequal panels is conventionally aligned.
         inner = render(core, live_text=live_text)
         body = inner.split("\n", 2)[2].rsplit("</svg>", 1)[0]
-        parts.append(f'  <g id="panel-{name}" transform="translate({fmt(cursor)} {fmt(margin)})">')
+        parts.append(
+            f'  <g id={attr("panel-" + name)} transform="translate({fmt(cursor)} {fmt(margin)})">'
+        )
         parts.append(body.rstrip())
         parts.append("  </g>")
         cursor += core.width + gutter

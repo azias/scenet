@@ -38,13 +38,13 @@ Three tiers, and all three are yours to use:
 | Tier | Type | What it is |
 |---|---|---|
 | Source | `str` / file | What an author writes -- YAML or comic script |
-| IR | [`PanelIR`][scenet.ir.PanelIR] | Validated scene graph. No coordinates yet |
-| Panel Core | [`PanelCore`][scenet.core.PanelCore] | Resolved and fully numeric, still named |
+| IR | :class:`PanelIR <scenet.ir.PanelIR>` | Validated scene graph. No coordinates yet |
+| Panel Core | :class:`PanelCore <scenet.core.PanelCore>` | Resolved and fully numeric, still named |
 
 Panel Core is a real, writable format rather than a hidden data structure, so a layout
 can be inspected, hand-adjusted and diffed independently of how it is drawn. Reach for
-[`compile_source`][scenet.pipeline.compile_source] when you want a picture, and for
-[`PanelCore`][scenet.core.PanelCore] when you want to know *why* the picture looks like
+:func:`compile_source <scenet.pipeline.compile_source>` when you want a picture, and for
+:class:`PanelCore <scenet.core.PanelCore>` when you want to know *why* the picture looks like
 that.
 
 Names not listed in `__all__` are internal and may change without notice.

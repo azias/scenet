@@ -53,8 +53,8 @@ class ScenetError(Exception):
         UnknownPuppetError
 
     See Also:
-        [`SourceError`][scenet.errors.SourceError], for the "bad document" branch.
-        [`SolverError`][scenet.errors.SolverError], for the "impossible layout" branch.
+        :exc:`SourceError <scenet.errors.SourceError>`, for the "bad document" branch.
+        :exc:`SolverError <scenet.errors.SolverError>`, for the "impossible layout" branch.
     """
 
 
@@ -67,13 +67,28 @@ class SourceError(ScenetError, ValueError):
     the document -- no traceback required.
 
     Also a `ValueError`, since that is what a malformed value has always been.
+
+    Attributes:
+        source: Path the document was read from, or `None` for a string compiled in
+            memory. Prefixed to the message when present, so a diagnostic never loses
+            the file it came from.
     """
+
+    def __init__(self, message: str, *, source: Path | None = None) -> None:
+        """Build the error, prefixing the source path when there is one.
+
+        Args:
+            message: What went wrong, phrased for the person who wrote the document.
+            source: Path the document came from, if it was read from disk.
+        """
+        self.source = source
+        super().__init__(f"{source}: {message}" if source else message)
 
 
 class SolverError(ScenetError, ValueError):
     """A document that is valid but cannot be laid out.
 
-    The distinction from [`SourceError`][scenet.errors.SourceError] matters: nothing is
+    The distinction from :exc:`SourceError <scenet.errors.SourceError>` matters: nothing is
     misspelled and nothing is missing, but the panel as described has no solution --
     a cast with nowhere left to stand, or a balloon with no legal position. The fix is
     an editorial change to the panel, not a correction to its syntax.
@@ -93,10 +108,6 @@ class PanelSyntaxError(SourceError):
     `path/to/duel.panel.yaml: invalid panel: ...` rather than losing the file it came
     from.
 
-    Attributes:
-        source: Path the document was read from, or `None` for a string compiled
-            in memory.
-
     Example:
         >>> from scenet import PanelSyntaxError, compile_source
         >>> try:
@@ -107,21 +118,11 @@ class PanelSyntaxError(SourceError):
           at panel: panel size must be positive
     """
 
-    def __init__(self, message: str, *, source: Path | None = None) -> None:
-        """Build the error, prefixing the source path when there is one.
-
-        Args:
-            message: What went wrong, phrased for the person who wrote the document.
-            source: Path the document came from, if it was read from disk.
-        """
-        self.source = source
-        super().__init__(f"{source}: {message}" if source else message)
-
 
 class ScriptSyntaxError(PanelSyntaxError):
     """A comic script that could not be parsed.
 
-    A subclass of [`PanelSyntaxError`][scenet.errors.PanelSyntaxError] rather than a
+    A subclass of :exc:`PanelSyntaxError <scenet.errors.PanelSyntaxError>` rather than a
     sibling, because both frontends produce the same IR and a caller handling "bad
     input" should not have to care which syntax it was written in.
     """
@@ -132,6 +133,14 @@ class CompositionError(SourceError):
 
     Raised for a panel inheriting from one that does not exist, and for a cycle --
     `a` over `b` over `a` -- which has no fixed point to resolve to.
+
+    Example:
+        >>> from scenet import CompositionError, compile_scene
+        >>> try:
+        ...     compile_scene("panels: {a: {over: b}, b: {over: a}}")
+        ... except CompositionError as exc:
+        ...     print(exc)
+        'over' chain is cyclic: a -> b -> a
     """
 
 

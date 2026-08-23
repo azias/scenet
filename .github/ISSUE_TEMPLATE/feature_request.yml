@@ -20,4 +20,4 @@ body:
       value: |
         Note: constructs that introduce a left/right *disjunction* ("A beside B", unordered)
         are hard for the solver, which requires a linear system. Ordering must be resolvable
-        before solving. See `docs/spec/language.md`.
+        before solving. See `docs/reference/language.md`.

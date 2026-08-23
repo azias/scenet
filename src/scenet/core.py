@@ -43,7 +43,7 @@ class Transform(CoreModel):
 class Box(CoreModel):
     """A rectangle, as stored in a Core document.
 
-    The serialisable twin of [`BBox`][scenet.geom.BBox]. The geometry code works in
+    The serialisable twin of :class:`BBox <scenet.geom.BBox>`. The geometry code works in
     `BBox`; this is what gets written to JSON, with every value already rounded so the
     file is byte-identical across platforms.
 
@@ -313,7 +313,7 @@ class PanelCore(CoreModel):
     def from_json(cls, text: str) -> Self:
         """Read a Core document back in.
 
-        The inverse of [`to_json`][scenet.core.PanelCore.to_json], and the reason Panel
+        The inverse of :meth:`to_json <scenet.core.PanelCore.to_json>`, and the reason Panel
         Core is a real format rather than a private data structure: a layout can be
         exported, adjusted by hand or by another tool, and read back for emission.
 

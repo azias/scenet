@@ -1,7 +1,7 @@
 {
   "$defs": {
     "AnchorX": {
-      "description": "Where along the panel width an actor would like to stand.\n\nHorizontal only. Actors stand on a ground line, so their vertical position is\nderived from the camera rather than requested -- which is why this has no vertical\ncounterpart and [`PlacementZone`][scenet.ir.PlacementZone], used for balloons, does.\n\nThese are *weak* preferences. Non-overlap and declared left-to-right ordering are\nrequired constraints and will override an anchor without complaint; two actors both\nasking for `center` will simply be pushed apart around it.",
+      "description": "Where along the panel width an actor would like to stand.\n\nHorizontal only. Actors stand on a ground line, so their vertical position is\nderived from the camera rather than requested -- which is why this has no vertical\ncounterpart and :class:`PlacementZone <scenet.ir.PlacementZone>`, used for balloons, does.\n\nThese are *weak* preferences. Non-overlap and declared left-to-right ordering are\nrequired constraints and will override an anchor without complaint; two actors both\nasking for `center` will simply be pushed apart around it.",
       "enum": [
         "left_edge",
         "left_third",
@@ -24,7 +24,7 @@
       "type": "string"
     },
     "CameraAngle": {
-      "description": "The camera's height relative to the subject.\n\nAffects headroom rather than perspective: this is a flat, orthographic compiler, so\na tilted camera does not foreshorten anything. What it changes is how much air sits\nabove the head -- which is the compositional cue readers actually take from an\nangle, and one that survives being drawn flat.\n\nA **low** camera looks up and the subject looms, so the head rides high in the frame\nwith little space above it. A **high** camera looks down, so the head sits lower and\nmore space opens up above. See\n[`headroom_for`][scenet.solve.camera.headroom_for] for the exact factors.",
+      "description": "The camera's height relative to the subject.\n\nAffects headroom rather than perspective: this is a flat, orthographic compiler, so\na tilted camera does not foreshorten anything. What it changes is how much air sits\nabove the head -- which is the compositional cue readers actually take from an\nangle, and one that survives being drawn flat.\n\nA **low** camera looks up and the subject looms, so the head rides high in the frame\nwith little space above it. A **high** camera looks down, so the head sits lower and\nmore space opens up above. See\n:func:`headroom_for <scenet.solve.camera.headroom_for>` for the exact factors.",
       "enum": [
         "low",
         "eye_level",
@@ -35,7 +35,7 @@
     },
     "CameraSpec": {
       "additionalProperties": false,
-      "description": "How the panel is framed.\n\nAttributes:\n    shot: Requested framing; an upper bound on tightness, see\n        [`ShotType`][scenet.ir.ShotType].\n    angle: Camera height, see [`CameraAngle`][scenet.ir.CameraAngle].\n\nThere is exactly **one camera per panel**, and every actor is drawn at the scale it\nimplies. Scaling each actor to its own crop landmark instead would make everybody\nthe same apparent height and erase the body differences a comic uses to tell\ncharacters apart.",
+      "description": "How the panel is framed.\n\nAttributes:\n    shot: Requested framing; an upper bound on tightness, see\n        :class:`ShotType <scenet.ir.ShotType>`.\n    angle: Camera height, see :class:`CameraAngle <scenet.ir.CameraAngle>`.\n\nThere is exactly **one camera per panel**, and every actor is drawn at the scale it\nimplies. Scaling each actor to its own crop landmark instead would make everybody\nthe same apparent height and erase the body differences a comic uses to tell\ncharacters apart.",
       "properties": {
         "angle": {
           "$ref": "#/$defs/CameraAngle",
@@ -208,7 +208,7 @@
       "type": "object"
     },
     "ShotType": {
-      "description": "How tightly the camera frames the cast.\n\nOrdered from widest to tightest. A shot type is defined by a **crop landmark** plus\na headroom fraction, both measured in head-heights -- not as a percentage of panel\nheight, which would make the same shot mean different things in a tall panel and a\nwide one. `docs/reference/shot_types.md` is normative.\n\nThe requested shot is an *upper bound on tightness*, not a promise. If the cast\ncannot fit across the panel at that framing the camera retreats, and says so in\n[`CompileResult.notes`][scenet.pipeline.CompileResult.notes].\n\nExample:\n    >>> from scenet import ShotType\n    >>> ShotType(\"close_up\")\n    <ShotType.CLOSE_UP: 'close_up'>",
+      "description": "How tightly the camera frames the cast.\n\nOrdered from widest to tightest. A shot type is defined by a **crop landmark** plus\na headroom fraction, both measured in head-heights -- not as a percentage of panel\nheight, which would make the same shot mean different things in a tall panel and a\nwide one. `docs/reference/shot_types.md` is normative.\n\nThe requested shot is an *upper bound on tightness*, not a promise. If the cast\ncannot fit across the panel at that framing the camera retreats, and says so in\n:attr:`CompileResult.notes <scenet.pipeline.CompileResult.notes>`.\n\nExample:\n    >>> from scenet import ShotType\n    >>> ShotType(\"close_up\")\n    <ShotType.CLOSE_UP: 'close_up'>",
       "enum": [
         "long_shot",
         "wide",
@@ -226,7 +226,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "A complete, validated panel: the language's real definition.\n\nEvery frontend produces one of these and nothing else, which is what lets the YAML\nsyntax and the comic-script syntax coexist without the solver knowing either exists.\n**Nothing here carries a coordinate** -- computing those is the solver's job, and\nkeeping them out is what makes a panel reusable at any size.\n\nAttributes:\n    panel: Dimensions and margin.\n    camera: Framing and angle.\n    cast: Actor id to character. Declaration order is not significant; `staging`\n        decides left-to-right order.\n    staging: Spatial and attentional relations between actors.\n    script: Dialogue, in reading order.\n\nValidation is strict and total: unknown keys are rejected, every actor id mentioned\nin `staging` or `script` must exist in `cast`, and the ordering relations must not\ncontain a cycle. A misspelled key that was silently ignored would produce a panel\nthat is subtly wrong with no indication of why, which for a language meant to be\nprecise is the worst possible failure.\n\nExample:\n    >>> from scenet import parse_panel\n    >>> panel = parse_panel(\"panel: {size: [800.0, 600.0]}\")\n    >>> panel.panel.width, panel.camera.shot.value\n    (800.0, 'medium_shot')\n\nSee Also:\n    [`compile_ir`][scenet.pipeline.compile_ir], to turn one of these into geometry.",
+  "description": "A complete, validated panel: the language's real definition.\n\nEvery frontend produces one of these and nothing else, which is what lets the YAML\nsyntax and the comic-script syntax coexist without the solver knowing either exists.\n**Nothing here carries a coordinate** -- computing those is the solver's job, and\nkeeping them out is what makes a panel reusable at any size.\n\nAttributes:\n    panel: Dimensions and margin.\n    camera: Framing and angle.\n    cast: Actor id to character. Declaration order is not significant; `staging`\n        decides left-to-right order.\n    staging: Spatial and attentional relations between actors.\n    script: Dialogue, in reading order.\n\nValidation is strict and total: unknown keys are rejected, every actor id mentioned\nin `staging` or `script` must exist in `cast`, and the ordering relations must not\ncontain a cycle. A misspelled key that was silently ignored would produce a panel\nthat is subtly wrong with no indication of why, which for a language meant to be\nprecise is the worst possible failure.\n\nExample:\n    >>> from scenet import parse_panel\n    >>> panel = parse_panel(\"panel: {size: [800.0, 600.0]}\")\n    >>> panel.panel.width, panel.camera.shot.value\n    (800.0, 'medium_shot')\n\nSee Also:\n    :func:`compile_ir <scenet.pipeline.compile_ir>`, to turn one of these into geometry.",
   "properties": {
     "camera": {
       "$ref": "#/$defs/CameraSpec",

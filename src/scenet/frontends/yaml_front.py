@@ -208,7 +208,10 @@ def parse_scene(text: str, *, source: Path | None = None) -> dict[str, PanelIR]:
     try:
         composed = resolve_overrides(panels)
     except CompositionError as exc:
-        raise PanelSyntaxError(str(exc), source=source) from exc
+        # Re-raised rather than converted: a caller that wants to distinguish an
+        # unresolvable `over:` chain from a syntax error can only do so if the type
+        # survives. Both are SourceError, so a caller that does not care is unaffected.
+        raise CompositionError(str(exc), source=source) from exc
 
     result: dict[str, PanelIR] = {}
     for name, document in composed.items():

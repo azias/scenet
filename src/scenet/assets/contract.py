@@ -19,11 +19,27 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from scenet.errors import AssetError, UnknownPuppetError
 
+__all__ = [
+    "DEFAULT_LIBRARY_PATH",
+    "AnchorSpec",
+    "BlobPart",
+    "BonePart",
+    "FaceSpec",
+    "GazeSpec",
+    "JointSpec",
+    "Landmark",
+    "PuppetLibrary",
+    "PuppetSpec",
+    "Strict",
+    "default_library",
+    "load_puppet",
+]
+
 
 class Landmark(StrEnum):
     """Vertical body landmarks, measured downward from the top of the head.
 
-    These are the crop lines a shot type names -- see docs/spec/shot_types.md.
+    These are the crop lines a shot type names -- see docs/reference/shot_types.md.
     """
 
     HEAD_TOP = "head_top"
@@ -289,7 +305,7 @@ class PuppetLibrary:
 
         Args:
             puppets: Puppet name to specification. Usually built by
-                [`from_directory`][scenet.assets.contract.PuppetLibrary.from_directory]
+                :meth:`from_directory <scenet.assets.contract.PuppetLibrary.from_directory>`
                 rather than passed in directly -- but constructing one by hand is how
                 you supply your own characters without touching the filesystem.
         """
@@ -377,7 +393,7 @@ def load_puppet(path: Path) -> PuppetSpec:
         7.5
 
     See Also:
-        [`PuppetLibrary.from_directory`][scenet.assets.contract.PuppetLibrary.from_directory],
+        :meth:`PuppetLibrary.from_directory <scenet.assets.contract.PuppetLibrary.from_directory>`,
         to read a whole directory at once.
     """
     data = yaml.safe_load(path.read_text(encoding="utf-8"))

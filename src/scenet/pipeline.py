@@ -211,9 +211,9 @@ def compile_source(
         >>> svg = render(result.core)
 
     See Also:
-        [`compile_file`][scenet.pipeline.compile_file], to read from disk.
-        [`compile_scene`][scenet.pipeline.compile_scene], for multi-panel documents.
-        [`compile_document`][scenet.pipeline.compile_document], to dispatch on
+        :func:`compile_file <scenet.pipeline.compile_file>`, to read from disk.
+        :func:`compile_scene <scenet.pipeline.compile_scene>`, for multi-panel documents.
+        :func:`compile_document <scenet.pipeline.compile_document>`, to dispatch on
         extension and accept any supported syntax.
     """
     return compile_ir(parse_panel(text, source=source), library=library, metrics=metrics)

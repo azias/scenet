@@ -3,7 +3,7 @@
 The central rule, and the one most easily got wrong: **a shot type names where the
 frame cuts the body**, not what fraction of the panel a figure fills. Encoding the
 fraction instead bakes in one body and one pose, so a child and an adult would come
-out the same height. See docs/spec/shot_types.md, which is normative.
+out the same height. See docs/reference/shot_types.md, which is normative.
 
 The second rule: **one camera, one scale.** A camera has a single focal length, so
 every actor at the same distance is scaled identically and a taller character is
@@ -72,7 +72,7 @@ class CameraSolution:
         """Whether the camera had to retreat from the requested framing.
 
         Surfaced to the user through
-        [`CompileResult.notes`][scenet.pipeline.CompileResult.notes]. Retreating
+        :attr:`CompileResult.notes <scenet.pipeline.CompileResult.notes>`. Retreating
         silently would leave a panel that quietly is not the shot that was asked for.
         """
         return self.pullback < 1.0
@@ -137,7 +137,7 @@ class CameraSolution:
         """The ground line a puppet stands on, given where its root joint is.
 
         The inverse of
-        [`root_y_on_ground`][scenet.solve.camera.CameraSolution.root_y_on_ground], and
+        :meth:`root_y_on_ground <scenet.solve.camera.CameraSolution.root_y_on_ground>`, and
         how `ground_shared_with` gets its target: take one actor's ground line, then
         place the other so their feet meet it.
 

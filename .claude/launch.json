@@ -3,9 +3,21 @@
   "configurations": [
     {
       "name": "playground",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "playground", "run", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "docs",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8123", "--directory", "playground/public"],
-      "port": 8123
+      "runtimeArgs": ["-m", "http.server", "8124", "--directory", "docs/_build/html"],
+      "port": 8124
+    },
+    {
+      "name": "site",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8125", "--directory", "site"],
+      "port": 8125
     }
   ]
 }

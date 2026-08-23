@@ -1,7 +1,7 @@
 # The Scenet language
 
 > **Status:** this is the specification. It is not a report of what is implemented — see
-> [implementation status](README.md#implementation-status). At present, nothing compiles.
+> [implementation status](../explanation/status.md#implementation-status). At present, nothing compiles.
 
 A panel source is a YAML document describing **what is in a panel**, never **where things are drawn**.
 Coordinates do not appear anywhere in the language; producing them is the compiler's entire job.

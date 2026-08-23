@@ -9,7 +9,7 @@ wrong. A shot type names **where the frame cuts the body** — waist, chest, sho
 of the panel the figure then occupies is a *consequence*, and it differs for a child versus an
 adult, or a seated versus a standing pose. Encoding the fraction bakes in one body and one pose.
 
-See [shot_types.md](../../spec/shot_types.md), which is normative.
+See [shot_types.md](../reference/shot_types.md), which is normative.
 
 ## Cassowary is linear, so the language must resolve disjunctions
 

@@ -61,7 +61,7 @@ class TailRoute:
     def is_curved(self) -> bool:
         """Whether this tail had to bend around a face.
 
-        Reported in [`CompileResult.notes`][scenet.pipeline.CompileResult.notes], since
+        Reported in :attr:`CompileResult.notes <scenet.pipeline.CompileResult.notes>`, since
         a curved tail is a sign the panel is crowded enough to be worth a second look.
         """
         return self.control is not None

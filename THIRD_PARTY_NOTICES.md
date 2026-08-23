@@ -63,5 +63,5 @@ Design influences that contributed concepts but no code: Pixar's
 [OpenUSD](https://openusd.org/) (composition arcs — references, variant sets, sparse overrides),
 [Vega-Lite](https://vega.github.io/vega-lite/) (a high-level grammar compiling to a lower-level one),
 the Visual Genome scene-graph vocabulary, and Kress & van Leeuwen's *Reading Images* (gaze vectors
-as compositional structure). See [the prior art notes](docs/knowledge_base/domain/prior_art.md) for
+as compositional structure). See [the prior art notes](docs/explanation/prior_art.md) for
 the full assessment.

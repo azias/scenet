@@ -150,7 +150,7 @@ class Point:
 
         Returns:
             The pair a Panel Core document stores, already passed through
-            [`rounded`][scenet.geom.rounded].
+            :func:`rounded <scenet.geom.rounded>`.
         """
         return (rounded(self.x), rounded(self.y))
 
@@ -433,7 +433,7 @@ def segment_intersects_circle(start: Point, end: Point, circle: Circle) -> bool:
         False
 
     See Also:
-        [`Circle.contains_point`][scenet.geom.Circle.contains_point], which this falls
+        :meth:`Circle.contains_point <scenet.geom.Circle.contains_point>`, which this falls
         back to for a zero-length segment.
     """
     dx, dy = end.x - start.x, end.y - start.y

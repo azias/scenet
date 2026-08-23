@@ -49,7 +49,7 @@ uv run ty check
   linear solver cannot express. The DSL resolves ordering at parse time so the solver receives a
   linear system. Any new construct that reintroduces a disjunction must be resolved in the frontend.
 - **Shot types are defined by a crop landmark plus a headroom fraction**, in head-height units — not
-  by a percentage of panel height. See `docs/spec/shot_types.md`, which is normative.
+  by a percentage of panel height. See `docs/reference/shot_types.md`, which is normative.
 - **Balloon size depends on real font metrics.** Text is measured with `fontTools` against a font
   supplied as a declared dependency, never a system lookup. Measurement and rendering must agree
   exactly, which is why lettering is emitted as glyph outlines by default.
@@ -58,5 +58,5 @@ uv run ty check
 
 ## Reference
 
-`docs/spec/` is the specification. `docs/knowledge_base/domain/prior_art.md` records which prior work
+`docs/reference/` is the specification. `docs/explanation/prior_art.md` records which prior work
 each design decision came from, and which well-known references were deliberately *not* used.

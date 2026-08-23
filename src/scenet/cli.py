@@ -21,14 +21,14 @@ EPILOGUE = """\
 Scenet is a deterministic compiler: the same source always produces byte-identical
 output. No generative image model is involved at any stage.
 
-See docs/spec/language.md for the language.
+See docs/reference/language.md for the language.
 """
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the argument parser for the `scenet` command.
 
-    Exposed separately from [`main`][scenet.cli.main] so that tests, shell-completion
+    Exposed separately from :func:`main <scenet.cli.main>` so that tests, shell-completion
     generators and documentation tooling can inspect the interface without running it.
 
     Returns:
@@ -99,7 +99,7 @@ def run_build(args: argparse.Namespace) -> int:
     """Run the `build` subcommand: compile a document and write its outputs.
 
     Args:
-        args: Parsed arguments from [`build_parser`][scenet.cli.build_parser].
+        args: Parsed arguments from :func:`build_parser <scenet.cli.build_parser>`.
 
     Returns:
         A process exit status: `0` on success, `1` when the document could not be

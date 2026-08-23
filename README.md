@@ -88,7 +88,7 @@ browser, or an editor.** Framing, actor placement, balloon
 placement, reading order, tail routing and SVG emission all work, from either of two
 frontends. Not yet built: page composition (tiers, panels of varying size) and the
 interpretation layer that would give a panel a *style*. See
-[the phase plan](docs/spec/README.md) for detail.
+[the phase plan](docs/explanation/status.md) for detail.
 
 ```bash
 uv run scenet build examples/duel.panel.yaml --core --debug
@@ -149,11 +149,11 @@ uv run pytest
 
 | Document | Contents |
 |---|---|
-| [Language specification](docs/spec/language.md) | The DSL itself — every construct, with examples |
-| [Panel Core](docs/spec/panel_core.md) | The resolved intermediate format |
-| [Shot types](docs/spec/shot_types.md) | Normative camera framing table |
-| [Asset contract](docs/spec/asset_contract.md) | What a character puppet must declare |
-| [Prior art](docs/knowledge_base/domain/prior_art.md) | What already exists, and what was taken from it |
+| [Language specification](docs/reference/language.md) | The DSL itself — every construct, with examples |
+| [Panel Core](docs/reference/panel_core.md) | The resolved intermediate format |
+| [Shot types](docs/reference/shot_types.md) | Normative camera framing table |
+| [Asset contract](docs/reference/asset_contract.md) | What a character puppet must declare |
+| [Prior art](docs/explanation/prior_art.md) | What already exists, and what was taken from it |
 
 ## License
 

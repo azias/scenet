@@ -14,6 +14,23 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+__all__ = [
+    "AnchorX",
+    "BalloonKind",
+    "CameraAngle",
+    "CameraSpec",
+    "CastMember",
+    "Facing",
+    "PanelIR",
+    "PanelSpec",
+    "PlacementZone",
+    "Predicate",
+    "Relation",
+    "SayEvent",
+    "ShotType",
+    "Strict",
+]
+
 # Depth-first search marks, used by the ordering cycle check.
 _UNVISITED, _ON_STACK, _DONE = 0, 1, 2
 
@@ -39,7 +56,7 @@ class ShotType(StrEnum):
 
     The requested shot is an *upper bound on tightness*, not a promise. If the cast
     cannot fit across the panel at that framing the camera retreats, and says so in
-    [`CompileResult.notes`][scenet.pipeline.CompileResult.notes].
+    :attr:`CompileResult.notes <scenet.pipeline.CompileResult.notes>`.
 
     Example:
         >>> from scenet import ShotType
@@ -70,7 +87,7 @@ class CameraAngle(StrEnum):
     A **low** camera looks up and the subject looms, so the head rides high in the frame
     with little space above it. A **high** camera looks down, so the head sits lower and
     more space opens up above. See
-    [`headroom_for`][scenet.solve.camera.headroom_for] for the exact factors.
+    :func:`headroom_for <scenet.solve.camera.headroom_for>` for the exact factors.
     """
 
     LOW = "low"
@@ -83,7 +100,7 @@ class AnchorX(StrEnum):
 
     Horizontal only. Actors stand on a ground line, so their vertical position is
     derived from the camera rather than requested -- which is why this has no vertical
-    counterpart and [`PlacementZone`][scenet.ir.PlacementZone], used for balloons, does.
+    counterpart and :class:`PlacementZone <scenet.ir.PlacementZone>`, used for balloons, does.
 
     These are *weak* preferences. Non-overlap and declared left-to-right ordering are
     required constraints and will override an anchor without complaint; two actors both
@@ -227,8 +244,8 @@ class CameraSpec(Strict):
 
     Attributes:
         shot: Requested framing; an upper bound on tightness, see
-            [`ShotType`][scenet.ir.ShotType].
-        angle: Camera height, see [`CameraAngle`][scenet.ir.CameraAngle].
+            :class:`ShotType <scenet.ir.ShotType>`.
+        angle: Camera height, see :class:`CameraAngle <scenet.ir.CameraAngle>`.
 
     There is exactly **one camera per panel**, and every actor is drawn at the scale it
     implies. Scaling each actor to its own crop landmark instead would make everybody
@@ -352,7 +369,7 @@ class PanelIR(Strict):
         (800.0, 'medium_shot')
 
     See Also:
-        [`compile_ir`][scenet.pipeline.compile_ir], to turn one of these into geometry.
+        :func:`compile_ir <scenet.pipeline.compile_ir>`, to turn one of these into geometry.
     """
 
     panel: PanelSpec = PanelSpec()
@@ -389,7 +406,7 @@ class PanelIR(Strict):
         """Horizontal ordering must not contain a cycle.
 
         The layout engine is a *linear* constraint solver, so ordering has to be
-        decided before it runs -- see docs/spec/language.md. A cycle such as
+        decided before it runs -- see docs/reference/language.md. A cycle such as
         'a left_of b, b left_of a' has no solution, and detecting it here produces a
         comprehensible message instead of an opaque solver failure.
         """

@@ -23,7 +23,7 @@ Taken: the overall decomposition, the insight that reading order is a hard const
 preference, and the practice of opening a sequence with a wider establishing shot.
 
 **Nothing is vendored** — not code, not artwork. See
-[THIRD_PARTY_NOTICES](../../../THIRD_PARTY_NOTICES.md) for why.
+[THIRD_PARTY_NOTICES](https://github.com/azias/scenet/blob/main/THIRD_PARTY_NOTICES.md) for why.
 
 ### Vega-Lite
 
@@ -34,7 +34,7 @@ The closest structural precedent that exists: a declarative high-level grammar c
 *lower-level grammar*, which then emits SVG — with the compiler deriving components (scales, axes,
 legends) by rule rather than making the author specify them.
 
-Taken: the two-tier pipeline. Source compiles to [Panel Core](../../spec/panel_core.md), which is
+Taken: the two-tier pipeline. Source compiles to [Panel Core](../reference/panel_core.md), which is
 then emitted. Scenet's automatically derived components are figure scale, balloon geometry and tail
 routing. Leland Wilkinson's *Grammar of Graphics* is the ancestor idea; Vega-Lite is the proof it
 survives contact with a real implementation.
@@ -46,7 +46,7 @@ survives contact with a real implementation.
 Modelling an image as nodes (objects with attributes) and directed edges (relations) is the standard
 machine-readable representation of image *content* rather than image *pixels*.
 
-Taken: this is the IR. The [`staging`](../../spec/language.md#staging) block is literally a set of
+Taken: this is the IR. The [`staging`](../reference/language.md#staging) block is literally a set of
 relation triples, and its predicate vocabulary is anchored on Visual Genome's spatial subset rather
 than invented, so scenes stay convertible in both directions.
 

@@ -33,7 +33,7 @@ going straight to pixels. The same split pays for itself here, in four ways:
 
 ## Shape
 
-```jsonc
+```json
 {
   "panel": { "width": 1000, "height": 1000 },
   "actors": [

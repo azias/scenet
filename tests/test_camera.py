@@ -11,6 +11,7 @@ import pytest
 
 from scenet.assets.contract import Landmark, PuppetLibrary, PuppetSpec, default_library
 from scenet.ir import CameraAngle, ShotType
+from scenet.pipeline import compile_source
 from scenet.solve.camera import (
     ANGLE_HEADROOM_FACTOR,
     SHOT_TABLE,
@@ -254,3 +255,38 @@ class TestTheLadderIsALadder:
                 reference, shot=alias, angle=CameraAngle.EYE_LEVEL, panel_height=1000.0
             )
             assert first.scale == second.scale, f"{shot.value} and {alias.value} must agree"
+
+
+class TestTheRetreatNoteNamesTheShot:
+    """A diagnostic that says the camera retreated must say retreated *from what*.
+
+    This shipped saying "the requested 'alice' framing" -- naming the puppet the shot
+    was composed on rather than the shot itself, which reads as nonsense to anyone who
+    did not write the compiler. Caught by reading the notes on the live playground.
+    """
+
+    SOURCE = """
+panel: {size: [600, 400]}
+camera: {shot: close_up}
+cast:
+  alice: {reference: alice}
+  bob:   {reference: bob}
+staging: [alice left_of bob]
+"""
+
+    def test_the_note_names_the_shot_type(self):
+        notes = compile_source(self.SOURCE).notes
+        retreat = next(note for note in notes if "camera retreated" in note)
+        assert "'close_up'" in retreat
+
+    def test_the_note_does_not_name_a_puppet(self):
+        notes = compile_source(self.SOURCE).notes
+        retreat = next(note for note in notes if "camera retreated" in note)
+        assert "alice" not in retreat
+        assert "bob" not in retreat
+
+    def test_the_solution_still_records_which_actor_framed_it(self):
+        """The reference is genuinely useful; it was only the wrong thing to print."""
+        result = compile_source(self.SOURCE)
+        assert result.camera.reference == "alice"
+        assert result.camera.shot is ShotType.CLOSE_UP

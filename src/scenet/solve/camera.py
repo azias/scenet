@@ -70,6 +70,10 @@ class CameraSolution:
     headroom: float
     footroom: float
     panel_height: float
+    # The shot that was asked for. Kept so a diagnostic can name it: a note saying the
+    # camera retreated is only useful if it says retreated *from what*.
+    shot: ShotType
+    # Name of the puppet the shot was composed on, not the shot itself.
     reference: str
     # How far the camera had to retreat to fit the whole cast across the frame.
     # 1.0 means the requested shot was used as-is; smaller means it was loosened.
@@ -102,6 +106,7 @@ class CameraSolution:
             headroom=self.headroom,
             footroom=self.footroom,
             panel_height=self.panel_height,
+            shot=self.shot,
             reference=self.reference,
             pullback=scale / self.scale,
         )
@@ -240,5 +245,6 @@ def solve_camera(
         headroom=headroom,
         footroom=footroom,
         panel_height=panel_height,
+        shot=shot,
         reference=reference.name,
     )

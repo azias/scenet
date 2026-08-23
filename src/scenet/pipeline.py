@@ -75,7 +75,7 @@ class CompileResult:
         if self.camera.was_pulled_back:
             notes.append(
                 f"camera retreated to {self.camera.pullback:.0%} of the requested "
-                f"'{self.camera.reference}' framing so the cast would fit across the panel"
+                f"'{self.camera.shot.value}' framing so the cast would fit across the panel"
             )
         for balloon in self.core.balloons:
             if balloon.tail.is_curved:

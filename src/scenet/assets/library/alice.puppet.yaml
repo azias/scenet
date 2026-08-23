@@ -1,0 +1,92 @@
+# A reference puppet: 7.5 heads tall, the classic adult figure-drawing proportion.
+#
+# All values are in native units where one head is 100. Landmarks are measured
+# downward from the top of the head; joint offsets are measured from the parent
+# joint, and the root sits at the waist.
+#
+# A joint's pose angle rotates the bone arriving at it and everything below it, so
+# `elbow_l` swings the upper arm and carries the forearm and hand with it. Positive
+# angles swing toward negative x (screen left, before mirroring).
+
+name: alice
+units_per_head: 100
+root: root
+root_landmark: waist
+
+landmarks:
+  head_top: 0
+  eyes: 40
+  chin: 100
+  shoulders: 132
+  chest: 200
+  waist: 330
+  mid_thigh: 470
+  knees: 560
+  feet: 750
+
+joints:
+  root: {parent: null, offset: [0, 0]}
+  spine: {parent: root, offset: [0, -130]}
+  neck: {parent: spine, offset: [0, -68]}
+  head: {parent: neck, offset: [0, -82]}
+
+  shoulder_l: {parent: neck, offset: [-34, 6]}
+  shoulder_r: {parent: neck, offset: [34, 6]}
+  elbow_l: {parent: shoulder_l, offset: [0, 95]}
+  elbow_r: {parent: shoulder_r, offset: [0, 95]}
+  wrist_l: {parent: elbow_l, offset: [0, 88]}
+  wrist_r: {parent: elbow_r, offset: [0, 88]}
+
+  hip_l: {parent: root, offset: [-30, 10]}
+  hip_r: {parent: root, offset: [30, 10]}
+  knee_l: {parent: hip_l, offset: [0, 220]}
+  knee_r: {parent: hip_r, offset: [0, 220]}
+  ankle_l: {parent: knee_l, offset: [0, 190]}
+  ankle_r: {parent: knee_r, offset: [0, 190]}
+
+parts:
+  - {from: neck, to: root, width: 72}
+  - {from: shoulder_l, to: elbow_l, width: 26}
+  - {from: elbow_l, to: wrist_l, width: 22}
+  - {from: shoulder_r, to: elbow_r, width: 26}
+  - {from: elbow_r, to: wrist_r, width: 22}
+  - {from: hip_l, to: knee_l, width: 34}
+  - {from: knee_l, to: ankle_l, width: 28}
+  - {from: hip_r, to: knee_r, width: 34}
+  - {from: knee_r, to: ankle_r, width: 28}
+  - {at: head, radius: 50}
+
+anchors:
+  head_top: {joint: head, offset: [0, -50]}
+  eyes: {joint: head, offset: [0, -10]}
+  mouth: {joint: head, offset: [0, 25]}
+  feet: {joint: root, offset: [0, 420]}
+
+face:
+  joint: head
+  radius: 62
+
+gaze:
+  origin: eyes
+
+poses:
+  standing_neutral:
+    elbow_l: -5
+    elbow_r: 5
+
+  arms_crossed:
+    elbow_l: -25
+    wrist_l: -75
+    elbow_r: 25
+    wrist_r: 75
+
+  pointing:
+    elbow_r: -85
+    wrist_r: 0
+    elbow_l: -8
+
+  hands_on_hips:
+    elbow_l: 20
+    wrist_l: -110
+    elbow_r: -20
+    wrist_r: 110

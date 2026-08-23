@@ -1,0 +1,90 @@
+# A second reference puppet, deliberately built to different proportions from alice:
+# taller (7.5 heads of a larger head), broader shoulders, heavier limbs.
+#
+# The difference is not cosmetic. Two puppets of identical proportion would let a
+# camera bug pass unnoticed, because every actor would scale the same way. These
+# differ enough that a shot type computed from panel fractions rather than from crop
+# landmarks produces visibly wrong results.
+
+name: bob
+units_per_head: 104
+root: root
+root_landmark: waist
+
+landmarks:
+  head_top: 0
+  eyes: 42
+  chin: 104
+  shoulders: 138
+  chest: 208
+  waist: 344
+  mid_thigh: 490
+  knees: 584
+  feet: 782
+
+joints:
+  root: {parent: null, offset: [0, 0]}
+  spine: {parent: root, offset: [0, -136]}
+  neck: {parent: spine, offset: [0, -70]}
+  head: {parent: neck, offset: [0, -86]}
+
+  shoulder_l: {parent: neck, offset: [-42, 6]}
+  shoulder_r: {parent: neck, offset: [42, 6]}
+  elbow_l: {parent: shoulder_l, offset: [0, 99]}
+  elbow_r: {parent: shoulder_r, offset: [0, 99]}
+  wrist_l: {parent: elbow_l, offset: [0, 92]}
+  wrist_r: {parent: elbow_r, offset: [0, 92]}
+
+  hip_l: {parent: root, offset: [-32, 10]}
+  hip_r: {parent: root, offset: [32, 10]}
+  knee_l: {parent: hip_l, offset: [0, 230]}
+  knee_r: {parent: hip_r, offset: [0, 230]}
+  ankle_l: {parent: knee_l, offset: [0, 198]}
+  ankle_r: {parent: knee_r, offset: [0, 198]}
+
+parts:
+  - {from: neck, to: root, width: 84}
+  - {from: shoulder_l, to: elbow_l, width: 30}
+  - {from: elbow_l, to: wrist_l, width: 25}
+  - {from: shoulder_r, to: elbow_r, width: 30}
+  - {from: elbow_r, to: wrist_r, width: 25}
+  - {from: hip_l, to: knee_l, width: 38}
+  - {from: knee_l, to: ankle_l, width: 31}
+  - {from: hip_r, to: knee_r, width: 38}
+  - {from: knee_r, to: ankle_r, width: 31}
+  - {at: head, radius: 52}
+
+anchors:
+  head_top: {joint: head, offset: [0, -52]}
+  eyes: {joint: head, offset: [0, -10]}
+  mouth: {joint: head, offset: [0, 26]}
+  feet: {joint: root, offset: [0, 438]}
+
+face:
+  joint: head
+  radius: 65
+
+gaze:
+  origin: eyes
+
+poses:
+  standing_neutral:
+    elbow_l: -5
+    elbow_r: 5
+
+  arms_crossed:
+    elbow_l: -25
+    wrist_l: -75
+    elbow_r: 25
+    wrist_r: 75
+
+  pointing:
+    elbow_r: -85
+    wrist_r: 0
+    elbow_l: -8
+
+  hands_on_hips:
+    elbow_l: 20
+    wrist_l: -110
+    elbow_r: -20
+    wrist_r: 110

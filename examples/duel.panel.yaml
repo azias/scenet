@@ -1,0 +1,25 @@
+# Two characters facing each other, mid-argument.
+#
+# Note what is absent: no coordinates, no sizes, no colours. The panel says who is
+# present, how they are framed, how they relate, and what is said. Working out where
+# any of it goes is the compiler's job.
+
+panel:
+  size: [1000, 1000]
+
+camera:
+  shot: medium_shot
+  angle: eye_level
+
+cast:
+  alice: {reference: alice, pose: pointing,     at: left_third,  facing: right}
+  bob:   {reference: bob,   pose: arms_crossed, at: right_third, facing: left}
+
+staging:
+  - alice left_of bob
+  - alice looking_at bob
+  - alice ground_shared_with bob
+
+script:
+  - say: {by: alice, text: "You forgot your umbrella!", prefer: top_left}
+  - say: {by: bob,   text: "I know."}

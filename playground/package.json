@@ -1,0 +1,14 @@
+{
+  "name": "scenet-playground",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser playground for Scenet, running the Python compiler under Pyodide.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc && node build.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

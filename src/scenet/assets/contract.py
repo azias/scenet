@@ -219,7 +219,7 @@ class PuppetLibrary:
         self._puppets = puppets
 
     @classmethod
-    def from_directory(cls, directory: Path) -> PuppetLibrary:
+    def from_directory(cls, directory: Path) -> Self:
         puppets: dict[str, PuppetSpec] = {}
         # Sorted so that a duplicate-name collision reports the same offender on
         # every platform, whatever order the filesystem hands files back in.

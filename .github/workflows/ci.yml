@@ -16,8 +16,17 @@ env:
 
 jobs:
   check:
-    name: Lint, types and tests
+    name: Lint, types and tests (Python ${{ matrix.python }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.12 is the floor and is not decoration. Before Python 3.14 and PEP 649,
+        # annotations are evaluated eagerly, so a self-referential `-> Point` inside
+        # `class Point` raises NameError at import. Developing only on 3.14 hides that
+        # entirely -- it surfaced first in the browser, where Pyodide runs an older
+        # Python. This job is what stops it coming back.
+        python: ["3.12", "3.14"]
     steps:
       - uses: actions/checkout@v4
 
@@ -29,15 +38,18 @@ jobs:
       # --frozen fails if uv.lock is out of date with pyproject.toml, so a stale
       # lockfile is caught here rather than surfacing as a mystery later.
       - name: Sync dependencies
-        run: uv sync --frozen --all-groups
+        run: uv sync --frozen --all-groups --python ${{ matrix.python }}
 
       - name: Format
+        if: matrix.python == '3.14'
         run: uv run ruff format --check .
 
       - name: Lint
+        if: matrix.python == '3.14'
         run: uv run ruff check --output-format=github .
 
       - name: Types
+        if: matrix.python == '3.14'
         run: uv run ty check
 
       - name: Tests
@@ -82,3 +94,26 @@ jobs:
           enable-cache: true
       - run: uv sync --frozen --all-groups
       - run: uv run basedpyright
+
+  typescript:
+    name: TypeScript
+    runs-on: ubuntu-latest
+    # The project rule is TypeScript wherever JavaScript would be used, with strict
+    # enabled. That is only meaningful if something checks it.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Playground
+        working-directory: playground
+        run: |
+          npm ci
+          npm run typecheck
+
+      - name: Editor extension
+        working-directory: editor
+        run: |
+          npm ci
+          npm run typecheck

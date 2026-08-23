@@ -22,7 +22,7 @@ attribution. A notation is only worth having if it is not owned.
 | 3 | Text metrics, balloon placement, reading order, tails | **Done** |
 | 4 | SVG emitter, debug overlay and CLI | **Done** |
 | 5 | Comic-script frontend; multi-panel `over` inheritance | **Done** |
-| 6 | Browser playground (Pyodide); VS Code extension | Not started |
+| 6 | Browser playground (Pyodide); VS Code extension | **Done** |
 
 Single panels compile end to end. Constructs described in `language.md` are the specification,
 not a report of what is implemented — the table above is authoritative on what actually runs.

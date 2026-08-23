@@ -1,0 +1,318 @@
+{
+  "$defs": {
+    "AnchorX": {
+      "enum": [
+        "left_edge",
+        "left_third",
+        "center",
+        "right_third",
+        "right_edge"
+      ],
+      "title": "AnchorX",
+      "type": "string"
+    },
+    "BalloonKind": {
+      "enum": [
+        "speech",
+        "thought",
+        "whisper",
+        "shout"
+      ],
+      "title": "BalloonKind",
+      "type": "string"
+    },
+    "CameraAngle": {
+      "enum": [
+        "low",
+        "eye_level",
+        "high"
+      ],
+      "title": "CameraAngle",
+      "type": "string"
+    },
+    "CameraSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "angle": {
+          "$ref": "#/$defs/CameraAngle",
+          "default": "eye_level"
+        },
+        "shot": {
+          "$ref": "#/$defs/ShotType",
+          "default": "medium_shot"
+        }
+      },
+      "title": "CameraSpec",
+      "type": "object"
+    },
+    "CastMember": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/AnchorX",
+          "default": "center"
+        },
+        "facing": {
+          "$ref": "#/$defs/Facing",
+          "default": "right"
+        },
+        "pose": {
+          "default": "standing_neutral",
+          "title": "Pose",
+          "type": "string"
+        },
+        "reference": {
+          "title": "Reference",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reference"
+      ],
+      "title": "CastMember",
+      "type": "object"
+    },
+    "Facing": {
+      "enum": [
+        "left",
+        "right"
+      ],
+      "title": "Facing",
+      "type": "string"
+    },
+    "PanelSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "margin": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Margin",
+          "type": "number"
+        },
+        "size": {
+          "default": [
+            1000.0,
+            1000.0
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Size",
+          "type": "array"
+        }
+      },
+      "title": "PanelSpec",
+      "type": "object"
+    },
+    "PlacementZone": {
+      "description": "Where in the panel a balloon would prefer to sit.\n\nTwo-dimensional, unlike `AnchorX`: an actor is placed along the ground line and\nso only needs a horizontal anchor, whereas a balloon floats and needs both axes.\nThese are hints of the weakest priority -- occlusion and reading order override\nthem freely.",
+      "enum": [
+        "top_left",
+        "top_center",
+        "top_right",
+        "middle_left",
+        "middle_center",
+        "middle_right",
+        "bottom_left",
+        "bottom_center",
+        "bottom_right"
+      ],
+      "title": "PlacementZone",
+      "type": "string"
+    },
+    "Predicate": {
+      "description": "Relation predicates, drawn from the spatial subset of the Visual Genome\nvocabulary rather than invented, so a scene stays convertible to and from the\nscene-graph representations used elsewhere in computer vision.",
+      "enum": [
+        "left_of",
+        "right_of",
+        "in_front_of",
+        "behind",
+        "looking_at",
+        "ground_shared_with"
+      ],
+      "title": "Predicate",
+      "type": "string"
+    },
+    "Relation": {
+      "additionalProperties": false,
+      "properties": {
+        "object": {
+          "title": "Object",
+          "type": "string"
+        },
+        "predicate": {
+          "$ref": "#/$defs/Predicate"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        }
+      },
+      "required": [
+        "subject",
+        "predicate",
+        "object"
+      ],
+      "title": "Relation",
+      "type": "object"
+    },
+    "SayEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "by": {
+          "title": "By",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/BalloonKind",
+          "default": "speech"
+        },
+        "prefer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PlacementZone"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "by",
+        "text"
+      ],
+      "title": "SayEvent",
+      "type": "object"
+    },
+    "ShotType": {
+      "enum": [
+        "long_shot",
+        "wide",
+        "full_shot",
+        "medium_full",
+        "cowboy",
+        "medium_shot",
+        "medium_close_up",
+        "close_up",
+        "big_close_up",
+        "extreme_close_up"
+      ],
+      "title": "ShotType",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "camera": {
+      "$ref": "#/$defs/CameraSpec",
+      "default": {
+        "angle": "eye_level",
+        "shot": "medium_shot"
+      }
+    },
+    "cast": {
+      "additionalProperties": {
+        "$ref": "#/$defs/CastMember"
+      },
+      "title": "Cast",
+      "type": "object"
+    },
+    "panel": {
+      "$ref": "#/$defs/PanelSpec",
+      "default": {
+        "margin": 0.0,
+        "size": [
+          1000.0,
+          1000.0
+        ]
+      }
+    },
+    "panels": {
+      "additionalProperties": {
+        "additionalProperties": false,
+        "properties": {
+          "camera": {
+            "$ref": "#/$defs/CameraSpec",
+            "default": {
+              "angle": "eye_level",
+              "shot": "medium_shot"
+            }
+          },
+          "cast": {
+            "additionalProperties": {
+              "$ref": "#/$defs/CastMember"
+            },
+            "title": "Cast",
+            "type": "object"
+          },
+          "over": {
+            "description": "Name of a panel to inherit from. Only the differences need stating: mappings merge recursively and lists replace.",
+            "type": "string"
+          },
+          "panel": {
+            "$ref": "#/$defs/PanelSpec",
+            "default": {
+              "margin": 0.0,
+              "size": [
+                1000.0,
+                1000.0
+              ]
+            }
+          },
+          "script": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/SayEvent"
+            },
+            "title": "Script",
+            "type": "array"
+          },
+          "staging": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Relation"
+            },
+            "title": "Staging",
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "description": "Panels in reading order. Each may inherit from another with `over`.",
+      "type": "object"
+    },
+    "script": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/SayEvent"
+      },
+      "title": "Script",
+      "type": "array"
+    },
+    "staging": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Relation"
+      },
+      "title": "Staging",
+      "type": "array"
+    }
+  },
+  "title": "Scenet scene",
+  "type": "object"
+}

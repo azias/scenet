@@ -25,5 +25,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   what changed from the one before.
 - A comic-script frontend, so panels can be written in the format writers already use.
 - A minimal strip emitter for reading a sequence in order.
+- A browser playground that runs the compiler unmodified under WebAssembly via
+  Pyodide, so there is no second implementation to drift.
+- A VS Code extension whose completion and validation come from a JSON Schema
+  generated from the compiler's own models.
+- `scenet schema` for emitting that schema.
+
+### Changed
+
+- The supported Python floor is 3.12 rather than 3.14. Self-referential annotations
+  are quoted accordingly, and CI runs the suite on both.
 
 Single panels compile end to end — see the README for current status.

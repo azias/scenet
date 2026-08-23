@@ -1,0 +1,148 @@
+:root {
+  --ink: #16181d;
+  --paper: #ffffff;
+  --muted: #6b7280;
+  --line: #d6d9e0;
+  --accent: #2f6fd0;
+  --surface: #f6f7f9;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8eaee;
+    --paper: #14161a;
+    --muted: #9aa1ad;
+    --line: #2c3038;
+    --accent: #6fa8ff;
+    --surface: #1b1e24;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 1.5rem;
+  background: var(--paper);
+  color: var(--ink);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+header { max-width: 62rem; margin: 0 auto 1.25rem; }
+h1 { margin: 0; font-size: 1.5rem; letter-spacing: -0.01em; }
+.tagline { margin: 0.4rem 0 0; color: var(--muted); max-width: 46rem; }
+
+main {
+  max-width: 82rem;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 60rem) {
+  main { grid-template-columns: minmax(0, 1fr); }
+}
+
+.pane {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  min-height: 26rem;
+  overflow: hidden;
+}
+
+.pane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.hint { font-weight: 400; color: var(--accent); font-size: 0.78rem; text-align: right; }
+
+select {
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+textarea {
+  flex: 1;
+  min-height: 22rem;
+  border: 0;
+  padding: 0.85rem;
+  resize: vertical;
+  background: transparent;
+  color: var(--ink);
+  font: 13px/1.5 ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+  tab-size: 2;
+}
+
+textarea:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+#status {
+  margin: 0;
+  padding: 0.5rem 0.85rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+#status.busy::after {
+  content: "";
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-left: 0.4rem;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse { 50% { opacity: 0.25; } }
+
+#output {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 0.85rem;
+  overflow: auto;
+}
+
+/* The panel is white regardless of theme -- it is a drawing, not chrome. */
+#output svg { max-width: 100%; height: auto; background: #fff; border-radius: 4px; }
+
+#error {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border-top: 1px solid var(--line);
+  background: #b91c1c14;
+  color: #b91c1c;
+  font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  max-height: 9rem;
+  overflow: auto;
+}
+
+@media (prefers-color-scheme: dark) { #error { color: #f87171; } }
+
+footer {
+  max-width: 62rem;
+  margin: 1.25rem auto 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+a { color: var(--accent); }

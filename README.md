@@ -83,7 +83,8 @@ computational geometry. The same input always produces byte-identical output.
 
 ## Status
 
-**Alpha — panels and sequences compile end to end.** Framing, actor placement, balloon
+**Alpha — panels and sequences compile end to end, from the command line, the
+browser, or an editor.** Framing, actor placement, balloon
 placement, reading order, tail routing and SVG emission all work, from either of two
 frontends. Not yet built: page composition (tiers, panels of varying size) and the
 interpretation layer that would give a panel a *style*. See
@@ -111,6 +112,20 @@ The intermediate tier is a real, writable format rather than a hidden data struc
 can be inspected, hand-adjusted, and diffed independently of how they are drawn. The approach is
 borrowed from Vega-Lite, which compiles a high-level grammar into a lower-level one before emitting
 SVG.
+
+## Try it in the browser
+
+The [playground](playground/) runs this compiler — the same Python, unmodified — in your
+browser under WebAssembly via [Pyodide](https://pyodide.org/). It is not a
+reimplementation: the page installs the exact wheel `uv build` produces, so there is no
+second copy of the geometry to drift out of step.
+
+## Editor support
+
+The [VS Code extension](editor/) gives completion and inline validation for panel
+documents, plus a side-by-side preview. Its JSON Schema is *generated from the
+compiler's own models* by `scenet schema`, so what the editor offers is what actually
+compiles. A test fails if the shipped schema goes stale.
 
 ## Development
 

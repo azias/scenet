@@ -71,7 +71,7 @@ class CameraSolution:
     def was_pulled_back(self) -> bool:
         return self.pullback < 1.0
 
-    def pulled_back_to(self, scale: float) -> CameraSolution:
+    def pulled_back_to(self, scale: float) -> "CameraSolution":
         """Retreat the camera until the cast fits across the frame.
 
         A shot type is a statement about *vertical* framing -- where the frame cuts

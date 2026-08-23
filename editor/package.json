@@ -1,0 +1,87 @@
+{
+  "name": "scenet",
+  "displayName": "Scenet",
+  "description": "Authoring support for Scenet comic-panel documents: schema-driven completion, validation, and a live preview.",
+  "version": "0.1.0",
+  "publisher": "scenet",
+  "license": "0BSD",
+  "private": true,
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Visualization"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "extensionDependencies": [
+    "redhat.vscode-yaml"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "scenet-script",
+        "aliases": [
+          "Scenet comic script"
+        ],
+        "extensions": [
+          ".script"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "yamlValidation": [
+      {
+        "fileMatch": "*.panel.yaml",
+        "url": "./schemas/panel.schema.json"
+      },
+      {
+        "fileMatch": "*.scene.yaml",
+        "url": "./schemas/scene.schema.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "scenet.preview",
+        "title": "Scenet: Preview panel",
+        "icon": "$(open-preview)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "scenet.preview",
+          "when": "resourceFilename =~ /\\.(panel|scene)\\.yaml$/ || resourceExtname == .script",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Scenet",
+      "properties": {
+        "scenet.executable": {
+          "type": "string",
+          "default": "scenet",
+          "description": "How to invoke the compiler. Use an absolute path, or e.g. 'uv run scenet', if it is not on PATH.",
+          "scope": "machine-overridable"
+        },
+        "scenet.previewOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Refresh an open preview whenever the document is saved."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "schemas": "cd .. && uv run scenet schema -o editor/schemas/panel.schema.json && uv run scenet schema --scene -o editor/schemas/scene.schema.json",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.7.0"
+  }
+}

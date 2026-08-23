@@ -1,9 +1,11 @@
 """Command-line entry point."""
 
 import argparse
+import json
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from scenet import __version__
 from scenet.assets.contract import UnknownPuppetError
@@ -13,6 +15,7 @@ from scenet.emit.strip import render_strip
 from scenet.emit.svg import render
 from scenet.frontends.script_front import ScriptSyntaxError
 from scenet.frontends.yaml_front import PanelSyntaxError
+from scenet.ir import PanelIR
 from scenet.pipeline import compile_document
 from scenet.solve.balloons import BalloonPlacementError
 from scenet.solve.staging import LayoutError
@@ -70,6 +73,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="for a multi-panel document, also lay the panels out as a strip",
     )
     build.add_argument("--quiet", action="store_true", help="suppress diagnostic notes")
+
+    schema = subcommands.add_parser(
+        "schema",
+        help="print the JSON Schema for a panel document",
+        description=(
+            "Emit the JSON Schema describing a panel, derived from the same models the "
+            "compiler validates against. Editors use it for completion and inline "
+            "validation, so what the editor suggests cannot drift from what compiles."
+        ),
+    )
+    schema.add_argument("-o", "--output", type=Path, help="write to a file instead of stdout")
+    schema.add_argument(
+        "--scene",
+        action="store_true",
+        help="emit the multi-panel scene schema instead of the single-panel one",
+    )
     return parser
 
 
@@ -149,11 +168,74 @@ def run_build(args: argparse.Namespace) -> int:
     return 0
 
 
+def scene_schema() -> dict[str, Any]:
+    """The schema for a multi-panel document.
+
+    Built from the panel schema rather than declared separately, so the two can never
+    describe different languages. A scene allows the same keys as a panel -- there they
+    act as defaults every panel inherits -- plus `panels`, whose members may
+    additionally carry `over`.
+    """
+    panel = PanelIR.model_json_schema()
+    definitions = panel.pop("$defs", {})
+    properties = panel.get("properties", {})
+
+    member = {key: value for key, value in panel.items() if key != "title"}
+    member["properties"] = {
+        **properties,
+        "over": {
+            "type": "string",
+            "description": (
+                "Name of a panel to inherit from. Only the differences need stating: "
+                "mappings merge recursively and lists replace."
+            ),
+        },
+    }
+
+    return {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Scenet scene",
+        "$defs": definitions,
+        "type": "object",
+        "properties": {
+            **properties,
+            "panels": {
+                "type": "object",
+                "description": (
+                    "Panels in reading order. Each may inherit from another with `over`."
+                ),
+                "additionalProperties": member,
+            },
+        },
+        "additionalProperties": False,
+    }
+
+
+def run_schema(args: argparse.Namespace) -> int:
+    """Emit the panel JSON Schema.
+
+    Generated from the pydantic models rather than hand-written, so editor completion
+    is derived from the compiler's own definition of the language and the two cannot
+    disagree.
+    """
+    schema = scene_schema() if args.scene else PanelIR.model_json_schema()
+    document = json.dumps(schema, indent=2, sort_keys=True) + "\n"
+    if args.output is None:
+        print(document, end="")
+    else:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(document, encoding="utf-8")
+        print(f"wrote {args.output}")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command == "build":
         return run_build(args)
+    if args.command == "schema":
+        return run_schema(args)
     parser.print_help()
     return 0
 

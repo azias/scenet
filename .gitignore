@@ -24,3 +24,4 @@ htmlcov/
 *.local.*
 scratch/
 out/
+node_modules/

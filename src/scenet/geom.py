@@ -1,5 +1,11 @@
 """Geometry primitives.
 
+A note on annotations: self- and forward-references are quoted. Before Python 3.14 and
+PEP 649, a bare `-> Point` inside `class Point` is evaluated at definition time and
+raises NameError, and BBox and Circle refer to each other mutually so no ordering
+fixes it. `Self` is not used here: these methods construct their class by name, so
+`Self` would promise subclass-preserving behaviour the bodies do not deliver.
+
 Frozen and slotted: these are created in tight loops by the balloon placement search,
 and immutability means a resolved layout cannot be mutated behind the emitter's back.
 
@@ -28,16 +34,16 @@ class Point:
     x: float
     y: float
 
-    def translated(self, dx: float, dy: float) -> Point:
+    def translated(self, dx: float, dy: float) -> "Point":
         return Point(self.x + dx, self.y + dy)
 
-    def rotated_around(self, origin: Point, degrees: float) -> Point:
+    def rotated_around(self, origin: "Point", degrees: float) -> "Point":
         rad = math.radians(degrees)
         cos, sin = math.cos(rad), math.sin(rad)
         dx, dy = self.x - origin.x, self.y - origin.y
         return Point(origin.x + dx * cos - dy * sin, origin.y + dx * sin + dy * cos)
 
-    def distance_to(self, other: Point) -> float:
+    def distance_to(self, other: "Point") -> float:
         return math.hypot(self.x - other.x, self.y - other.y)
 
     def as_tuple(self) -> tuple[float, float]:
@@ -53,7 +59,7 @@ class Vector:
     def length(self) -> float:
         return math.hypot(self.dx, self.dy)
 
-    def normalised(self) -> Vector:
+    def normalised(self) -> "Vector":
         length = self.length
         if length == 0:
             # A zero vector has no direction; returning it unchanged lets callers
@@ -61,10 +67,10 @@ class Vector:
             return self
         return Vector(self.dx / length, self.dy / length)
 
-    def mirrored_x(self) -> Vector:
+    def mirrored_x(self) -> "Vector":
         return Vector(-self.dx, self.dy)
 
-    def dot(self, other: Vector) -> float:
+    def dot(self, other: "Vector") -> float:
         return self.dx * other.dx + self.dy * other.dy
 
     def as_tuple(self) -> tuple[float, float]:
@@ -87,14 +93,14 @@ class BBox:
         return self.y + self.height
 
     @property
-    def centre(self) -> Point:
+    def centre(self) -> "Point":
         return Point(self.x + self.width / 2, self.y + self.height / 2)
 
     @property
     def area(self) -> float:
         return self.width * self.height
 
-    def contains(self, other: BBox) -> bool:
+    def contains(self, other: "BBox") -> bool:
         return (
             other.x >= self.x
             and other.y >= self.y
@@ -102,23 +108,23 @@ class BBox:
             and other.bottom <= self.bottom
         )
 
-    def overlap_area(self, other: BBox) -> float:
+    def overlap_area(self, other: "BBox") -> float:
         dx = min(self.right, other.right) - max(self.x, other.x)
         dy = min(self.bottom, other.bottom) - max(self.y, other.y)
         return dx * dy if dx > 0 and dy > 0 else 0.0
 
-    def intersects_circle(self, circle: Circle) -> bool:
+    def intersects_circle(self, circle: "Circle") -> bool:
         """True if the circle overlaps this box, via the closest-point test."""
         nearest_x = max(self.x, min(circle.cx, self.right))
         nearest_y = max(self.y, min(circle.cy, self.bottom))
         return math.hypot(circle.cx - nearest_x, circle.cy - nearest_y) < circle.r
 
-    def expanded(self, margin: float) -> BBox:
+    def expanded(self, margin: float) -> "BBox":
         return BBox(
             self.x - margin, self.y - margin, self.width + 2 * margin, self.height + 2 * margin
         )
 
-    def moved_to(self, x: float, y: float) -> BBox:
+    def moved_to(self, x: float, y: float) -> "BBox":
         return BBox(x, y, self.width, self.height)
 
 
@@ -129,13 +135,13 @@ class Circle:
     r: float
 
     @property
-    def centre(self) -> Point:
+    def centre(self) -> "Point":
         return Point(self.cx, self.cy)
 
-    def contains_point(self, point: Point) -> bool:
+    def contains_point(self, point: "Point") -> bool:
         return math.hypot(point.x - self.cx, point.y - self.cy) < self.r
 
-    def as_bbox(self) -> BBox:
+    def as_bbox(self) -> "BBox":
         return BBox(self.cx - self.r, self.cy - self.r, 2 * self.r, 2 * self.r)
 
 

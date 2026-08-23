@@ -24,13 +24,28 @@ heading to `## [0.2.0] - 2026-08-23` and start a fresh `Unreleased` above it.
 **Write it for people.** These become the release notes verbatim. A list of commit
 subjects is not release notes — it is a list of commit subjects.
 
+`main` is protected, so the version bump and changelog go through a pull request like
+anything else:
+
 ```bash
+git switch -c release/0.2.0
 git commit -am "chore: release 0.2.0"
-git tag v0.2.0
-git push origin main v0.2.0
+git push -u origin release/0.2.0
+gh pr create --fill && gh pr checks --watch
+gh pr merge --squash --delete-branch
 ```
 
-Pushing the tag is what starts everything.
+Then tag the merged commit on `main`:
+
+```bash
+git switch main && git pull
+git tag -a v0.2.0 -m "scenet 0.2.0"
+git push origin v0.2.0
+```
+
+Pushing the tag is what starts everything. **Tag only a green `main`** — the release
+workflow re-runs every gate anyway, but discovering a failure after the tag exists means
+deleting a tag, and `v*` tags are protected against exactly that.
 
 ## What happens next
 

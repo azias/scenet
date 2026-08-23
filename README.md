@@ -12,9 +12,16 @@ Treat it accordingly: an experiment first, a usable tool second.
 
 ---
 
-![License: 0BSD](https://img.shields.io/badge/License-0BSD-brightgreen.svg)
-![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)
+[![CI](https://github.com/azias/scenet/actions/workflows/ci.yml/badge.svg)](https://github.com/azias/scenet/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/scenet.svg)](https://pypi.org/project/scenet/)
+[![Python](https://img.shields.io/pypi/pyversions/scenet.svg)](https://pypi.org/project/scenet/)
+[![License: 0BSD](https://img.shields.io/badge/License-0BSD-brightgreen.svg)](LICENSE)
 ![Status: alpha](https://img.shields.io/badge/status-alpha-orange.svg)
+
+**[Documentation](https://azias.github.io/scenet/)** ·
+**[Playground](https://azias.github.io/scenet/playground/)** ·
+**[Tutorial](https://azias.github.io/scenet/tutorial/first_panel.html)** ·
+**[Changelog](CHANGELOG.md)**
 
 ## What this is
 
@@ -115,10 +122,20 @@ SVG.
 
 ## Try it in the browser
 
-The [playground](playground/) runs this compiler — the same Python, unmodified — in your
-browser under WebAssembly via [Pyodide](https://pyodide.org/). It is not a
-reimplementation: the page installs the exact wheel `uv build` produces, so there is no
-second copy of the geometry to drift out of step.
+The **[playground](https://azias.github.io/scenet/playground/)** runs this compiler — the
+same Python, unmodified — in your browser under WebAssembly via
+[Pyodide](https://pyodide.org/). It is not a reimplementation: the page installs the exact
+wheel `uv build` produces, so there is no second copy of the geometry to drift out of step.
+
+Fifteen worked examples, covering every shot type, every balloon kind, both frontends and
+the constraint priorities. Each one is a real file under
+[`examples/gallery/`](examples/gallery/) that the test suite compiles, so the playground
+cannot offer an example that does not work.
+
+The editor is Monaco, fed the *same* JSON Schema the VS Code extension uses — generated
+from the compiler's own models, so completion and hover documentation cannot drift from
+what compiles. Everything is served from one origin: no CDN, no analytics, nothing
+fetched from anywhere else.
 
 ## Editor support
 
@@ -127,13 +144,30 @@ documents, plus a side-by-side preview. Its JSON Schema is *generated from the
 compiler's own models* by `scenet schema`, so what the editor offers is what actually
 compiles. A test fails if the shipped schema goes stale.
 
+## Install
+
+```bash
+pip install scenet
+```
+
+Python 3.12 or newer. No system libraries, no fonts to install, nothing to configure. Ships
+a `py.typed` marker, so mypy, pyright, ty and basedpyright read the annotations straight
+from the package.
+
+```python
+from scenet import compile_source, render
+
+result = compile_source("cast: {alice: {reference: alice}}")
+svg = render(result.core)
+```
+
 ## Development
 
 Requires [uv](https://docs.astral.sh/uv/). It manages the Python version too, so this is the whole
 setup:
 
 ```bash
-uv sync
+uv sync --all-groups
 uv run pytest
 ```
 
@@ -147,13 +181,23 @@ uv run pytest
 
 ## Documentation
 
-| Document | Contents |
+**[azias.github.io/scenet](https://azias.github.io/scenet/)** — or read the Markdown
+source under [`docs/`](docs/), which GitHub renders without a build step.
+
+| | |
 |---|---|
-| [Language specification](docs/reference/language.md) | The DSL itself — every construct, with examples |
-| [Panel Core](docs/reference/panel_core.md) | The resolved intermediate format |
+| [Tutorial](docs/tutorial/first_panel.md) | Build a panel from nothing, in fifteen minutes |
+| [How-to guides](docs/howto/index.md) | Sequences, comic scripts, your own characters, using it as a library |
+| [Language specification](docs/reference/language.md) | Every construct, with examples |
 | [Shot types](docs/reference/shot_types.md) | Normative camera framing table |
+| [Panel Core](docs/reference/panel_core.md) | The resolved intermediate format |
 | [Asset contract](docs/reference/asset_contract.md) | What a character puppet must declare |
+| [API reference](docs/reference/api/index.md) | Every public name |
+| [Design decisions](docs/explanation/design_decisions.md) | Why it is shaped this way |
 | [Prior art](docs/explanation/prior_art.md) | What already exists, and what was taken from it |
+
+Every Python example in the documentation is executed by the test suite. An example that
+omits an import, or that has drifted out of step with the code, fails the build.
 
 ## License
 

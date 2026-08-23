@@ -35,13 +35,11 @@ jobs:
             exit 1
           fi
 
+      # The same script the release job uses to produce the notes, run here so a
+      # missing or empty section fails before anything is published rather than
+      # producing a release with empty notes.
       - name: CHANGELOG must have a section for this version
-        run: |
-          TAG="${GITHUB_REF_NAME#v}"
-          if ! grep -qE "^## \[$TAG\]" CHANGELOG.md; then
-            echo "::error::CHANGELOG.md has no '## [$TAG]' section"
-            exit 1
-          fi
+        run: uv run --no-project python scripts/changelog_section.py "${GITHUB_REF_NAME#v}"
 
       - run: uv sync --frozen --all-groups
       - run: uv run ruff format --check .
@@ -166,16 +164,16 @@ jobs:
           path: dist/
 
       # The release notes are the CHANGELOG section for this version, which `verify`
-      # has already confirmed exists. Written by a person, for people -- generated
-      # notes are a list of commit subjects, which is not the same thing.
+      # has already confirmed exists. Written by a person, for people -- generated notes
+      # are a list of commit subjects, which is not the same thing.
+      #
+      # This was inline awk once. It silently produced nothing: a dynamically built
+      # bracket escape in an awk regex opens a character class instead of matching a
+      # bracket, so the release would have been published with empty notes and no error.
+      # A script can be tested; a line of awk buried in YAML cannot.
       - name: Extract the changelog section
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
-          awk -v v="$TAG" '
-            $0 ~ "^## \\[" v "\\]" { found = 1; next }
-            found && /^## \[/       { exit }
-            found                   { print }
-          ' CHANGELOG.md > release-notes.md
+          python scripts/changelog_section.py "${GITHUB_REF_NAME#v}" --output release-notes.md
           cat release-notes.md
 
       - name: Publish the release

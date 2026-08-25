@@ -18,8 +18,8 @@ Treat it accordingly: an experiment first, a usable tool second.
 [![License: 0BSD](https://img.shields.io/badge/License-0BSD-brightgreen.svg)](LICENSE)
 ![Status: alpha](https://img.shields.io/badge/status-alpha-orange.svg)
 
-**[Documentation](https://azias.github.io/scenet/)** ·
 **[Playground](https://azias.github.io/scenet/playground/)** ·
+**[Documentation](https://azias.github.io/scenet/)** ·
 **[Tutorial](https://azias.github.io/scenet/tutorial/first_panel.html)** ·
 **[Changelog](CHANGELOG.md)**
 

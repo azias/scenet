@@ -48,6 +48,13 @@ speaker's mouth — all while preserving reading order.
 **No generative image model is involved.** This is a deterministic compiler: constraint
 solving and computational geometry. The same input always produces byte-identical output.
 
+## Try it without installing anything
+
+The [playground](https://azias.github.io/scenet/playground/) runs this compiler — the
+same Python, unmodified — in your browser under WebAssembly via Pyodide. It is not a
+reimplementation: the page installs the exact wheel `uv build` produces, so there is no
+second copy of the geometry to drift out of step.
+
 ## Thirty seconds
 
 ```python
@@ -71,6 +78,10 @@ Every Python example in this documentation is executed by the test suite. If one
 were missing an import, or had drifted out of step with the code, the build would fail.
 
 ## Where to go
+
+These four sections follow [Diátaxis](https://diataxis.fr/): a tutorial to learn by doing, how-to
+guides to get a job done, reference to look something up, and explanation to understand why. If you
+are adding a page, that is how to decide where it belongs.
 
 ::::{grid} 1 1 2 2
 :gutter: 3
@@ -106,13 +117,6 @@ Why the design is the way it is, what prior work it draws on, and what was delib
 rejected.
 :::
 ::::
-
-## Try it without installing anything
-
-The [playground](https://azias.github.io/scenet/playground/) runs this compiler — the
-same Python, unmodified — in your browser under WebAssembly via Pyodide. It is not a
-reimplementation: the page installs the exact wheel `uv build` produces, so there is no
-second copy of the geometry to drift out of step.
 
 ## License
 

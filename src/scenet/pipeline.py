@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from scenet.assets.contract import PuppetLibrary, default_library
+from scenet.assets.face import ResolvedDisc, ResolvedStroke, build_face
 from scenet.assets.kinematics import ResolvedPuppet, resolve
 from scenet.core import (
     Blob,
@@ -18,6 +19,9 @@ from scenet.core import (
     CoreBalloon,
     CoreCaption,
     Disc,
+    FaceDisc,
+    FaceMark,
+    FaceStroke,
     PanelCore,
     Tail,
     Transform,
@@ -27,7 +31,7 @@ from scenet.core import (
 )
 from scenet.frontends.script_front import load_script
 from scenet.frontends.yaml_front import load_panel, load_scene, parse_panel, parse_scene
-from scenet.geom import BBox, rounded
+from scenet.geom import BBox, Vector, rounded
 from scenet.ir import PanelIR
 from scenet.solve.balloons import place_script
 from scenet.solve.camera import CameraSolution
@@ -84,6 +88,55 @@ class CompileResult:
         return tuple(notes)
 
 
+def _gaze_aims(
+    panel: PanelIR, posed: dict[str, ResolvedPuppet], origins: dict[str, str]
+) -> dict[str, Vector]:
+    """Unit vectors from each looking character's eyes to what they are looking at.
+
+    `looking_at` has always turned a figure toward its target and made the space in
+    front of them expensive for a balloon. What it never did was show up on the face,
+    because the only gaze vector available was the head's forward direction -- which,
+    with no pose rotating the head, is the facing direction and nothing more. This is
+    the real thing, and it is what the pupils follow.
+
+    Args:
+        panel: The validated panel, for its `looking_at` relations.
+        posed: Every actor, already placed. Both ends of a gaze must be resolved
+            before the vector between them exists, which is why this runs here.
+        origins: Actor id to the anchor its puppet declares as the gaze origin.
+
+    Returns:
+        Actor id to unit aim vector, for looking actors only.
+    """
+    aims: dict[str, Vector] = {}
+    for actor, target in panel.gaze_targets().items():
+        looker, looked_at = posed[actor], posed[target]
+        eyes = looker.anchors.get(origins[actor], looker.face.centre)
+        towards = looked_at.face.centre
+        aim = Vector(towards.x - eyes.x, towards.y - eyes.y)
+        if aim.length:
+            aims[actor] = aim.normalised()
+    return aims
+
+
+def _core_mark(mark: ResolvedStroke | ResolvedDisc) -> FaceMark:
+    """Reduce one resolved face mark to its serialisable Core twin."""
+    if isinstance(mark, ResolvedDisc):
+        return FaceDisc(
+            id=mark.id,
+            centre=point_pair(mark.centre),
+            radius=rounded(mark.radius),
+            filled=mark.filled,
+            width=rounded(mark.width),
+        )
+    return FaceStroke(
+        id=mark.id,
+        points=round_pairs(mark.points),
+        width=rounded(mark.width),
+        closed=mark.closed,
+    )
+
+
 def compile_ir(
     panel: PanelIR,
     *,
@@ -98,11 +151,26 @@ def compile_ir(
         placement.actor_id: resolve(
             library.get(placement.reference),
             pose=placement.pose,
+            expression=placement.expression,
             facing_right=placement.facing_right,
             scale=placement.scale,
             origin=placement.origin,
         )
         for placement in placements
+    }
+    # Aiming has to happen here rather than in `resolve`, because where a character is
+    # looking is a fact about two actors and is not known until both are placed. It is
+    # still nothing to do with the solver: no constraint reads it, and it changes no
+    # position -- it only turns the pupils.
+    specs = {placement.actor_id: library.get(placement.reference) for placement in placements}
+    aims = _gaze_aims(panel, posed, {actor: spec.gaze.origin for actor, spec in specs.items()})
+    faces = {
+        actor: build_face(
+            posed[actor], spec.expression_states(posed[actor].expression), aims.get(actor)
+        )
+        if spec.expressions
+        else ()
+        for actor, spec in specs.items()
     }
 
     frame = BBox(
@@ -121,6 +189,7 @@ def compile_ir(
                 id=placement.actor_id,
                 reference=placement.reference,
                 pose=placement.pose,
+                expression=placement.expression,
                 transform=Transform(
                     x=rounded(placement.x),
                     y=rounded(placement.y),
@@ -133,6 +202,10 @@ def compile_ir(
                 },
                 face_exclusion=Disc.of(posed[placement.actor_id].face),
                 gaze=vector_pair(posed[placement.actor_id].gaze),
+                gaze_aim=(
+                    vector_pair(aims[placement.actor_id]) if placement.actor_id in aims else None
+                ),
+                face_marks=tuple(_core_mark(mark) for mark in faces[placement.actor_id]),
                 hull=round_pairs(posed[placement.actor_id].hull),
                 capsules=tuple(
                     Capsule(

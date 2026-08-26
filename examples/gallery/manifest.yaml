@@ -52,3 +52,9 @@ examples:
   - file: 16-captions.panel.yaml
     title: "Captions: where and when"
     kind: panel
+  - file: 17-expressions.scene.yaml
+    title: "Ten expressions"
+    kind: scene
+  - file: 18-a-face.panel.yaml
+    title: "A face, at last"
+    kind: panel

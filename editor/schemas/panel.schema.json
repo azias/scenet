@@ -104,11 +104,16 @@
     },
     "CastMember": {
       "additionalProperties": false,
-      "description": "One character present in the panel.\n\nAttributes:\n    reference: Name of a puppet in the library. This is what gets drawn; the key\n        this member is filed under in `cast` is the actor id used everywhere else.\n    pose: Named pose from that puppet's declared set.\n    at: Preferred horizontal anchor.\n    facing: Which way the figure is turned.\n\nThe split between actor id and `reference` is what lets one puppet appear twice in\na panel as two different people:\n\n    cast:\n      guard_left:  {reference: bob, pose: arms_crossed}\n      guard_right: {reference: bob, pose: standing_neutral, facing: left}",
+      "description": "One character present in the panel.\n\nAttributes:\n    reference: Name of a puppet in the library. This is what gets drawn; the key\n        this member is filed under in `cast` is the actor id used everywhere else.\n    pose: Named pose from that puppet's declared set.\n    expression: Named expression from that puppet's declared set. Selected by name\n        exactly as a pose is, because a face is the same kind of thing as a body:\n        a small closed set of arrangements the character can be in.\n    at: Preferred horizontal anchor.\n    facing: Which way the figure is turned.\n\nThe split between actor id and `reference` is what lets one puppet appear twice in\na panel as two different people:\n\n    cast:\n      guard_left:  {reference: bob, pose: arms_crossed}\n      guard_right: {reference: bob, pose: standing_neutral, facing: left}",
       "properties": {
         "at": {
           "$ref": "#/$defs/AnchorX",
           "default": "center"
+        },
+        "expression": {
+          "default": "neutral",
+          "title": "Expression",
+          "type": "string"
         },
         "facing": {
           "$ref": "#/$defs/Facing",

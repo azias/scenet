@@ -313,6 +313,9 @@ class CastMember(Strict):
         reference: Name of a puppet in the library. This is what gets drawn; the key
             this member is filed under in `cast` is the actor id used everywhere else.
         pose: Named pose from that puppet's declared set.
+        expression: Named expression from that puppet's declared set. Selected by name
+            exactly as a pose is, because a face is the same kind of thing as a body:
+            a small closed set of arrangements the character can be in.
         at: Preferred horizontal anchor.
         facing: Which way the figure is turned.
 
@@ -326,6 +329,7 @@ class CastMember(Strict):
 
     reference: str
     pose: str = "standing_neutral"
+    expression: str = "neutral"
     at: AnchorX = AnchorX.CENTRE
     facing: Facing = Facing.RIGHT
 

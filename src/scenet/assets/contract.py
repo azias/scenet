@@ -24,10 +24,16 @@ __all__ = [
     "AnchorSpec",
     "BlobPart",
     "BonePart",
+    "BrowState",
+    "ExpressionSpec",
+    "EyeState",
     "FaceSpec",
+    "Feature",
+    "FeatureSpec",
     "GazeSpec",
     "JointSpec",
     "Landmark",
+    "MouthState",
     "PuppetLibrary",
     "PuppetSpec",
     "Strict",
@@ -106,17 +112,148 @@ class AnchorSpec(Strict):
     offset: tuple[float, float] = (0.0, 0.0)
 
 
+class Feature(StrEnum):
+    """The points on a face that an expression can move.
+
+    Named after the **groups** of the MPEG-4 FBA facial definition parameters -- brow,
+    eye, nose, mouth -- rather than its full point set. The standard defines 66
+    displacements over dozens of points, which is a measurement rather than a
+    notation; the grouping is the part worth reusing, and it lands at about the right
+    size for a drawn face. `docs/reference/asset_contract.md` records the mapping to
+    MediaPipe landmark indices, which is what buys convertibility later without
+    importing 478 points into the language now.
+
+    Two omissions are deliberate. **Pupils are derived, not declared** -- they are
+    offset inside the eye by where the character is looking, so authoring them would
+    be authoring something the compiler already knows. And there is **no jaw**: the
+    head is a circle that does not deform, so a jaw group would have no geometry to
+    move.
+    """
+
+    BROW_L = "brow_l"
+    BROW_R = "brow_r"
+    EYE_L = "eye_l"
+    EYE_R = "eye_r"
+    NOSE = "nose"
+    MOUTH = "mouth"
+
+    @property
+    def is_paired(self) -> bool:
+        """Whether this feature is one of a left/right pair."""
+        return self.value.endswith(("_l", "_r"))
+
+    @property
+    def twin(self) -> "Feature | None":
+        """The other half of a left/right pair, or None for a single feature."""
+        if not self.is_paired:
+            return None
+        stem, side = self.value[:-2], self.value[-1]
+        return Feature(f"{stem}_{'r' if side == 'l' else 'l'}")
+
+
+class FeatureSpec(Strict):
+    """Where one facial feature sits, and how big it is.
+
+    Structurally an :class:`AnchorSpec <scenet.assets.contract.AnchorSpec>` with a size,
+    and resolved through exactly the same forward kinematics -- but declared under
+    `face` rather than in `anchors`, deliberately. Anchors are how the *solver*
+    addresses anatomy: the balloon tail terminates at `mouth` and the solver never
+    learns how a head is drawn. Features are artwork. Mixing them would put drawing
+    landmarks into the one namespace that is supposed to be free of them.
+
+    Attributes:
+        joint: Which joint this feature rides. Practically always `head`.
+        offset: Rest-pose displacement from that joint, in native units.
+        size: What the number means depends on the feature -- an eye's radius, a
+            brow's half-width, a mouth's half-width, a nose's length. Zero means the
+            feature has no extent and is drawn as a bare point, which is rarely what
+            anybody wants.
+    """
+
+    joint: str = "head"
+    offset: tuple[float, float] = (0.0, 0.0)
+    size: float = Field(default=0.0, ge=0.0)
+
+
+class BrowState(StrEnum):
+    """What the eyebrows are doing.
+
+    `angled_in` puts the inner ends down, which is the anger brow; `angled_out` puts
+    them up, which is the sad or frightened one. Inner and outer are resolved against
+    the face centre rather than the screen, so both survive mirroring.
+    """
+
+    NEUTRAL = "neutral"
+    RAISED = "raised"
+    LOWERED = "lowered"
+    ANGLED_IN = "angled_in"
+    ANGLED_OUT = "angled_out"
+
+
+class EyeState(StrEnum):
+    """How open the eyes are.
+
+    `half` is the heavy-lidded eye of boredom, distinct from `narrowed`, which is the
+    squint of anger or suspicion: one is drooping, the other is tightened.
+    """
+
+    OPEN = "open"
+    WIDE = "wide"
+    NARROWED = "narrowed"
+    HALF = "half"
+    CLOSED = "closed"
+
+
+class MouthState(StrEnum):
+    """What the mouth is doing.
+
+    `grin` is an open smile, `smile` a closed one, and `small` the reticent little
+    mouth that does most of the work in a coy face.
+    """
+
+    NEUTRAL = "neutral"
+    FLAT = "flat"
+    SMILE = "smile"
+    GRIN = "grin"
+    FROWN = "frown"
+    OPEN = "open"
+    SMALL = "small"
+
+
+class ExpressionSpec(Strict):
+    """One named expression, as a state per feature.
+
+    An expression is to features what a pose is to joints: a record the panel selects
+    by name. A face **deforms** rather than rotating about bones, which is why this is
+    a set of states and not a set of angles -- a nose joint would swing a nose.
+
+    Every field defaults, so a `neutral` expression is `{}` and a happy one is
+    `{mouth: smile}`. Unknown keys are rejected, so `mouth: raised` -- a real state,
+    on the wrong feature -- is an error rather than a silently ignored line.
+    """
+
+    brow: BrowState = BrowState.NEUTRAL
+    eyes: EyeState = EyeState.OPEN
+    mouth: MouthState = MouthState.NEUTRAL
+
+
 class FaceSpec(Strict):
-    """The region a balloon may never cover.
+    """The region a balloon may never cover, and what is drawn inside it.
 
     A circle rather than a polygon: faces are roughly round, the test is cheap, and
     the cost of being slightly generous here is a balloon placed a little further
     away, which is never wrong.
+
+    `features` is optional. A puppet that declares none is drawn exactly as it was
+    before faces existed -- a head is a filled circle -- and a puppet that declares
+    some has those drawn and no others. There is no requirement to declare all of
+    them, because a stylised character genuinely may have no eyebrows.
     """
 
     joint: str = "head"
     radius: float = Field(gt=0)
     offset: tuple[float, float] = (0.0, 0.0)
+    features: dict[Feature, FeatureSpec] = Field(default_factory=dict)
 
 
 class GazeSpec(Strict):
@@ -151,6 +288,7 @@ class PuppetSpec(Strict):
     face: FaceSpec
     gaze: GazeSpec = GazeSpec()
     poses: dict[str, dict[str, float]] = Field(default_factory=dict)
+    expressions: dict[str, ExpressionSpec] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def check_landmarks_complete_and_ordered(self) -> Self:
@@ -251,6 +389,8 @@ class PuppetSpec(Strict):
         for anchor_name, anchor in self.anchors.items():
             require(anchor.joint, f"anchor '{anchor_name}'")
         require(self.face.joint, "face")
+        for feature, spec in self.face.features.items():
+            require(spec.joint, f"face feature '{feature.value}'")
 
         if self.gaze.origin not in self.anchors:
             raise ValueError(
@@ -259,6 +399,43 @@ class PuppetSpec(Strict):
         for pose_name, angles in self.poses.items():
             for joint in angles:
                 require(joint, f"pose '{pose_name}'")
+        return self
+
+    @model_validator(mode="after")
+    def check_face_is_drawable(self) -> Self:
+        """Require paired features to come in pairs, and expressions to be usable.
+
+        Returns:
+            The validated puppet.
+
+        Raises:
+            ValueError: One half of a left/right pair is declared without the other,
+                a puppet declares expressions but no features for them to move, or it
+                declares expressions without a `neutral` one.
+
+        The `neutral` check is not pedantry. `CastMember.expression` defaults to
+        `neutral`, so a puppet that declares expressions without one fails on every
+        panel that does not name an expression explicitly -- which is most of them.
+        """
+        for feature in self.face.features:
+            twin = feature.twin
+            if twin is not None and twin not in self.face.features:
+                raise ValueError(
+                    f"puppet '{self.name}': face feature '{feature.value}' is declared "
+                    f"without its pair '{twin.value}'; a face with one eyebrow is a "
+                    "typo far more often than it is a character"
+                )
+
+        if self.expressions and not self.face.features:
+            raise ValueError(
+                f"puppet '{self.name}' declares expressions but no face features for "
+                "them to move; add `face.features` or drop the expressions"
+            )
+        if self.expressions and "neutral" not in self.expressions:
+            raise ValueError(
+                f"puppet '{self.name}' declares expressions but not 'neutral', which is "
+                "what a cast member gets when it does not ask for one"
+            )
         return self
 
     @property
@@ -295,6 +472,36 @@ class PuppetSpec(Strict):
                 f"puppet '{self.name}' has no pose '{pose}'; available: {sorted(self.poses)}"
             )
         return self.poses[pose]
+
+    def expression_states(self, expression: str) -> ExpressionSpec:
+        """Look up the feature states for a named expression.
+
+        The counterpart of :meth:`pose_angles <scenet.assets.contract.PuppetSpec.pose_angles>`,
+        and deliberately identical in shape down to the error: an expression is
+        selected by name exactly as a pose is.
+
+        Args:
+            expression: Name of an expression this puppet declares.
+
+        Returns:
+            The states its features take.
+
+        Raises:
+            KeyError: This puppet has no expression by that name. The message lists
+                the ones it does have.
+
+        Example:
+            >>> from scenet import default_library
+            >>> alice = default_library().get("alice")
+            >>> alice.expression_states("angry").mouth.value
+            'frown'
+        """
+        if expression not in self.expressions:
+            raise KeyError(
+                f"puppet '{self.name}' has no expression '{expression}'; "
+                f"available: {sorted(self.expressions)}"
+            )
+        return self.expressions[expression]
 
 
 class PuppetLibrary:

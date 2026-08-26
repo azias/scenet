@@ -10,7 +10,7 @@ different path-rounding convention produces a huge diff that means nothing.
 """
 
 import json
-from typing import Any, Self
+from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict
 
@@ -143,6 +143,56 @@ class Blob(CoreModel):
     radius: float
 
 
+class FaceStroke(CoreModel):
+    """One line of a drawn face, already sampled into straight segments.
+
+    Curves are sampled during compilation rather than emitted as Bezier control
+    points, so that everything an expression does is a number here. A face can then be
+    read, diffed and hand-adjusted exactly like the rest of this tier, and the emitter
+    has nothing left to decide.
+
+    Attributes:
+        mark: Always `stroke`. What distinguishes this from a `FaceDisc`.
+        id: Which feature this draws -- `brow_l`, `mouth`, and so on.
+        points: The polyline, in panel coordinates.
+        width: Stroke width in panel units.
+        closed: Whether the last point joins back to the first, which is what makes an
+            open mouth a shape rather than a stray arc.
+    """
+
+    mark: Literal["stroke"] = "stroke"
+    id: str
+    points: tuple[tuple[float, float], ...]
+    width: float
+    closed: bool = False
+
+
+class FaceDisc(CoreModel):
+    """A round mark on a face -- an eye, or the pupil inside it.
+
+    Attributes:
+        mark: Always `disc`.
+        id: Which feature this draws.
+        centre: `(x, y)` of the centre.
+        radius: Radius in panel units.
+        filled: Filled marks are pupils; outlined ones are the eyes around them.
+        width: Outline width in panel units, ignored when `filled`.
+    """
+
+    mark: Literal["disc"] = "disc"
+    id: str
+    centre: tuple[float, float]
+    radius: float
+    filled: bool = False
+    width: float = 0.0
+
+
+#: One mark on a drawn face. Tagged by a defaulted literal rather than a pydantic
+#: discriminator, for the same reason `ScriptEvent` is: a discriminator would require
+#: the tag in every hand-written document.
+FaceMark = FaceStroke | FaceDisc
+
+
 class CoreActor(CoreModel):
     """One character, fully resolved: placed, posed, scaled and measured.
 
@@ -154,11 +204,22 @@ class CoreActor(CoreModel):
         id: The actor id from the panel source.
         reference: Which puppet was used. Two actors may share one.
         pose: Which named pose was applied.
+        expression: Which named expression was applied.
         transform: Where the root joint landed, and the scale and mirroring applied.
         anchors: Named attachment points -- `mouth`, `eyes`, and whatever else the
             puppet declared -- already in panel coordinates.
         face_exclusion: The disc no balloon may overlap.
-        gaze: Unit direction the character is looking, `(dx, dy)`.
+        gaze: Unit direction the character is facing, `(dx, dy)`. Derived from the
+            head's rotation, and what balloon placement reads to keep out of a line of
+            sight.
+        gaze_aim: Unit direction from the eyes to whoever this character is
+            `looking_at`, or None when they are looking at nobody. Separate from
+            `gaze` because it is known only after every actor has been placed, and
+            because balloon placement must go on reading the same vector it always
+            has. This is what aims the pupils.
+        face_marks: The drawn face -- brows, eyes, pupils, nose, mouth -- as resolved
+            numeric primitives. Empty when the puppet declares no features, or when
+            the figure is too small for features to read as anything but a smudge.
         hull: Convex silhouette, used for the soft occlusion cost.
         capsules: Limb segments, as thick rounded lines.
         blobs: Rounded masses such as the head.
@@ -173,6 +234,9 @@ class CoreActor(CoreModel):
     face_exclusion: Disc
     gaze: tuple[float, float]
     hull: tuple[tuple[float, float], ...]
+    expression: str = "neutral"
+    gaze_aim: tuple[float, float] | None = None
+    face_marks: tuple[FaceMark, ...] = ()
     capsules: tuple[Capsule, ...] = ()
     blobs: tuple[Blob, ...] = ()
     # Painter's order: lower values are drawn first, so higher values sit in front.
@@ -394,6 +458,9 @@ __all__ = [
     "CoreBalloon",
     "CoreCaption",
     "Disc",
+    "FaceDisc",
+    "FaceMark",
+    "FaceStroke",
     "PanelCore",
     "Tail",
     "Transform",

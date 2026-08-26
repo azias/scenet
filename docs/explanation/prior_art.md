@@ -20,7 +20,15 @@ they stood, which way they faced, the camera zoom, the balloon shapes, and — c
 placement obeying reading order.
 
 Taken: the overall decomposition, the insight that reading order is a hard constraint rather than a
-preference, and the practice of opening a sequence with a wider establishing shot.
+preference, the practice of opening a sequence with a wider establishing shot, and — added later —
+**the expression vocabulary**. Comic Chat's emotion wheel carried `laughing`, `happy`, `coy`,
+`bored`, `scared`, `sad`, `angry` and `shouting`, with `neutral` at its centre. Scenet ships those
+nine plus `surprise`.
+
+That set was preferred to Ekman's six deliberately. It comes from a system that actually rendered
+faces for live conversations rather than from a psychology of emotion, and it shows: `coy` and
+`bored` are cartoonists' categories, and no taxonomy of felt emotion would produce them. Which is
+exactly the framing the literature demands — see Barrett below.
 
 **Nothing is vendored** — not code, not artwork. See
 [THIRD_PARTY_NOTICES](https://github.com/azias/scenet/blob/main/THIRD_PARTY_NOTICES.md) for why.
@@ -96,6 +104,46 @@ standardised comic script format at all. But the informal industry convention (`
 Planned as the human-facing frontend in phase 5 — better than inventing a syntax, because writers
 already write this one.
 
+### MPEG-4 FBA feature *groups* — and only the groups
+
+[Overview (PDF)](https://visagetechnologies.com/uploads/2012/08/MPEG-4FBAOverview.pdf)
+
+The ISO standard defines 66 facial animation parameters over dozens of feature points. That is a
+measurement, not a notation, and adopting it wholesale would put more machinery in the language than
+a drawn face has detail.
+
+Taken: the **grouping** — brow, eye, iris, nose, mouth, jaw — which is about six named features and
+is the right size for this. `docs/reference/asset_contract.md` records the mapping from Scenet's
+feature names to MediaPipe landmark indices, which is what would make a real face convertible into a
+Scenet expression later without importing 478 points now.
+
+Not taken: the jaw group. The head is a circle that does not deform, so a jaw would have no geometry
+to move.
+
+### Barrett et al. 2019 — why the expression names are not an emotion claim
+
+["Emotional Expressions Reconsidered: Challenges to Inferring Emotion From Human Facial
+Movements"](https://pmc.ncbi.nlm.nih.gov/articles/PMC6640856/), *Psychological Science in the Public
+Interest*.
+
+Recorded here so that a claim this project made in an early draft is never reintroduced. The first
+proposal justified Ekman's six as "cross-culturally documented, universal". **That justification does
+not survive the literature.** Barrett and colleagues conclude that a specific emotion cannot reliably
+be read off a face, and land a methodological hit besides: Ekman's agreement rates came from a forced
+choice among six supplied words, and participants given no word list label the "correct" emotion less
+than half the time.
+
+It does not sink the feature, because Scenet runs the other way. Barrett's critique is about
+*inferring* emotion from a real face. Scenet *synthesises* a drawn face from a declared name, and
+comic faces are conventional signs rather than photographs of felt emotion. So the honest framing,
+which is also the stronger one for this project:
+
+> These names are a **drawing convention** — the small closed set of faces comics actually draw. They
+> are not a claim that a person feeling anger produces this face.
+
+That keeps the notation at the objectifiable level and leaves interpretation to another layer, which
+is the thesis of the whole compiler.
+
 ### Lettering convention — Blambot, and Balloon Tales
 
 [Comic Book Grammar & Tradition](https://blambot.com/pages/comic-book-grammar-tradition) ·
@@ -134,4 +182,7 @@ street corner, a room interior, foliage — which is a real future module.
 | **Graphviz / DOT** | Useful only as a debug dump of the scene graph. Graph layout optimises for edge crossings and hierarchy, which has nothing to do with pictorial composition. A dead end as a layout engine. |
 | **POV-Ray SDL** | A CSG raytracer scene language. Historically interesting as an early declarative scene description, but nothing transfers. |
 | **D3.js** | A DOM data-binding library rather than a layout engine, and this project is Python. Its underlying idea is already covered by Vega-Lite. |
+| **[MediaPipe Face Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker)** | 478 3-D landmarks. A *detection output*, not a notation: 478 points is a measurement of a face, and a drawn face has nothing like that much detail to place. Its landmark indices are useful as a **mapping target**, and are recorded as one in the asset contract. |
+| **ARKit / MediaPipe blendshapes** | 52 continuous coefficients that "loosely correspond to FACS Action Units". Continuous blending is the wrong model for comics, which use a small set of conventionalised glyphs rather than interpolations between them. |
+| **[FACS](https://www.sciencedirect.com/topics/computer-science/facial-action-coding-system)** | Codes anatomical muscle actions for *observation*, is continuous, and is documented as weak on the lower face. Wrong direction, wrong granularity. |
 | **A-star pathfinding for balloon tails** | Frequently suggested, and wrong. A tail is a short tapered stroke from balloon rim to mouth; grid-based A-star produces jagged paths that look nothing like drawn tails. A straight tail with a collision test, bending to a single-control-point Bézier only when obstructed, is both simpler and better. |

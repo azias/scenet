@@ -27,6 +27,7 @@ from scenet.assets.kinematics import resolve
 from scenet.core import CoreActor, FaceDisc, PanelCore
 from scenet.core import FaceMark as CoreFaceMark
 from scenet.geom import Point, Vector
+from scenet.ir import ShotType
 from scenet.pipeline import compile_source
 
 EXPRESSIONS = (
@@ -48,12 +49,15 @@ def library() -> PuppetLibrary:
     return default_library()
 
 
-def face_of(reference: str, expression: str, *, shot: str = "close_up"):
-    core = compile_source(
+def _compile(reference: str, expression: str, *, shot: str = "close_up") -> PanelCore:
+    return compile_source(
         f"{{camera: {{shot: {shot}}}, "
         f"cast: {{a: {{reference: {reference}, expression: {expression}}}}}}}"
     ).core
-    return core.actor("a")
+
+
+def face_of(reference: str, expression: str, *, shot: str = "close_up"):
+    return _compile(reference, expression, shot=shot).actor("a")
 
 
 class TestTheContract:
@@ -203,6 +207,45 @@ class TestDrawnFaces:
     def test_marks_are_emitted_in_a_fixed_order(self):
         ids = [mark.id for mark in face_of("alice", "neutral").face_marks]
         assert ids == ["brow_l", "brow_r", "eye_l", "pupil_l", "eye_r", "pupil_r", "nose", "mouth"]
+
+
+# Marks that ought to be visible at *every* shot in the ladder, `extreme_close_up`
+# included: every shot's crop landmark sits at or below `eyes`, so the brows, eyes
+# and pupils are never the part a tight shot is entitled to crop away. `nose` and
+# `mouth` are excluded on purpose -- at `extreme_close_up` they are legitimately
+# cropped out, which is what "crops through the face deliberately" means.
+_UPPER_FACE_MARKS = {"brow_l", "brow_r", "eye_l", "pupil_l", "eye_r", "pupil_r"}
+
+
+class TestFacesAcrossTheShotLadder:
+    """No test previously rendered a face outside `close_up` and `full_shot`.
+
+    At `extreme_close_up` specifically, bottom-anchoring the `eyes` crop line put the
+    eyes and brows entirely below the panel -- #23 -- while
+    `test_marks_stay_inside_the_head` above stayed green throughout, because it checks
+    containment relative to the head circle rather than the panel, and a head drawn
+    below the panel is still a head. This checks containment relative to the panel
+    instead, at every shot in the ladder rather than just the one that was wrong.
+    """
+
+    @pytest.mark.parametrize("shot", [shot.value for shot in ShotType])
+    @pytest.mark.parametrize("reference", ["alice", "bob"])
+    def test_every_shot_draws_a_face(self, reference: str, shot: str):
+        assert face_of(reference, "angry", shot=shot).face_marks
+
+    @pytest.mark.parametrize("shot", [shot.value for shot in ShotType])
+    @pytest.mark.parametrize("reference", ["alice", "bob"])
+    def test_the_eyes_and_brows_stay_inside_the_panel(self, reference: str, shot: str):
+        core = _compile(reference, "angry", shot=shot)
+        actor = core.actor("a")
+        for mark in actor.face_marks:
+            if mark.id not in _UPPER_FACE_MARKS:
+                continue
+            points = [mark.centre] if isinstance(mark, FaceDisc) else list(mark.points)
+            for _, y in points:
+                assert 0.0 <= y <= core.height, (
+                    f"{reference} {shot}: {mark.id} y={y} outside panel height {core.height}"
+                )
 
 
 class TestLevelOfDetail:

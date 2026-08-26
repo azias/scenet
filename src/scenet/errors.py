@@ -34,6 +34,8 @@ __all__ = [
     "ScriptSyntaxError",
     "SolverError",
     "SourceError",
+    "UnknownExpressionError",
+    "UnknownPoseError",
     "UnknownPuppetError",
 ]
 
@@ -242,4 +244,32 @@ class UnknownPuppetError(AssetError, KeyError):
     Note:
         `KeyError` stringifies as `repr(args[0])`, so `str(exc)` comes out quoted.
         Read `exc.args[0]` for the bare message -- which is what the CLI does.
+    """
+
+
+class UnknownPoseError(AssetError, KeyError):
+    """A cast member's `pose` naming one its puppet does not declare.
+
+    Also a `KeyError`, for the same reason as
+    :exc:`UnknownPuppetError <scenet.errors.UnknownPuppetError>`: a pose lookup has
+    always failed this way, and `PuppetSpec.pose_angles`'s documented `Raises: KeyError`
+    stays true. `except KeyError` keeps working; a caller that wants the rule and
+    location this now carries catches `UnknownPoseError` (or `AssetError`) instead.
+
+    Note:
+        `KeyError` stringifies as `repr(args[0])`, so `str(exc)` comes out quoted.
+        Read `exc.args[0]` for the bare message.
+    """
+
+
+class UnknownExpressionError(AssetError, KeyError):
+    """A cast member's `expression` naming one its puppet does not declare.
+
+    The counterpart of :exc:`UnknownPoseError <scenet.errors.UnknownPoseError>` for
+    `PuppetSpec.expression_states`, and deliberately identical in shape -- an
+    expression is selected by name exactly as a pose is.
+
+    Note:
+        `KeyError` stringifies as `repr(args[0])`, so `str(exc)` comes out quoted.
+        Read `exc.args[0]` for the bare message.
     """

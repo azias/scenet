@@ -17,7 +17,7 @@ from typing import Self
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from scenet.errors import AssetError, UnknownPuppetError
+from scenet.errors import AssetError, UnknownExpressionError, UnknownPoseError, UnknownPuppetError
 
 __all__ = [
     "DEFAULT_LIBRARY_PATH",
@@ -464,11 +464,12 @@ class PuppetSpec(Strict):
             rest angle.
 
         Raises:
-            KeyError: This puppet has no pose by that name. The message lists the ones
-                it does have.
+            UnknownPoseError: This puppet has no pose by that name. The message lists
+                the ones it does have. Also a `KeyError`, so `except KeyError` keeps
+                working.
         """
         if pose not in self.poses:
-            raise KeyError(
+            raise UnknownPoseError(
                 f"puppet '{self.name}' has no pose '{pose}'; available: {sorted(self.poses)}"
             )
         return self.poses[pose]
@@ -487,8 +488,9 @@ class PuppetSpec(Strict):
             The states its features take.
 
         Raises:
-            KeyError: This puppet has no expression by that name. The message lists
-                the ones it does have.
+            UnknownExpressionError: This puppet has no expression by that name. The
+                message lists the ones it does have. Also a `KeyError`, so
+                `except KeyError` keeps working.
 
         Example:
             >>> from scenet import default_library
@@ -497,7 +499,7 @@ class PuppetSpec(Strict):
             'frown'
         """
         if expression not in self.expressions:
-            raise KeyError(
+            raise UnknownExpressionError(
                 f"puppet '{self.name}' has no expression '{expression}'; "
                 f"available: {sorted(self.expressions)}"
             )

@@ -117,6 +117,15 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="suppress the per-file success line; findings are always reported",
     )
+    check.add_argument(
+        "--deep",
+        action="store_true",
+        help=(
+            "also run the full compiler on documents that pass every cheap check, to "
+            "additionally catch layout and balloon-placement failures; costs a real "
+            "compile, including font metrics, so off by default"
+        ),
+    )
 
     schema = subcommands.add_parser(
         "schema",
@@ -242,7 +251,7 @@ def run_check(args: argparse.Namespace) -> int:
 
     found: list[Diagnostic] = []
     for path in sources:
-        found.extend(diagnose_file(path))
+        found.extend(diagnose_file(path, deep=args.deep))
 
     if args.format == "sarif":
         # Relative to the working directory, which is the repository root under CI and

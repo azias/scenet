@@ -117,6 +117,41 @@ class TestCropLandmarkSemantics:
         assert camera.head_top_y == pytest.approx(PANEL * SHOT_TABLE[ShotType.MEDIUM_SHOT].headroom)
 
 
+class TestWhatAShotFramesFitsInThePanel:
+    """A shot names where the frame cuts the body -- so that cut had better land inside
+    the panel it is cutting.
+
+    Nothing above tests this. Every assertion in this file is *relative* -- one scale
+    against another -- and the ladder test only checks that scale never decreases,
+    which `extreme_close_up` satisfies while framing the forehead: its head-top and
+    crop line landed at y=0 and y=1000 in a 1000-unit panel, with the eyes themselves
+    entirely off the bottom edge. `test_marks_stay_inside_the_head` in
+    tests/test_faces.py is head-relative and stays green under the same bug, because a
+    head drawn below the panel is still a head.
+    """
+
+    @pytest.mark.parametrize("shot", list(ShotType))
+    @pytest.mark.parametrize("angle", list(CameraAngle))
+    @pytest.mark.parametrize("reference", ["alice", "bob"])
+    def test_head_top_and_crop_line_land_inside_the_panel(
+        self, library: PuppetLibrary, reference: str, shot: ShotType, angle: CameraAngle
+    ):
+        puppet = library.get(reference)
+        camera = solve_camera(puppet, shot=shot, angle=angle, panel_height=PANEL)
+        crop = SHOT_TABLE[shot].crop
+        crop_y = camera.head_top_y + visible_height(puppet, shot) * camera.scale
+        # A crop line at exactly footroom=0 lands on the panel edge by design (the
+        # anchoring rule in docs/reference/shot_types.md), which floating-point
+        # arithmetic can place a hair past -- tolerance, not slack in the rule itself.
+        tolerance = 1e-6 * PANEL
+        assert -tolerance <= camera.head_top_y <= PANEL + tolerance, (
+            f"{reference} {shot.value} at {angle.value}: head_top_y={camera.head_top_y}"
+        )
+        assert -tolerance <= crop_y <= PANEL + tolerance, (
+            f"{reference} {shot.value} at {angle.value}: {crop.value}_y={crop_y}"
+        )
+
+
 class TestAngle:
     def test_high_angle_leaves_more_air_above(self):
         low = headroom_for(ShotType.MEDIUM_SHOT, CameraAngle.LOW)
@@ -341,9 +376,15 @@ class TestShotsThatShowFeetActuallyShowThem:
         assert SHOT_TABLE[shot].footroom > 0
 
     def test_shots_cropping_above_the_feet_reserve_none(self):
-        """There is no ground in frame to leave."""
+        """There is no ground in frame to leave -- except at `eyes`.
+
+        `extreme_close_up` is the one exception: its crop landmark sits *inside* the
+        face rather than at its edge, so footroom there is not ground but the only
+        lever that pulls the crop line off the bottom edge at all. See
+        `ShotSpec.footroom` and docs/reference/shot_types.md.
+        """
         for shot, spec in SHOT_TABLE.items():
-            if spec.crop is not Landmark.FEET:
+            if spec.crop not in (Landmark.FEET, Landmark.EYES):
                 assert spec.footroom == 0.0, f"{shot.value} crops above the feet"
 
 

@@ -10,6 +10,43 @@ below 1.0 means.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`extreme_close_up` framed the forehead, not the eyes.** Its crop landmark (`eyes`)
+  sits inside the face rather than at its edge, and the anchoring rule bottom-anchors
+  every crop line — which put the eyes exactly on the panel's bottom edge and the rest
+  of the eye region, and the whole face centre, below it. `extreme_close_up` now
+  carries `footroom: 0.45`, the only lever that can move a crop line off the bottom
+  edge; headroom cannot, because it shifts the figure down and shrinks it by exactly
+  the same amount. `docs/reference/shot_types.md` explains why in the **Resolution**
+  section, and the table now shows the footroom instead of `—`.
+- **`scenet check` said nothing about an unknown `pose:` or `expression:`, then `scenet
+  build` crashed with a bare `KeyError`.** The IR validates syntax and structure
+  without knowing the puppet library exists, so `pose: smirking` passed every check and
+  only failed once the solver tried to look it up. `check` now resolves every cast
+  member's `reference`, `pose` and `expression` against the puppet library — reading it
+  once per document, only when there is a cast to check — and reports `unknown-pose`,
+  `unknown-expression` and (newly reachable from `check`) `unknown-puppet`, each with a
+  `ruleId` and a location naming the field. This closes the `check`/`build` gap
+  entirely rather than for two known bad field names: `--deep` (below) extends the same
+  guarantee to `layout` and `balloon-placement`.
+
+### Added
+
+- **`scenet check --deep`.** Runs the full compiler on any document that passes the
+  cheap checks, to additionally catch `layout` and `balloon-placement` failures — the
+  two rules in the catalogue that were in the catalogue but unreachable from `check`.
+  Off by default: it costs a real compile, including font metrics, and `check` stays
+  the cheap pass it is documented as unless asked otherwise.
+
+### Changed
+
+- **`PuppetSpec.pose_angles` and `.expression_states` raise `UnknownPoseError` and
+  `UnknownExpressionError`** on a name the puppet does not declare, rather than a bare
+  `KeyError`. Both are also `KeyError` — following the precedent `UnknownPuppetError`
+  already set — so `except KeyError` and the documented `Raises: KeyError` on both
+  methods keep working unchanged.
+
 ## [0.5.0] - 2026-08-26
 
 Faces: a character can now look like something.

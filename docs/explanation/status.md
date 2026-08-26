@@ -26,3 +26,19 @@ attribution. A notation is only worth having if it is not owned.
 
 Single panels compile end to end. Constructs described in `language.md` are the specification,
 not a report of what is implemented — the table above is authoritative on what actually runs.
+
+## Planned
+
+Each of these is scoped to be a release on its own. The order is deliberately not fixed, and the
+dependency between them is stated in the tickets rather than implied by this table.
+
+| Scope | Ticket |
+|---|---|
+| Machine-readable diagnostics, in SARIF | [#7](https://github.com/azias/scenet/issues/7) |
+| Captions — stating where and when a panel happens | [#8](https://github.com/azias/scenet/issues/8) |
+| Setting — showing it, as tonal masses | [#9](https://github.com/azias/scenet/issues/9) |
+| Faces — characters carry an expression | [#10](https://github.com/azias/scenet/issues/10) |
+| The agent-facing surface — spec pack, skill, MCP server | [#11](https://github.com/azias/scenet/issues/11) |
+
+Still further out, and not yet ticketed: page composition (tiers, panels of varying size) and the
+interpretation layer that would give a panel a *style*.

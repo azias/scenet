@@ -1,7 +1,9 @@
 # The Scenet language
 
 > **Status:** this is the specification. It is not a report of what is implemented — see
-> [implementation status](../explanation/status.md#implementation-status). At present, nothing compiles.
+> [implementation status](../explanation/status.md#implementation-status), which is authoritative on
+> what actually runs. Panels and sequences compile end to end today, from either frontend; page
+> composition and the style layer do not exist yet.
 
 A panel source is a YAML document describing **what is in a panel**, never **where things are drawn**.
 Coordinates do not appear anywhere in the language; producing them is the compiler's entire job.

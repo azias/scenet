@@ -9,6 +9,7 @@
     "dev": "npm run assets && vite",
     "build": "npm run assets && tsc --noEmit && vite build",
     "preview": "vite preview",
+    "test": "node --import tsx --test \"scripts/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

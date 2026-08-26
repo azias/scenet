@@ -27,6 +27,8 @@ import { fileURLToPath } from "node:url";
 
 import { parse as parseYaml } from "yaml";
 
+import { stalenessReason } from "./wheel-freshness.ts";
+
 const here = dirname(fileURLToPath(import.meta.url));
 const playground = dirname(here);
 const publicDir = join(playground, "public");
@@ -249,28 +251,11 @@ async function main(): Promise<void> {
   } else {
     const wheel = wheels[0]!;
 
-    // Refuse a wheel older than the source it was built from.
-    //
-    // `npm run assets` copies whatever is in ../dist. If you edit the compiler and
-    // forget `uv build`, the playground silently serves the previous version -- and
-    // since it still works, nothing looks wrong. That happened, and the hour it cost
-    // was spent looking at caches and deployments rather than at the obvious.
+    // Refuse a wheel older than the source it was built from. The walk deliberately
+    // skips `__pycache__`: see the module comment in ./wheel-freshness.ts, and #14.
     const wheelAge = (await stat(join(dist, wheel))).mtimeMs;
-    const sources = join(playground, "..", "src");
-    const newest = async (dir: string): Promise<number> => {
-      let latest = 0;
-      for (const entry of await readdir(dir, { withFileTypes: true })) {
-        const full = join(dir, entry.name);
-        latest = Math.max(latest, entry.isDirectory() ? await newest(full) : (await stat(full)).mtimeMs);
-      }
-      return latest;
-    };
-    if ((await newest(sources)) > wheelAge) {
-      throw new Error(
-        `${wheel} is older than src/ -- run \`uv build --wheel\` from the repository root. ` +
-          "Serving it would run a compiler that no longer matches this checkout.",
-      );
-    }
+    const stale = await stalenessReason(wheel, wheelAge, join(playground, "..", "src"));
+    if (stale) throw new Error(stale);
 
     const bytes = await readFile(join(dist, wheel));
     const digest = createHash("sha256").update(bytes).digest("hex");

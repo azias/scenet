@@ -7,6 +7,12 @@
     "rootDir": ".",
     "noEmit": true,
 
+    // The scripts run under Node directly, which resolves ESM by real filename and so
+    // wants the `.ts` extension written out. `tsc` rejects that unless told, and can
+    // only be told when it is not emitting -- which it is not: vite builds the site and
+    // this config exists to typecheck.
+    "allowImportingTsExtensions": true,
+
     // TypeScript 6 made `types` default to empty, so anything needed must be named.
     // `vite/client` is what types `?worker` imports and `import.meta.env`.
     "types": ["vite/client", "node"],

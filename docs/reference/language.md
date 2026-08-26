@@ -74,11 +74,23 @@ A mapping of actor id to properties. Ids are chosen by the author and referenced
 |---|---|---|
 | `reference` | asset name | Which puppet to pull from the library |
 | `pose` | pose name | A named joint configuration declared by that puppet |
+| `expression` | expression name | A named face declared by that puppet |
 | `at` | anchor | Horizontal placement preference |
 | `facing` | `left`, `right` | Which way the figure is turned |
 
 `at` accepts `left_third`, `center`, `right_third`, `left_edge`, `right_edge`. It is a
 **preference, not a command** — see [conflicts](#when-constraints-conflict).
+
+`expression` is selected by name exactly as `pose` is, because a face is the same kind of thing as a
+body: a small closed set of arrangements a character can be in. The shipped puppets declare ten —
+`neutral`, `happy`, `laughing`, `coy`, `bored`, `scared`, `sad`, `angry`, `shouting`, `surprise` —
+and it defaults to `neutral`. They are a **drawing convention**, the small closed set of faces comics
+actually draw, and not a claim about what a person feeling anger looks like. What a face is made of,
+and how to give your own puppet one, is in the [asset contract](asset_contract.md#faces).
+
+A character's pupils follow whoever they are `looking_at`. Nothing else about the face depends on the
+rest of the panel, and nothing about the face changes the layout: to the solver a face is still one
+disc that balloons may not cover.
 
 ## `staging`
 

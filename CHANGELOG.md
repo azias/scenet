@@ -10,6 +10,45 @@ below 1.0 means.
 
 ## [Unreleased]
 
+### Added
+
+- **Faces.** A character can now look angry, bored or asleep. `expression:` on a cast
+  member selects one by name, exactly as `pose:` does — because a face is the same kind
+  of thing as a body: a small closed set of arrangements a character can be in.
+- **The odd part was that the face was already in the contract and simply never drawn.**
+  The puppets declared `eyes` and `chin` landmarks and `eyes`/`mouth` anchors, `FaceSpec`
+  reserved a disc no balloon may cover, and the emitter drew the head as one filled
+  circle. This is the rendering that was missing, not new modelling.
+- **Ten expressions, and they are a drawing convention.** `neutral`, `happy`, `laughing`,
+  `coy`, `bored`, `scared`, `sad`, `angry`, `shouting`, `surprise` — Comic Chat's emotion
+  wheel plus `surprise`, taken from a system that actually rendered faces for live
+  conversations rather than from a psychology of emotion. They are the small closed set of
+  faces comics draw, **not** a claim that a person feeling anger produces this face;
+  Barrett et al. 2019 is recorded in `prior_art.md` so that claim is never reintroduced.
+- **Feature points, named after MPEG-4 FDP groups** — brow, eye, nose, mouth — with a
+  mapping to MediaPipe landmark indices in the asset contract. The groups are the reusable
+  part; the standard's 66 displacements are a measurement, not a notation. No jaw: the head
+  is a circle that does not deform, so a jaw group would have nothing to move.
+- **`looking_at` finally shows on the face.** Pupils are aimed at whoever a character is
+  looking at, using a vector computed after placement and stored as `CoreActor.gaze_aim`.
+  The existing `gaze` was the head's forward direction — horizontal for every actor in
+  every panel, since no pose rotates the head — so a pupil offset by it would have shown
+  nothing that mirroring did not already show.
+- **`CoreActor.face_marks`**, as sampled polylines and discs. Curves are sampled during
+  compilation, so everything an expression does is a number in Panel Core and the emitter
+  keeps making no decisions.
+- **`scripts/contact_sheet.py`** renders every expression at every shot type onto one page.
+  Whether a furrowed brow reads as anger at fourteen panel units is not a question a test
+  can answer, and this is the instrument for answering it by looking.
+- Two gallery examples: ten expressions across a scene, and a big close-up that is the
+  first panel in the gallery to show a face at all.
+
+### Changed
+
+- **Level of detail.** Below a threshold face radius no features are drawn, because five
+  of them inside a head a couple of dozen units across stop being a face and become a
+  smudge. Panels large enough to show a face are unaffected.
+
 ## [0.4.0] - 2026-08-26
 
 Captions: a panel can now speak in its own voice.

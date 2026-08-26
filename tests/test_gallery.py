@@ -23,6 +23,7 @@ from scenet import (
     Predicate,
     ShotType,
     compile_document,
+    default_library,
     render,
     render_debug,
     render_strip,
@@ -112,6 +113,14 @@ class TestTheGalleryCoversTheLanguage:
     def test_every_caption_kind_appears(self):
         text = self._all_text()
         missing = [kind.value for kind in CaptionKind if kind.value not in text]
+        assert missing == []
+
+    def test_every_expression_appears(self):
+        """The expression vocabulary is only worth having if every face in it has been
+        looked at at least once."""
+        text = self._all_text()
+        names = sorted(default_library().get("alice").expressions)
+        missing = [name for name in names if name not in text]
         assert missing == []
 
     def test_every_predicate_appears(self):

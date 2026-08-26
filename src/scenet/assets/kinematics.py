@@ -7,9 +7,9 @@ artwork exposing the same anchors and hulls, and layout is unchanged.
 """
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from scenet.assets.contract import BlobPart, BonePart, Landmark, PuppetSpec
+from scenet.assets.contract import BlobPart, BonePart, Feature, Landmark, PuppetSpec
 from scenet.geom import BBox, Circle, Point, Vector
 
 
@@ -36,6 +36,21 @@ class ResolvedBlob:
 
 
 @dataclass(frozen=True, slots=True)
+class ResolvedFeature:
+    """One facial feature point after posing.
+
+    Attributes:
+        centre: Where it sits, in panel coordinates.
+        size: Its extent in panel units, already scaled. What the number measures
+            depends on the feature -- see
+            :class:`FeatureSpec <scenet.assets.contract.FeatureSpec>`.
+    """
+
+    centre: Point
+    size: float
+
+
+@dataclass(frozen=True, slots=True)
 class ResolvedPuppet:
     """A posed figure in panel coordinates.
 
@@ -54,6 +69,11 @@ class ResolvedPuppet:
     face: Circle
     gaze: Vector
     hull: tuple[Point, ...]
+    expression: str = "neutral"
+    # Feature points do not contribute to the hull. They sit inside the head, whose
+    # blob is already in it, so adding them would change nothing except the running
+    # time -- and a face that pushed balloons further away would be a bug.
+    features: dict[Feature, ResolvedFeature] = field(default_factory=dict)
 
     @property
     def bounds(self) -> BBox:
@@ -141,13 +161,20 @@ def resolve(
     facing_right: bool,
     scale: float,
     origin: Point,
+    expression: str = "neutral",
 ) -> ResolvedPuppet:
     """Pose, mirror, scale and place a puppet.
 
     `origin` is where the puppet's root joint lands in panel coordinates. Mirroring
     happens in the puppet's own frame before scaling, so a mirrored figure is the
     exact reflection of the original rather than being offset by rounding.
+
+    `expression` selects which face is drawn. It is validated and carried here, but
+    the states it names are not applied until the marks are built -- feature *points*
+    are where the anatomy is, and are the same whatever the face is doing.
     """
+    if spec.expressions:
+        spec.expression_states(expression)
     local, accumulated = solve_pose(spec, pose)
     mirror = 1.0 if facing_right else -1.0
 
@@ -181,6 +208,13 @@ def resolve(
 
     face_centre = offset_from(spec.face.joint, spec.face.offset)
     face = Circle(face_centre.x, face_centre.y, spec.face.radius * scale)
+    features = {
+        feature: ResolvedFeature(
+            centre=offset_from(feature_spec.joint, feature_spec.offset),
+            size=feature_spec.size * scale,
+        )
+        for feature, feature_spec in spec.face.features.items()
+    }
 
     gaze_origin = anchors[spec.gaze.origin]
     forward_dx, forward_dy = _rotate(1.0, 0.0, accumulated[spec.face.joint])
@@ -199,6 +233,8 @@ def resolve(
         face=face,
         gaze=gaze if gaze.length else Vector(mirror, 0.0),
         hull=convex_hull(_outline_points(capsules, blobs, [gaze_origin])),
+        expression=expression,
+        features=features,
     )
 
 

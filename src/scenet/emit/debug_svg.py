@@ -6,13 +6,15 @@ answer is invisible in the finished panel. This draws the hidden geometry: silho
 hulls, face exclusion circles, anchors, gaze vectors and tail routes.
 """
 
-from scenet.core import PanelCore
+from scenet.core import FaceDisc, PanelCore
 from scenet.emit.svg import fmt
 
 HULL = "#2f7fd0"
 FACE = "#d94f4f"
 ANCHOR = "#1f9c53"
 GAZE = "#b060d0"
+AIM = "#8a2be2"
+FEATURE = "#d98b1e"
 BALLOON = "#e08a1e"
 CAPTION = "#7a52c9"
 GRID = "#c9c9c9"
@@ -50,6 +52,22 @@ def render_debug(core: PanelCore) -> str:
                 f'x2="{fmt(eyes[0] + actor.gaze[0] * reach)}" '
                 f'y2="{fmt(eyes[1] + actor.gaze[1] * reach)}" stroke="{GAZE}" '
                 'stroke-width="3" stroke-dasharray="10 6"/>'
+            )
+            # The aim, drawn solid beside the dashed facing vector. Two lines rather
+            # than one because they are two different things: what the balloon solver
+            # avoids, and what the pupils follow.
+            if actor.gaze_aim is not None:
+                parts.append(
+                    f'    <line x1="{fmt(eyes[0])}" y1="{fmt(eyes[1])}" '
+                    f'x2="{fmt(eyes[0] + actor.gaze_aim[0] * reach)}" '
+                    f'y2="{fmt(eyes[1] + actor.gaze_aim[1] * reach)}" stroke="{AIM}" '
+                    'stroke-width="3"/>'
+                )
+
+        for mark in actor.face_marks:
+            centre = mark.centre if isinstance(mark, FaceDisc) else mark.points[0]
+            parts.append(
+                f'    <circle cx="{fmt(centre[0])}" cy="{fmt(centre[1])}" r="3" fill="{FEATURE}"/>'
             )
 
         for name, (x, y) in sorted(actor.anchors.items()):

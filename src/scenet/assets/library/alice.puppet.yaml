@@ -65,6 +65,15 @@ anchors:
 face:
   joint: head
   radius: 62
+  # Feature points ride the head joint, so they mirror and scale with it. `size`
+  # means an eye's radius, a brow's or mouth's half-width, a nose's length.
+  features:
+    brow_l: {offset: [-20, -27], size: 12}
+    brow_r: {offset: [20, -27], size: 12}
+    eye_l:  {offset: [-20, -12], size: 9}
+    eye_r:  {offset: [20, -12], size: 9}
+    nose:   {offset: [0, 4], size: 10}
+    mouth:  {offset: [0, 25], size: 16}
 
 gaze:
   origin: eyes
@@ -90,3 +99,15 @@ poses:
     wrist_l: -110
     elbow_r: -20
     wrist_r: 110
+
+expressions:
+  neutral:  {}
+  happy:    {mouth: smile}
+  laughing: {brow: raised,      eyes: closed,   mouth: grin}
+  coy:      {brow: raised,       eyes: narrowed, mouth: small}
+  bored:    {brow: lowered,     eyes: half,     mouth: flat}
+  scared:   {brow: angled_out,  eyes: wide,     mouth: open}
+  sad:      {brow: angled_out,  eyes: half,     mouth: frown}
+  angry:    {brow: angled_in,   eyes: narrowed, mouth: frown}
+  shouting: {brow: angled_in,   eyes: wide,     mouth: open}
+  surprise: {brow: raised,      eyes: wide,     mouth: open}

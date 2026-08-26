@@ -57,6 +57,7 @@ class Placement:
     actor_id: str
     reference: str
     pose: str
+    expression: str
     x: float
     y: float
     scale: float
@@ -281,6 +282,7 @@ def solve_staging(
         posed = resolve(
             puppets[actor],
             pose=panel.cast[actor].pose,
+            expression=panel.cast[actor].expression,
             facing_right=facings[actor],
             scale=camera.scale,
             origin=origin,
@@ -323,6 +325,7 @@ def solve_staging(
             actor_id=actor,
             reference=panel.cast[actor].reference,
             pose=panel.cast[actor].pose,
+            expression=panel.cast[actor].expression,
             x=variables[actor].value(),
             y=ys[actor],
             scale=camera.scale,

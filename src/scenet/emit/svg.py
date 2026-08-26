@@ -11,7 +11,15 @@ byte-identical across platforms, whose float repr differs in the last digit.
 import math
 from xml.sax.saxutils import escape, quoteattr
 
-from scenet.core import CoreActor, CoreBalloon, CoreCaption, PanelCore, Tail
+from scenet.core import (
+    CoreActor,
+    CoreBalloon,
+    CoreCaption,
+    FaceDisc,
+    FaceMark,
+    PanelCore,
+    Tail,
+)
 from scenet.ir import BalloonKind
 from scenet.solve.text import ITALIC_FONT_PATH, FontMetrics, load_metrics
 
@@ -146,8 +154,37 @@ def _render_actor(actor: CoreActor) -> str:
             f'fill="{FILL_FIGURE}" stroke="{STROKE}" stroke-width="{fmt(FIGURE_STROKE_WIDTH)}"/>'
         )
 
+    # The face goes on last, over the head blob it sits inside. Every coordinate here
+    # was decided during compilation, curves included -- there is nothing to draw but
+    # the polylines and discs as given.
+    lines.extend(_render_mark(actor.id, mark) for mark in actor.face_marks)
+
     lines.append("    </g>")
     return "\n".join(lines)
+
+
+def _render_mark(actor_id: str, mark: FaceMark) -> str:
+    """One mark of a drawn face.
+
+    Ids carry the actor, because two characters in one panel have the same features
+    and duplicate ids in one SVG document are malformed.
+    """
+    element_id = f"face-{actor_id}-{mark.id}"
+    if isinstance(mark, FaceDisc):
+        cx, cy = mark.centre
+        fill = STROKE if mark.filled else FILL_BALLOON
+        stroke = "none" if mark.filled else STROKE
+        return (
+            f'      <circle id={attr(element_id)} cx="{fmt(cx)}" cy="{fmt(cy)}" '
+            f'r="{fmt(mark.radius)}" fill="{fill}" stroke="{stroke}" '
+            f'stroke-width="{fmt(mark.width)}"/>'
+        )
+    element = "polygon" if mark.closed else "polyline"
+    return (
+        f"      <{element} id={attr(element_id)} "
+        f'points="{_points(list(mark.points))}" fill="none" stroke="{STROKE}" '
+        f'stroke-width="{fmt(mark.width)}"/>'
+    )
 
 
 def _render_balloon(balloon: CoreBalloon, metrics: FontMetrics, *, live_text: bool) -> str:

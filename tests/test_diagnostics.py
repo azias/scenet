@@ -7,6 +7,7 @@ finding rendered twice -- so several of these tests assert exactly that.
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -144,23 +145,23 @@ class TestTheSarifDocument:
     """The shape GitHub code scanning will actually accept."""
 
     @pytest.fixture
-    def document(self) -> dict:
+    def document(self) -> dict[str, Any]:
         found = diagnose_source(UNKNOWN_ACTOR, source=Path("duel.panel.yaml"))
         return to_sarif(found, root=Path.cwd())
 
-    def test_it_declares_the_version_github_ingests(self, document: dict):
+    def test_it_declares_the_version_github_ingests(self, document: dict[str, Any]):
         """2.1.0, not 2.2: 2.2 is still a draft and nothing consumes it yet."""
         assert document["version"] == "2.1.0"
 
-    def test_it_is_json_serialisable(self, document: dict):
+    def test_it_is_json_serialisable(self, document: dict[str, Any]):
         assert json.loads(json.dumps(document)) == document
 
-    def test_the_driver_names_the_tool_and_its_version(self, document: dict):
+    def test_the_driver_names_the_tool_and_its_version(self, document: dict[str, Any]):
         driver = document["runs"][0]["tool"]["driver"]
         assert driver["name"] == "scenet"
         assert driver["version"]
 
-    def test_every_result_carries_what_github_requires(self, document: dict):
+    def test_every_result_carries_what_github_requires(self, document: dict[str, Any]):
         for result in document["runs"][0]["results"]:
             assert result["message"]["text"]
             assert result["locations"]
@@ -170,20 +171,20 @@ class TestTheSarifDocument:
                 assert isinstance(region[key], int)
                 assert region[key] >= 1
 
-    def test_every_rule_carries_what_github_requires(self, document: dict):
+    def test_every_rule_carries_what_github_requires(self, document: dict[str, Any]):
         for rule in document["runs"][0]["tool"]["driver"]["rules"]:
             assert rule["id"]
             for key in ("shortDescription", "fullDescription", "help"):
                 # Empty strings are rejected for required properties.
                 assert rule[key]["text"].strip()
 
-    def test_rule_index_points_at_the_right_rule(self, document: dict):
+    def test_rule_index_points_at_the_right_rule(self, document: dict[str, Any]):
         run = document["runs"][0]
         rules = run["tool"]["driver"]["rules"]
         for result in run["results"]:
             assert rules[result["ruleIndex"]]["id"] == result["ruleId"]
 
-    def test_the_artifact_uri_is_relative(self, document: dict):
+    def test_the_artifact_uri_is_relative(self, document: dict[str, Any]):
         """An absolute path would break code scanning's file matching, and the project
         forbids absolute paths in output outright -- it would break determinism."""
         uri = document["runs"][0]["results"][0]["locations"][0]["physicalLocation"][

@@ -10,6 +10,71 @@ below 1.0 means.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-26
+
+Diagnostics a machine can read, and the deploy that had quietly been failing for a week.
+
+### Added
+
+- **`scenet check`** validates documents without compiling them, and exits non-zero if
+  anything is wrong. It does not stop at the first fault: pydantic reports every field
+  error at once, and several files are reported together, because whoever is fixing them
+  — a person or an agent — wants the whole list rather than one round trip per mistake.
+- **`--format sarif`** emits [SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html),
+  the OASIS standard GCC, Clang and MSVC emit and GitHub code scanning ingests directly.
+  **This matters more than the published JSON Schema does**: the checks that catch what a
+  generator actually gets wrong — every actor id resolving to a cast member, the
+  `left_of`/`right_of` graph being acyclic — are `model_validator`s, and neither is
+  expressible in JSON Schema at all. Structured diagnostics are what make a
+  generate/validate/repair loop work.
+- **A stable rule catalogue.** Every finding carries a `ruleId` such as
+  `scenet/unknown-actor`, and those identifiers do not change across releases — a
+  `ruleId` that moves silently closes every alert referencing the old one and opens a
+  duplicate under the new one.
+- **`scenet.diagnostics`** is a public module: `diagnose_source`, `diagnose_file` and
+  `to_sarif` give the same findings without the process boundary.
+- **CI checks the gallery** and uploads the result to code scanning, so a broken example
+  becomes an annotation on the pull request that broke it.
+
+### Fixed
+
+- **Diagnostics now name the field rather than the document.** pydantic reports a
+  model-level validator's location as `()` — the whole document — because a validator has
+  no way to say which field it was unhappy about. The two checks that matter most both
+  knew the exact path and had nowhere to put it, so an unknown speaker reported
+  `at <root>`. It now reports `at script.0.by`, in the prose output as well as in SARIF.
+- **The documentation site and playground had not deployed since `6a43750`.** The
+  playground refuses a wheel older than the source it was built from — a guard that
+  exists because a silently stale playground once cost an hour. Its freshness walk
+  covered every file under `src/`, including `__pycache__`, and the Pages workflow builds
+  the wheel *then* builds the documentation, where Sphinx `autodoc` imports `scenet` and
+  the interpreter writes fresh bytecode. So every deploy compared the wheel against its
+  own doc build and refused. `v0.2.0` shipped while this was broken.
+- **The stale-wheel error now names the offending file.** "older than `src/`" pointed at a
+  directory of four hundred files when the culprit was one nobody thinks about.
+- **`scenet check` understands scene documents.** A `panels:` document validated as a
+  single panel reported `panels` as an unknown key — a confident, wrong diagnostic on
+  every valid scene file in the repository. Found while wiring the gallery into CI.
+
+### Changed
+
+- **`ScriptSyntaxError` carries its line as a number**, not only inside the message text,
+  so comic scripts get positions too. Lines only: a script line is prose, and a column
+  would imply a precision the parser does not have.
+- **`RuleViolationError`** is a new exported error type. It is raised only inside pydantic
+  validators and never escapes as itself, so it deliberately does not inherit
+  `ScenetError` — that would promise an `except ScenetError` clause could catch it.
+- **CI builds the playground assets**, so a break there fails a pull request instead of
+  the Pages deploy after merge.
+
+### Upgrading
+
+Nothing was removed and no document stops compiling. Two things a caller might notice:
+
+- Diagnostic messages for unresolved actor ids and ordering cycles now name a path
+  instead of `<root>`. Anything asserting on the old `at <root>:` text will need updating.
+- `scenet.errors.__all__` gained `RuleViolationError`.
+
 ## [0.2.0] - 2026-08-26
 
 A correctness release for the shot ladder, and a pass over the things the project says
@@ -158,6 +223,7 @@ or has drifted out of step with the code fails the build.
 - `long_shot` and `full_shot` crop at the same landmark, so with no environment to show
   they can differ only by headroom.
 
-[Unreleased]: https://github.com/azias/scenet/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/azias/scenet/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/azias/scenet/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/azias/scenet/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/azias/scenet/releases/tag/v0.1.0

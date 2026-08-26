@@ -47,6 +47,7 @@ from pydantic import ValidationError
 from pydantic_core import ErrorDetails
 
 from scenet import __version__
+from scenet.assets.contract import PuppetLibrary, default_library
 from scenet.compose import merge, resolve_overrides
 from scenet.errors import (
     BalloonPlacementError,
@@ -56,6 +57,8 @@ from scenet.errors import (
     RuleViolationError,
     ScenetError,
     ScriptSyntaxError,
+    UnknownExpressionError,
+    UnknownPoseError,
     UnknownPuppetError,
 )
 from scenet.frontends.common import normalise
@@ -68,6 +71,7 @@ from scenet.frontends.positions import (
 )
 from scenet.frontends.script_front import parse_script
 from scenet.ir import PanelIR
+from scenet.pipeline import compile_ir
 
 __all__ = [
     "RULES",
@@ -205,6 +209,24 @@ RULES: dict[str, Rule] = {
         summary="Reference to a character the library does not contain",
         description="A cast member's `reference` names a puppet that is not installed.",
         help="Check the name against the shipped library, or supply your own.",
+    ),
+    "unknown-pose": Rule(
+        summary="Reference to a pose the character does not have",
+        description=(
+            "A cast member's `pose` names one its puppet does not declare. The key is "
+            "spelled correctly -- `pose` is a real field -- but the value does not "
+            "resolve to anything the referenced character can do."
+        ),
+        help="Check the name against the puppet's declared poses.",
+    ),
+    "unknown-expression": Rule(
+        summary="Reference to an expression the character does not have",
+        description=(
+            "A cast member's `expression` names one its puppet does not declare. The "
+            "counterpart of `unknown-pose`: an expression is selected by name exactly "
+            "as a pose is."
+        ),
+        help="Check the name against the puppet's declared expressions.",
     ),
     "layout": Rule(
         summary="No layout satisfies the panel's constraints",
@@ -358,18 +380,26 @@ def _from_validation_error(
     return found
 
 
+# Checked in order, first match wins. A tuple rather than an if/elif chain: the
+# chain grew a branch per error type until it tripped the "too many returns" lint,
+# and a new asset-lookup error (this module has already grown two more than the
+# original three) is now one row here rather than another branch there.
+_RULE_FOR_ERROR_TYPE: tuple[tuple[type[ScenetError], str], ...] = (
+    (CompositionError, "composition"),
+    (UnknownPuppetError, "unknown-puppet"),
+    (UnknownPoseError, "unknown-pose"),
+    (UnknownExpressionError, "unknown-expression"),
+    (BalloonPlacementError, "balloon-placement"),
+    (LayoutError, "layout"),
+    (PanelSyntaxError, "invalid-field"),
+)
+
+
 def _rule_for_scenet_error(exc: ScenetError) -> str:
     """Map an exception that escaped the compiler onto a rule."""
-    if isinstance(exc, CompositionError):
-        return "composition"
-    if isinstance(exc, UnknownPuppetError):
-        return "unknown-puppet"
-    if isinstance(exc, BalloonPlacementError):
-        return "balloon-placement"
-    if isinstance(exc, LayoutError):
-        return "layout"
-    if isinstance(exc, PanelSyntaxError):
-        return "invalid-field"
+    for error_type, rule in _RULE_FOR_ERROR_TYPE:
+        if isinstance(exc, error_type):
+            return rule
     return "internal"
 
 
@@ -434,12 +464,89 @@ def _read_mapping(text: str, source: Path | None) -> tuple[dict[str, Any] | None
     return data, []
 
 
+def _asset_diagnostic(
+    rule: str,
+    exc: BaseException,
+    text: str,
+    source: Path | None,
+    path: tuple[str | int, ...],
+) -> Diagnostic:
+    """Build a `Diagnostic` from a caught asset-lookup error, at a specific path."""
+    return Diagnostic(
+        rule=rule,
+        message=_message_of(exc),
+        path=path,
+        source=source,
+        region=locate(text, path) or DOCUMENT_START,
+    )
+
+
+def _diagnose_cast(
+    panel: PanelIR,
+    text: str,
+    source: Path | None,
+    *,
+    prefix: tuple[str | int, ...],
+    library: PuppetLibrary | None,
+) -> list[Diagnostic]:
+    """Resolve every cast member against the puppet library.
+
+    The IR does not know the puppet library exists -- `CastMember.reference`, `.pose`
+    and `.expression` are plain `str`s, and validating them is what tells `pointing`
+    from `smirking`. This runs after `PanelIR.model_validate` succeeds, so it only sees
+    a cast that is otherwise well-formed, and it resolves the library lazily -- only
+    when the panel actually has a cast to check -- so a cast-less document costs
+    nothing extra.
+
+    Every actor is checked, not just the first, mirroring `_diagnose_scene`'s reasoning:
+    a panel with three bad references should report three findings.
+    """
+    if not panel.cast:
+        return []
+    library = library or default_library()
+
+    found: list[Diagnostic] = []
+    for actor_id, member in panel.cast.items():
+        actor_path = (*prefix, "cast", actor_id)
+        try:
+            spec = library.get(member.reference)
+        except UnknownPuppetError as exc:
+            found.append(
+                _asset_diagnostic("unknown-puppet", exc, text, source, (*actor_path, "reference"))
+            )
+            continue
+
+        try:
+            spec.pose_angles(member.pose)
+        except UnknownPoseError as exc:
+            found.append(
+                _asset_diagnostic("unknown-pose", exc, text, source, (*actor_path, "pose"))
+            )
+
+        # Guarded exactly as `resolve` guards it: a puppet that declares no
+        # expressions at all was never asked to have `neutral`, which is what
+        # `CastMember.expression` defaults to.
+        if spec.expressions:
+            try:
+                spec.expression_states(member.expression)
+            except UnknownExpressionError as exc:
+                found.append(
+                    _asset_diagnostic(
+                        "unknown-expression", exc, text, source, (*actor_path, "expression")
+                    )
+                )
+
+    return found
+
+
 def _diagnose_panel(
     data: dict[str, Any],
     text: str,
     source: Path | None,
     *,
     prefix: tuple[str | int, ...],
+    library: PuppetLibrary | None = None,
+    deep: bool = False,
 ) -> list[Diagnostic]:
     """Validate one panel mapping and report what is wrong with it.
 
@@ -449,6 +556,11 @@ def _diagnose_panel(
         source: Path it came from.
         prefix: Path to this panel within the document, so a finding inside a sequence
             points at the panel it is in rather than at the top level.
+        library: Puppet library to resolve cast references against. Resolved lazily
+            (see `_diagnose_cast`) when not given.
+        deep: Also run the full compiler once the cheap checks come back clean, to
+            reach `layout` and `balloon-placement` -- rules the cheap pass cannot
+            produce because they only surface once the solver runs.
 
     Returns:
         Findings, unsorted.
@@ -467,7 +579,7 @@ def _diagnose_panel(
         ]
 
     try:
-        PanelIR.model_validate(normalised)
+        panel = PanelIR.model_validate(normalised)
     except ValidationError as exc:
         return _from_validation_error(exc, text, source, prefix=prefix)
     except ScenetError as exc:
@@ -481,10 +593,37 @@ def _diagnose_panel(
             )
         ]
 
+    found = _diagnose_cast(panel, text, source, prefix=prefix, library=library)
+    if found:
+        # A cast that does not resolve is not a document `--deep` can usefully
+        # compile -- it would fail on the same reference with a worse location.
+        return found
+
+    if deep:
+        try:
+            compile_ir(panel, library=library)
+        except ScenetError as exc:
+            return [
+                Diagnostic(
+                    rule=_rule_for_scenet_error(exc),
+                    message=_message_of(exc),
+                    path=prefix,
+                    source=source,
+                    region=locate(text, prefix) or DOCUMENT_START,
+                )
+            ]
+
     return []
 
 
-def _diagnose_scene(data: dict[str, Any], text: str, source: Path | None) -> list[Diagnostic]:
+def _diagnose_scene(
+    data: dict[str, Any],
+    text: str,
+    source: Path | None,
+    *,
+    library: PuppetLibrary | None,
+    deep: bool,
+) -> list[Diagnostic]:
     """Validate a `panels:` sequence, one panel at a time.
 
     Mirrors `parse_scene`: anything alongside `panels` is a default every panel inherits,
@@ -535,20 +674,42 @@ def _diagnose_scene(data: dict[str, Any], text: str, source: Path | None) -> lis
     defaults = {key: value for key, value in data.items() if key != "panels"}
     for name, document in composed.items():
         merged = merge(defaults, document) if defaults else document
-        found.extend(_diagnose_panel(merged, text, source, prefix=("panels", name)))
+        found.extend(
+            _diagnose_panel(
+                merged, text, source, prefix=("panels", name), library=library, deep=deep
+            )
+        )
     return found
 
 
-def diagnose_source(text: str, *, source: Path | None = None) -> list[Diagnostic]:
+def diagnose_source(
+    text: str,
+    *,
+    source: Path | None = None,
+    library: PuppetLibrary | None = None,
+    deep: bool = False,
+) -> list[Diagnostic]:
     """Check a document and report everything wrong with it, without raising.
 
     Runs the same validation the compiler does. Where the compiler raises on the first
     fault, this collects: pydantic reports every field error at once, so a document with
     four mistakes yields four findings rather than one and three more compilations.
 
+    Beyond IR validation, every cast member's `reference`, `pose` and `expression` is
+    resolved against a puppet library -- the IR alone cannot tell `pointing` from
+    `smirking`, so without this a document with a nonsense pose reports clean here and
+    then fails `build` with no rule and no location. The library is read once per call,
+    only when a panel actually has a cast.
+
     Args:
         text: The document source, in the YAML surface syntax.
         source: Path it came from, used for the reported file and the fingerprint.
+        library: Puppet library to resolve cast references, poses and expressions
+            against. Defaults to the two shipped puppets, exactly as `build` does.
+        deep: Also run the full compiler on any panel that passes every cheap check,
+            to additionally catch `layout` and `balloon-placement` -- at the cost of a
+            real compile, including font metrics. Off by default so `check` stays the
+            cheap pass it is documented as.
 
     Returns:
         Findings in source order. Empty means the document is valid.
@@ -568,9 +729,11 @@ def diagnose_source(text: str, *, source: Path | None = None) -> list[Diagnostic
     # every valid scene file in the repository. The frontend has always made this
     # distinction; the checker has to make it too.
     if "panels" in data:
-        return _in_source_order(_diagnose_scene(data, text, source))
+        return _in_source_order(_diagnose_scene(data, text, source, library=library, deep=deep))
 
-    return _in_source_order(_diagnose_panel(data, text, source, prefix=()))
+    return _in_source_order(
+        _diagnose_panel(data, text, source, prefix=(), library=library, deep=deep)
+    )
 
 
 def _in_source_order(found: list[Diagnostic]) -> list[Diagnostic]:
@@ -589,25 +752,41 @@ def _in_source_order(found: list[Diagnostic]) -> list[Diagnostic]:
     )
 
 
-def diagnose_script(text: str, *, source: Path | None = None) -> list[Diagnostic]:
+def diagnose_script(
+    text: str,
+    *,
+    source: Path | None = None,
+    library: PuppetLibrary | None = None,
+    deep: bool = False,
+) -> list[Diagnostic]:
     """Check a comic script.
 
-    The script frontend is line-oriented and hand-written, so it stops at the first
-    fault rather than collecting -- there is no equivalent of pydantic's error list to
-    gather. One finding at a time is what it can honestly report.
+    The script frontend is line-oriented and hand-written, so parsing itself stops at
+    the first fault rather than collecting -- there is no equivalent of pydantic's
+    error list to gather, so at most one finding of that kind is ever returned.
 
-    Positions are lines only. A script line is prose, and pointing at a column within it
-    would imply a precision the parser does not have.
+    Once parsing succeeds, though, the result is the same `PanelIR` per panel that the
+    YAML frontend produces -- the `cast:` block accepts `pose:` and `expression:` here
+    too -- so it is resolved against the puppet library the same way, and can report
+    several findings if several panels have a bad reference.
+
+    Positions for a parse fault are lines only: a script line is prose, and pointing
+    at a column within it would imply a precision the parser does not have. Cast
+    findings carry the same structural path a YAML document's would.
 
     Args:
         text: The script source.
         source: Path it came from.
+        library: Puppet library to resolve cast references, poses and expressions
+            against. Defaults to the two shipped puppets.
+        deep: Also run the full compiler on any panel that passes every cheap check.
+            See `diagnose_source`.
 
     Returns:
-        At most one finding, empty if the script is valid.
+        Findings in source order, empty if the script is valid.
     """
     try:
-        parse_script(text, source=source)
+        panels = parse_script(text, source=source)
     except ScriptSyntaxError as exc:
         line = exc.line or 1
         return [
@@ -630,14 +809,43 @@ def diagnose_script(text: str, *, source: Path | None = None) -> list[Diagnostic
                 region=DOCUMENT_START,
             )
         ]
+
+    found: list[Diagnostic] = []
+    for name, panel in panels.items():
+        found.extend(_diagnose_cast(panel, text, source, prefix=(name,), library=library))
+    if found:
+        return _in_source_order(found)
+
+    if deep:
+        for name, panel in panels.items():
+            prefix = (name,)
+            try:
+                compile_ir(panel, library=library)
+            except ScenetError as exc:
+                return [
+                    Diagnostic(
+                        rule=_rule_for_scenet_error(exc),
+                        message=_message_of(exc),
+                        path=prefix,
+                        source=source,
+                        region=DOCUMENT_START,
+                    )
+                ]
+
     return []
 
 
-def diagnose_file(path: Path) -> list[Diagnostic]:
+def diagnose_file(
+    path: Path, *, library: PuppetLibrary | None = None, deep: bool = False
+) -> list[Diagnostic]:
     """Check a document on disk, choosing the frontend by extension.
 
     Args:
         path: The file to check.
+        library: Puppet library to resolve cast references, poses and expressions
+            against. Defaults to the two shipped puppets.
+        deep: Also run the full compiler on any panel that passes every cheap check.
+            See `diagnose_source`.
 
     Returns:
         Findings in source order, empty if the document is valid.
@@ -648,8 +856,8 @@ def diagnose_file(path: Path) -> list[Diagnostic]:
     """
     text = path.read_text(encoding="utf-8")
     if path.suffix.lower() == ".script":
-        return diagnose_script(text, source=path)
-    return diagnose_source(text, source=path)
+        return diagnose_script(text, source=path, library=library, deep=deep)
+    return diagnose_source(text, source=path, library=library, deep=deep)
 
 
 def to_sarif(found: list[Diagnostic], *, root: Path | None = None) -> dict[str, Any]:

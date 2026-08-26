@@ -92,6 +92,13 @@ A character's pupils follow whoever they are `looking_at`. Nothing else about th
 rest of the panel, and nothing about the face changes the layout: to the solver a face is still one
 disc that balloons may not cover.
 
+`reference`, `pose` and `expression` are validated against the puppet library, not just against the
+language's own grammar — a misspelled pose is a perfectly good string as far as the grammar is
+concerned, so nothing at that level can tell `pointing` from `smirking`. `scenet check` resolves the
+library and reports an unmatched name as `unknown-puppet`, `unknown-pose` or `unknown-expression`,
+each naming the field and, for `pose` and `expression`, listing the names that puppet does declare.
+See [`scenet check`](cli.md#scenet-check).
+
 ## `staging`
 
 A list of relations between actors, written `subject predicate object`. This is a scene graph: the

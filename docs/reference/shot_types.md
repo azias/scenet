@@ -31,6 +31,15 @@ scale                 = available_height / visible_height_native
 The scaled figure is then anchored so its crop line meets the bottom of the available area.
 `footroom` defaults to `0.0`; a panel may raise it to lift figures off the lower edge.
 
+This anchoring rule is right whenever the crop landmark sits at the **edge** of what the shot
+frames -- feet at the bottom of a long shot, chin at the bottom of a big close-up. It goes wrong at
+the one rung where the landmark sits **inside** the thing being framed: `extreme_close_up` crops at
+`eyes`, and bottom-anchoring the eyes puts the whole eye region below the panel, framing forehead
+and eyebrows instead. Headroom cannot fix this -- it shifts the figure down and shrinks it by
+exactly the same amount, so the crop line stays pinned to `panel_height * (1 - footroom)`
+regardless of headroom. Footroom is the only lever that moves a crop line up from the bottom edge,
+which is why `extreme_close_up` is the one shot in the table that needs it despite showing no feet.
+
 ## Table
 
 | `shot` | Crop landmark | Headroom | Footroom | Reads as |
@@ -43,7 +52,7 @@ The scaled figure is then anchored so its crop line meets the bottom of the avai
 | `medium_close_up` | `chest` | 0.10 | — | Emphasis on the speaker |
 | `close_up` | `shoulders` | 0.08 | — | Emotion; face dominates |
 | `big_close_up` | `chin` | 0.05 | — | Intensity |
-| `extreme_close_up` | `eyes` | 0.00 | — | Crops through the face deliberately |
+| `extreme_close_up` | `eyes` | 0.00 | 0.45 | Crops through the face deliberately |
 
 **`wide` is an exact synonym for `long_shot`.** The two are used interchangeably in the
 literature and the language keeps both because writers reach for both.
@@ -54,13 +63,17 @@ or American shot cuts at mid-thigh, a framing that comes from 1930s Westerns nee
 holster in shot. Naming two shots and drawing one collapses a rung of the ladder, and
 nothing about the output makes that visible.
 
-**Footroom is ground left beneath the feet**, and only the two shots that show feet have
-any. It is not decoration. The crop lands the `feet` *landmark* on the frame edge, but
-the drawing continues past it: the ankle joint sits exactly on that landmark and the shin
-is drawn as a round-capped stroke, so half its width falls below. Without footroom a long
-shot clipped the feet by nine panel units — the one thing a long shot is defined by not
-doing. It is also compositionally right on its own: a figure standing on the exact bottom
-edge reads as falling out of the panel rather than standing on anything.
+**Footroom is space left below the crop line.** For the two shots that show feet, that space
+reads as ground, and it is not decoration. The crop lands the `feet` *landmark* on the frame
+edge, but the drawing continues past it: the ankle joint sits exactly on that landmark and the
+shin is drawn as a round-capped stroke, so half its width falls below. Without footroom a long
+shot clipped the feet by nine panel units — the one thing a long shot is defined by not doing.
+It is also compositionally right on its own: a figure standing on the exact bottom edge reads
+as falling out of the panel rather than standing on anything.
+
+`extreme_close_up` uses footroom for a different reason: its crop landmark (`eyes`) is inside
+the face rather than at its edge, and footroom is the only lever that moves a crop line up off
+the bottom edge — see **Resolution**, above.
 
 The table is **monotonic**: reading down it, the figure never gets smaller. That is what
 makes it a ladder, and it is enforced by a test rather than left to inspection —

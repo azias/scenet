@@ -94,7 +94,7 @@ scenet build examples/umbrella.script --strip -o out/umbrella.svg
 ## `scenet check`
 
 ```
-scenet check SOURCE... [--format {text,sarif}] [-o OUTPUT] [--quiet]
+scenet check SOURCE... [--format {text,sarif}] [-o OUTPUT] [--quiet] [--deep]
 ```
 
 Reports everything wrong with one or more documents and exits non-zero if anything is.
@@ -103,6 +103,13 @@ Nothing is written unless you ask for it — no SVG, no Panel Core.
 Unlike `build`, this does not stop at the first fault. pydantic reports every field error
 at once and several files are reported together, because whoever is fixing them — a person
 or an agent — wants the whole list rather than one round trip per mistake.
+
+Beyond validating the IR, `check` resolves every cast member's `reference`, `pose` and
+`expression` against the puppet library — the IR alone cannot tell `pointing` from
+`smirking`, since both are just strings until something looks them up. The library is
+read once per document, only when there is a cast to check against it, so a document
+with no cast pays nothing extra. This is still the cheap pass: no solver, no font
+metrics, no balloon placement — those are what `--deep` adds.
 
 ### Why this exists
 
@@ -129,6 +136,14 @@ published schema — are what make a generate/validate/repair loop work.
 `--quiet`
 : Suppress the per-file `ok` line. Findings are always reported — this hides the
   reassurance, never the diagnosis.
+
+`--deep`
+: Also run the full compiler on any document that passes every cheap check, to
+  additionally catch `layout` and `balloon-placement` — two rules in the catalogue that
+  the cheap pass cannot produce, because they only surface once the solver actually
+  runs. Off by default: it costs a real compile, including font metrics. Skipped for a
+  document the cheap pass already found something wrong with, so a document with a bad
+  pose reports that once rather than a second, worse-located finding for the same fault.
 
 ### Exit status
 
@@ -161,8 +176,10 @@ nothing stops compiling.
 | `scenet/ordering-cycle` | `left_of`/`right_of` relations that form a cycle |
 | `scenet/composition` | An `over:` chain that is missing or cyclic |
 | `scenet/unknown-puppet` | A `reference` naming a character the library lacks |
-| `scenet/layout` | Valid, but no layout satisfies its required constraints |
-| `scenet/balloon-placement` | No legal position exists for a balloon |
+| `scenet/unknown-pose` | A `pose` naming one its puppet does not declare |
+| `scenet/unknown-expression` | An `expression` naming one its puppet does not declare |
+| `scenet/layout` | Valid, but no layout satisfies its required constraints (`--deep` only) |
+| `scenet/balloon-placement` | No legal position exists for a balloon (`--deep` only) |
 | `scenet/internal` | A failure with no more specific rule — worth reporting |
 
 ### Source positions
@@ -199,6 +216,10 @@ scenet check examples/gallery/*.yaml
 
 ```bash
 scenet check --format sarif examples/duel.panel.yaml > results.sarif
+```
+
+```bash
+scenet check --deep examples/gallery/*.yaml
 ```
 
 Uploading to GitHub code scanning, which is how findings become annotations on a pull

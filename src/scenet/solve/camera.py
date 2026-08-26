@@ -23,17 +23,24 @@ class ShotSpec:
 
     crop: Landmark
     headroom: float
-    # Ground left visible beneath the feet, as a fraction of panel height. Zero for any
-    # shot that crops above the feet -- there is no ground in frame to leave.
+    # Space left below the crop line, as a fraction of panel height. Zero for any shot
+    # whose crop landmark sits at the edge of what is framed -- feet, chin -- where
+    # there is nothing below it to leave room for.
     #
-    # Non-zero for the ones that do show feet, for two reasons. Compositionally, a
-    # figure standing on the exact bottom edge of a panel reads as falling out of it
-    # rather than standing on anything. Mechanically, the crop lands the FEET *landmark*
-    # on the frame edge, but the drawing continues past it: the ankle joint sits exactly
-    # on that landmark and the shin capsule has a round cap, so half its width -- 14
-    # native units on the shipped puppets -- is drawn below. Without footroom, a long
-    # shot clipped the feet off, which is the one thing a long shot is defined by not
-    # doing.
+    # Non-zero in two different situations. For the two shots that show feet, it is
+    # literally ground: compositionally, a figure standing on the exact bottom edge of
+    # a panel reads as falling out of it rather than standing on anything, and
+    # mechanically, the crop lands the FEET *landmark* on the frame edge but the
+    # drawing continues past it -- the ankle joint sits exactly on that landmark and
+    # the shin capsule has a round cap, so half its width -- 14 native units on the
+    # shipped puppets -- is drawn below. Without footroom, a long shot clipped the feet
+    # off, which is the one thing a long shot is defined by not doing.
+    #
+    # For `extreme_close_up`, whose crop landmark (`eyes`) sits *inside* the face
+    # rather than at its edge, footroom is what pulls the eyes up off the bottom edge.
+    # Headroom cannot do this: it shifts the head down and shrinks the figure by
+    # exactly the same amount, so the crop line stays pinned to `panel_height * (1 -
+    # footroom)` regardless of headroom. See docs/reference/shot_types.md.
     footroom: float = 0.0
 
 
@@ -63,7 +70,11 @@ SHOT_TABLE: dict[ShotType, ShotSpec] = {
     ShotType.MEDIUM_CLOSE_UP: ShotSpec(Landmark.CHEST, 0.10),
     ShotType.CLOSE_UP: ShotSpec(Landmark.SHOULDERS, 0.08),
     ShotType.BIG_CLOSE_UP: ShotSpec(Landmark.CHIN, 0.05),
-    ShotType.EXTREME_CLOSE_UP: ShotSpec(Landmark.EYES, 0.00),
+    # Headroom is 0 because the crop landmark (eyes) is inside the face, not at its
+    # edge -- headroom cannot pull it off the bottom edge (see the ShotSpec.footroom
+    # docstring), so footroom does the work instead: 0.45 lifts the eyes to the
+    # panel's midline rather than pinning them to the bottom corner.
+    ShotType.EXTREME_CLOSE_UP: ShotSpec(Landmark.EYES, 0.00, footroom=0.45),
 }
 
 # Camera angle adjusts headroom rather than displacing the figure, so it composes

@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 import yaml
 
+from scenet.assets.contract import PuppetLibrary, PuppetSpec
 from scenet.diagnostics import (
     RULES,
     Diagnostic,
@@ -31,10 +32,14 @@ from scenet.errors import (
     CompositionError,
     LayoutError,
     PanelSyntaxError,
+    ScenetError,
+    UnknownExpressionError,
+    UnknownPoseError,
     UnknownPuppetError,
 )
 from scenet.frontends.positions import DOCUMENT_START, locate, syntax_error_region
 from scenet.frontends.yaml_front import parse_panel
+from scenet.pipeline import compile_source
 
 # A panel whose only fault is the speaker's name. The interesting case, because no JSON
 # Schema can catch it: the actor exists as a string, it just is not in the cast.
@@ -63,6 +68,48 @@ cast:
 script:
   - say: {by: alice, text: Hello}
 """
+
+# A puppet declaring no face features and no expressions at all, so the diagnostic
+# added for #22 can be checked against the one puppet shape it must NOT complain
+# about: one that was never asked to have a 'neutral' expression in the first place,
+# exactly as `resolve` in kinematics.py already guards.
+_FEATURELESS_PUPPET: dict[str, Any] = {
+    "name": "plain",
+    "units_per_head": 100,
+    "landmarks": {
+        "head_top": 0,
+        "eyes": 40,
+        "chin": 100,
+        "shoulders": 130,
+        "chest": 200,
+        "waist": 330,
+        "mid_thigh": 470,
+        "knees": 560,
+        "feet": 750,
+    },
+    "joints": {"root": {"parent": None}, "head": {"parent": "root", "offset": [0, -300]}},
+    "anchors": {"eyes": {"joint": "head", "offset": [0, -10]}},
+    "face": {"joint": "head", "radius": 60},
+    "poses": {"standing_neutral": {}},
+}
+
+
+def _featureless_library() -> PuppetLibrary:
+    return PuppetLibrary({"plain": PuppetSpec.model_validate(_FEATURELESS_PUPPET)})
+
+
+# A corpus for TestCheckAndBuildAgree: every document here compiles cleanly if and
+# only if `diagnose_source` reports it as clean. Mixes documents already used above
+# with three that are only wrong at the asset tier -- the gap #22 lived in.
+_SEAM_CASES: dict[str, str] = {
+    "clean": CLEAN,
+    "unknown_actor": UNKNOWN_ACTOR,
+    "ordering_cycle": CYCLE,
+    "unknown_pose": "cast: {a: {reference: alice, pose: smirking}}\n",
+    "unknown_expression": "cast: {a: {reference: alice, expression: smirking}}\n",
+    "unknown_puppet_reference": "cast: {a: {reference: nobody}}\n",
+    "cast_less": "panel: {size: [420, 560]}\n",
+}
 
 
 class TestDiagnosingADocument:
@@ -317,6 +364,15 @@ class TestErrorsThatEscapeTheCompiler:
     def test_a_missing_puppet_has_its_own_rule(self):
         assert _rule_for_scenet_error(UnknownPuppetError("nobody")) == "unknown-puppet"
 
+    def test_a_missing_pose_has_its_own_rule(self):
+        assert _rule_for_scenet_error(UnknownPoseError("no such pose")) == "unknown-pose"
+
+    def test_a_missing_expression_has_its_own_rule(self):
+        assert (
+            _rule_for_scenet_error(UnknownExpressionError("no such expression"))
+            == "unknown-expression"
+        )
+
     def test_solver_failures_are_distinguished(self):
         assert _rule_for_scenet_error(LayoutError("no room")) == "layout"
         assert _rule_for_scenet_error(BalloonPlacementError("nowhere")) == "balloon-placement"
@@ -414,3 +470,116 @@ panels:
         (found,) = diagnose_source("panels:\n  a: 3\n", source=Path("s.scene.yaml"))
         assert found.rule == "invalid-field"
         assert "'a'" in found.message
+
+
+class TestCastResolvesAgainstTheLibrary:
+    """The IR alone cannot tell `pointing` from `smirking` -- `CastMember.pose` and
+    `.expression` are plain `str`s. `diagnose_source("{cast: {a: {reference: alice,
+    pose: smirking}}}")` used to come back `[]`, and `scenet build` on the same
+    document then died with a bare `KeyError`: no rule, no location. This is #22.
+    """
+
+    def test_an_unknown_pose_is_reported(self):
+        (found,) = diagnose_source(
+            "cast: {a: {reference: alice, pose: smirking}}\n", source=Path("x.panel.yaml")
+        )
+        assert found.rule == "unknown-pose"
+        assert found.path == ("cast", "a", "pose")
+        assert "smirking" in found.message
+
+    def test_an_unknown_expression_is_reported(self):
+        (found,) = diagnose_source(
+            "cast: {a: {reference: alice, expression: smirking}}\n",
+            source=Path("x.panel.yaml"),
+        )
+        assert found.rule == "unknown-expression"
+        assert found.path == ("cast", "a", "expression")
+        assert "smirking" in found.message
+
+    def test_an_unknown_puppet_reference_is_reported(self):
+        """Not part of the issue, but the identical gap: `reference` is a bare `str`
+        in the IR too, so a typo'd character name passed `check` and failed `build`
+        exactly as a bad pose did."""
+        (found,) = diagnose_source("cast: {a: {reference: nobody}}\n", source=Path("x.panel.yaml"))
+        assert found.rule == "unknown-puppet"
+        assert found.path == ("cast", "a", "reference")
+        assert "nobody" in found.message
+
+    def test_every_bad_actor_is_reported_not_just_the_first(self):
+        source = (
+            "cast: {\n"
+            "  a: {reference: alice, pose: smirking},\n"
+            "  b: {reference: bob, expression: smirking},\n"
+            "}\n"
+        )
+        found = diagnose_source(source, source=Path("x.panel.yaml"))
+        assert {item.rule for item in found} == {"unknown-pose", "unknown-expression"}
+        assert {item.path[1] for item in found} == {"a", "b"}
+
+    def test_a_cast_less_document_does_not_resolve_the_library(self):
+        """No cast, nothing to resolve -- the cost this check adds is opt-in to actual
+        need, not paid by every document that happens to have no characters in it."""
+        assert diagnose_source("panel: {size: [420, 560]}\n") == []
+
+    def test_a_featureless_puppet_is_not_faulted_for_the_default_expression(self):
+        """`CastMember.expression` defaults to 'neutral'. A puppet that declares no
+        expressions at all was never asked to have one -- guarded exactly as `resolve`
+        guards it in kinematics.py."""
+        library = _featureless_library()
+        found = diagnose_source("cast: {a: {reference: plain}}\n", library=library)
+        assert found == []
+
+
+class TestCheckAndBuildAgree:
+    """`check` and `build` must never disagree about which documents are valid.
+
+    Each tier was tested in isolation -- `PuppetSpec.pose_angles` raising on a bad
+    name, `PanelIR` rejecting a bad shot -- and #22 lived in the gap between them:
+    every tier was individually correct and the seam was not checked at all. This
+    asserts the seam directly, over a corpus, so a future lookup that skips cast
+    resolution is caught here rather than needing its own issue filed against it.
+
+    Compared with `--deep`: only `deep=True` promises full agreement. `layout` and
+    `balloon-placement` only surface once the solver runs, so the default (cheap)
+    check is deliberately allowed to call a document clean that `build` then rejects
+    for one of those two reasons -- `cast_less` in the corpus below is exactly that
+    case, and its own test lives in `TestDeepChecking`.
+    """
+
+    @pytest.mark.parametrize("name", sorted(_SEAM_CASES))
+    def test_a_clean_deep_check_means_a_successful_build(self, name: str):
+        source = _SEAM_CASES[name]
+        checked_clean = diagnose_source(source, deep=True) == []
+        try:
+            compile_source(source)
+            compiled = True
+        except ScenetError:
+            compiled = False
+        assert checked_clean == compiled, (
+            f"{name}: deep check said clean={checked_clean}, build succeeded={compiled}"
+        )
+
+
+class TestDeepChecking:
+    """`--deep` trades the cheap pass for one that also reaches `layout` and
+    `balloon-placement`, which the IR and the puppet library cannot rule out on
+    their own -- only the solver can."""
+
+    CAST_LESS = "panel: {size: [420, 560]}\n"
+
+    def test_the_cheap_pass_calls_a_cast_less_document_clean(self):
+        """Not a bug: `layout` only surfaces once the solver runs, and the cheap pass
+        does not run it. This is the gap `--deep` exists to close."""
+        assert diagnose_source(self.CAST_LESS) == []
+
+    def test_deep_reports_the_layout_failure_the_cheap_pass_misses(self):
+        (found,) = diagnose_source(self.CAST_LESS, deep=True)
+        assert found.rule == "layout"
+
+    def test_deep_does_not_run_when_the_cheap_pass_already_found_something(self):
+        """Compiling a document already known to be broken would just produce a
+        second, worse-located finding for the same fault."""
+        source = "cast: {a: {reference: alice, pose: smirking}}\n"
+        shallow = diagnose_source(source)
+        deep = diagnose_source(source, deep=True)
+        assert deep == shallow

@@ -152,11 +152,32 @@ jobs:
         with:
           node-version: "24"
 
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+
       - name: Playground
         working-directory: playground
         run: |
           npm ci
           npm run typecheck
+          npm run test
+
+      # The step that actually assembles the playground, run here so that breaking it
+      # fails a pull request rather than the Pages deploy after merge.
+      #
+      # That gap is not hypothetical: the wheel-freshness guard rejected every deploy
+      # from 6a43750 onward while CI stayed green throughout, because `ci.yml` built the
+      # documentation and `pages.yml` built the playground and only the latter ran this
+      # script. Nobody looks at a workflow that does not run on their branch. (#14)
+      #
+      # The wheel has to exist first, and has to be built before anything imports
+      # `scenet` -- the freshness check compares the two, which is the whole subject of
+      # that issue.
+      - name: Playground assets
+        run: |
+          uv build --wheel
+          cd playground && npm run assets
 
       - name: Editor extension
         working-directory: editor

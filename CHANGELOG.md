@@ -10,6 +10,10 @@ below 1.0 means.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-26
+
+Faces: a character can now look like something.
+
 ### Added
 
 - **Faces.** A character can now look angry, bored or asleep. `expression:` on a cast
@@ -48,6 +52,29 @@ below 1.0 means.
 - **Level of detail.** Below a threshold face radius no features are drawn, because five
   of them inside a head a couple of dozen units across stop being a face and become a
   smudge. Panels large enough to show a face are unaffected.
+
+### Upgrading
+
+Nothing was removed and no document stops compiling. Two things a caller might notice:
+
+- `CoreActor` gained `expression`, `gaze_aim` and `face_marks`. A panel whose puppets
+  declare no features compiles exactly as before, but the shipped puppets now declare
+  some — so **Core output for any panel using `alice` or `bob` has changed**, and a
+  golden file captured against 0.4.0 will differ.
+- `scenet.assets.contract` gained `Feature`, `FeatureSpec`, `ExpressionSpec` and the
+  three state enums. They are puppet-authoring types and are not in `scenet.__all__`;
+  `expression:` in a document is a plain name, as `pose:` is.
+
+### Known limitations
+
+- `extreme_close_up` frames the forehead rather than the eyes. The crop rule anchors a
+  shot's landmark at the bottom of the frame, which is right for every rung except the
+  tightest, where the landmark sits inside the thing being framed. Correct per
+  `shot_types.md`, which is normative, and newly visible now that there is a face to
+  look at.
+- An unknown `expression:` is not reported by `scenet check` and fails the build with a
+  bare `KeyError`, exactly as an unknown `pose:` has always done. Consistency was the
+  deliberate choice; the fix belongs to the checker.
 
 ## [0.4.0] - 2026-08-26
 
@@ -310,7 +337,8 @@ or has drifted out of step with the code fails the build.
 - `long_shot` and `full_shot` crop at the same landmark, so with no environment to show
   they can differ only by headroom.
 
-[Unreleased]: https://github.com/azias/scenet/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/azias/scenet/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/azias/scenet/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/azias/scenet/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/azias/scenet/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/azias/scenet/compare/v0.1.0...v0.2.0

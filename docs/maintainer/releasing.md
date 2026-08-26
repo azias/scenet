@@ -76,6 +76,28 @@ You will get an email when the run reaches `publish`. Open it, click **Review
 deployments**, tick `pypi`, **Approve and deploy**. That click is the last gate between a
 tag and PyPI.
 
+### Removing that gate
+
+The approval is a **required reviewer** on the `pypi` GitHub Environment, not anything in
+the workflow file. It can be removed, and the release then runs unattended from the tag:
+
+```bash
+gh api -X PUT repos/azias/scenet/environments/pypi   --input - <<'JSON'
+{"wait_timer": 0, "reviewers": null, "deployment_branch_policy": null}
+JSON
+```
+
+**What you give up.** PyPI never allows re-uploading a version — not after a delete, not
+ever — so an accidental or mistaken tag burns that number permanently, and the click is
+what makes a tag reversible right up to the last moment. What you keep is not nothing:
+`verify` still runs format, lint, types and the full suite before anything is published,
+the tag must match `project.version`, the CHANGELOG must have a section for it, and `v*`
+tags are protected against deletion.
+
+It is a real trade. Releases stop being synchronous, which matters when the person who
+tagged is not around to approve; and the gate protects against a mistake that cannot be
+undone. Decide once, deliberately, rather than discovering it mid-release.
+
 ## PyPI is opt-in
 
 The `publish` job is skipped unless the repository variable `PYPI_TRUSTED_PUBLISHER`

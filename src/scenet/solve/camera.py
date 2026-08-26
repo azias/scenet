@@ -19,10 +19,22 @@ from scenet.ir import CameraAngle, ShotType
 
 @dataclass(frozen=True, slots=True)
 class ShotSpec:
-    """A crop landmark and the empty space left above the head."""
+    """A crop landmark, and the empty space left above the head and below the feet."""
 
     crop: Landmark
     headroom: float
+    # Ground left visible beneath the feet, as a fraction of panel height. Zero for any
+    # shot that crops above the feet -- there is no ground in frame to leave.
+    #
+    # Non-zero for the ones that do show feet, for two reasons. Compositionally, a
+    # figure standing on the exact bottom edge of a panel reads as falling out of it
+    # rather than standing on anything. Mechanically, the crop lands the FEET *landmark*
+    # on the frame edge, but the drawing continues past it: the ankle joint sits exactly
+    # on that landmark and the shin capsule has a round cap, so half its width -- 14
+    # native units on the shipped puppets -- is drawn below. Without footroom, a long
+    # shot clipped the feet off, which is the one thing a long shot is defined by not
+    # doing.
+    footroom: float = 0.0
 
 
 SHOT_TABLE: dict[ShotType, ShotSpec] = {
@@ -34,10 +46,18 @@ SHOT_TABLE: dict[ShotType, ShotSpec] = {
     #
     # The honest limitation: with no environment to show, these two can differ only by
     # headroom, so the gap stays modest however the numbers are set.
-    ShotType.LONG_SHOT: ShotSpec(Landmark.FEET, 0.14),
-    ShotType.WIDE: ShotSpec(Landmark.FEET, 0.14),
-    ShotType.FULL_SHOT: ShotSpec(Landmark.FEET, 0.05),
-    ShotType.MEDIUM_FULL: ShotSpec(Landmark.MID_THIGH, 0.08),
+    ShotType.LONG_SHOT: ShotSpec(Landmark.FEET, 0.14, footroom=0.06),
+    # `wide` is a synonym for `long_shot`, not a wider shot. The two are used
+    # interchangeably in the literature -- "a long shot (also called a wide shot)" --
+    # and the language keeps both because writers reach for both. They are identical on
+    # purpose, and the shot ladder example says so rather than looking broken.
+    ShotType.WIDE: ShotSpec(Landmark.FEET, 0.14, footroom=0.06),
+    ShotType.FULL_SHOT: ShotSpec(Landmark.FEET, 0.05, footroom=0.04),
+    # Medium full -- the "three-quarter shot" -- cuts at the KNEES. The cowboy or
+    # American shot cuts at MID_THIGH, from 1930s Westerns framing to include the
+    # holster. Both were MID_THIGH here, which made them the same shot and collapsed a
+    # rung of the ladder with nothing to notice.
+    ShotType.MEDIUM_FULL: ShotSpec(Landmark.KNEES, 0.08),
     ShotType.COWBOY: ShotSpec(Landmark.MID_THIGH, 0.08),
     ShotType.MEDIUM_SHOT: ShotSpec(Landmark.WAIST, 0.10),
     ShotType.MEDIUM_CLOSE_UP: ShotSpec(Landmark.CHEST, 0.10),
@@ -219,7 +239,7 @@ def solve_camera(
     shot: ShotType,
     angle: CameraAngle,
     panel_height: float,
-    footroom: float = 0.0,
+    footroom: float | None = None,
 ) -> CameraSolution:
     """Resolve the camera against a reference actor.
 
@@ -228,6 +248,8 @@ def solve_camera(
     author wrote first and therefore the one the panel is about.
     """
     headroom = headroom_for(shot, angle)
+    # The shot decides its own footroom unless a caller overrides it.
+    footroom = SHOT_TABLE[shot].footroom if footroom is None else footroom
     if headroom + footroom >= 1.0:
         raise ValueError(
             f"headroom {headroom:.2f} plus footroom {footroom:.2f} leaves no room for the figure"

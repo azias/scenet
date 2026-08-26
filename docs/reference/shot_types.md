@@ -33,21 +33,37 @@ The scaled figure is then anchored so its crop line meets the bottom of the avai
 
 ## Table
 
-| `shot` | Crop landmark | Headroom | Reads as |
-|---|---|---|---|
-| `long_shot` (alias `wide`) | `feet` | 0.60 | Figure small in its environment |
-| `full_shot` | `feet` | 0.05 | Whole body, environment secondary |
-| `medium_full` (alias `cowboy`) | `mid_thigh` | 0.08 | Body language, hands visible |
-| `medium_shot` | `waist` | 0.10 | The conversational default |
-| `medium_close_up` | `chest` | 0.10 | Emphasis on the speaker |
-| `close_up` | `shoulders` | 0.08 | Emotion; face dominates |
-| `big_close_up` | `chin` | 0.05 | Intensity |
-| `extreme_close_up` | `eyes` | 0.00 | Crops through the face deliberately |
+| `shot` | Crop landmark | Headroom | Footroom | Reads as |
+|---|---|---|---|---|
+| `long_shot` (alias `wide`) | `feet` | 0.14 | 0.06 | Figure small in its environment |
+| `full_shot` | `feet` | 0.05 | 0.04 | Whole body, environment secondary |
+| `medium_full` | `knees` | 0.08 | — | The three-quarter shot |
+| `cowboy` | `mid_thigh` | 0.08 | — | Stance and confrontation |
+| `medium_shot` | `waist` | 0.10 | — | The conversational default |
+| `medium_close_up` | `chest` | 0.10 | — | Emphasis on the speaker |
+| `close_up` | `shoulders` | 0.08 | — | Emotion; face dominates |
+| `big_close_up` | `chin` | 0.05 | — | Intensity |
+| `extreme_close_up` | `eyes` | 0.00 | — | Crops through the face deliberately |
 
-Aliases are exact synonyms and resolve to the same values.
+**`wide` is an exact synonym for `long_shot`.** The two are used interchangeably in the
+literature and the language keeps both because writers reach for both.
+
+**`medium_full` and `cowboy` are not synonyms**, though they were briefly implemented as
+though they were. Medium full — the three-quarter shot — cuts at the knees. The cowboy
+or American shot cuts at mid-thigh, a framing that comes from 1930s Westerns needing the
+holster in shot. Naming two shots and drawing one collapses a rung of the ladder, and
+nothing about the output makes that visible.
+
+**Footroom is ground left beneath the feet**, and only the two shots that show feet have
+any. It is not decoration. The crop lands the `feet` *landmark* on the frame edge, but
+the drawing continues past it: the ankle joint sits exactly on that landmark and the shin
+is drawn as a round-capped stroke, so half its width falls below. Without footroom a long
+shot clipped the feet by nine panel units — the one thing a long shot is defined by not
+doing. It is also compositionally right on its own: a figure standing on the exact bottom
+edge reads as falling out of the panel rather than standing on anything.
 
 The table is **monotonic**: reading down it, the figure never gets smaller. That is what
-makes it a ladder, and it is enforced by a test rather than left to inspection --
+makes it a ladder, and it is enforced by a test rather than left to inspection —
 `long_shot` and `full_shot` crop at the same landmark, so only headroom separates them,
 and having those two the wrong way round inverted the ladder at its widest end without
 anything noticing.
@@ -55,7 +71,7 @@ anything noticing.
 A limitation worth stating: with no environment to show, `long_shot` and `full_shot` can
 differ only by headroom, so the gap between them is necessarily modest. In film the
 distinction is mostly about how much of the world is in frame, which this compiler does
-not yet model.
+not yet model — see [the setting layer](../explanation/status.md).
 
 ## Angle
 

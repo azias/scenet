@@ -1,7 +1,22 @@
 # Every shot type, on the same character, from widest to tightest.
 #
 # A shot type is a crop landmark plus headroom, measured in HEAD-HEIGHTS -- not as a
-# fraction of panel height. Watch where the frame cuts the body as you go down.
+# fraction of panel height. Watch where the frame cuts the body as you go down: feet,
+# feet, knees, mid-thigh, waist, chest, shoulders, chin, eyes.
+#
+# `wide` and `long_shot` are DELIBERATELY IDENTICAL. They are synonyms -- the literature
+# uses them interchangeably -- and the language keeps both because writers reach for
+# both. The two panels look the same because they are the same shot, not because
+# something is broken.
+#
+# `medium_full` and `cowboy` are NOT synonyms, though they were briefly implemented as
+# though they were. Medium full cuts at the knees; the cowboy shot cuts at mid-thigh,
+# a framing that comes from 1930s Westerns needing the holster in frame.
+#
+# The two widest shots leave ground beneath the feet. That is footroom, and it is not
+# decoration: the crop lands the FEET landmark on the frame edge, but the shin is drawn
+# as a round-capped stroke that continues past it, so without footroom a long shot
+# clipped the feet off.
 
 panel: {size: [420, 560]}
 
@@ -10,10 +25,10 @@ cast:
 
 panels:
   long_shot:        {camera: {shot: long_shot}}
-  wide:             {camera: {shot: wide}}
+  wide:             {camera: {shot: wide}}          # same as long_shot, on purpose
   full_shot:        {camera: {shot: full_shot}}
-  medium_full:      {camera: {shot: medium_full}}
-  cowboy:           {camera: {shot: cowboy}}
+  medium_full:      {camera: {shot: medium_full}}   # knees
+  cowboy:           {camera: {shot: cowboy}}        # mid-thigh
   medium_shot:      {camera: {shot: medium_shot}}
   medium_close_up:  {camera: {shot: medium_close_up}}
   close_up:         {camera: {shot: close_up}}

@@ -96,6 +96,28 @@ standardised comic script format at all. But the informal industry convention (`
 Planned as the human-facing frontend in phase 5 — better than inventing a syntax, because writers
 already write this one.
 
+### Lettering convention — Blambot, and Balloon Tales
+
+[Comic Book Grammar & Tradition](https://blambot.com/pages/comic-book-grammar-tradition) ·
+[Floating text and captions](https://balloontales.com/floating-text-captions/)
+
+Blambot is a letterer's reference rather than an academic one, which is exactly why it is
+load-bearing here: it records what the craft actually does. Two things were taken from it directly.
+
+The **caption vocabulary** is theirs — `locale`, `monologue`, `spoken`, `editorial` — including the
+finding that "narration", the obvious guess and this project's first proposal, is not one of them.
+Same reasoning as taking the predicates from Visual Genome: a vocabulary practitioners already share
+beats one invented here.
+
+The **quotation rule for a run of spoken captions** — an opening mark on each, a closing mark only
+on the last — is theirs too. It is objective, which makes it testable, which is why it is enforced
+by the compiler rather than left to the author.
+
+Balloon Tales supplies the placement principles for floating text: keep off the important figures,
+preserve the space the art establishes, keep the reading order flowing. All three were already
+implemented for balloons, which is the argument for captions going through the same solver rather
+than a parallel one.
+
 ## Future
 
 ### Shape grammars (Stiny & Gips) and L-systems

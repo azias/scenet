@@ -49,3 +49,6 @@ examples:
   - file: 15-margin.panel.yaml
     title: "Margins, and bleeding off the edge"
     kind: panel
+  - file: 16-captions.panel.yaml
+    title: "Captions: where and when"
+    kind: panel

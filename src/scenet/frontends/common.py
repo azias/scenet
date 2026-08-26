@@ -27,7 +27,7 @@ RELATION_RE = re.compile(r"^\s*(\S+)\s+(\S+)\s+(\S+)\s*$")
 # Verbs a script entry may be tagged with. Single-key mappings rather than a
 # discriminator field, so a new verb costs the author nothing to adopt and costs this
 # table one line.
-KNOWN_VERBS = frozenset({"say"})
+KNOWN_VERBS = frozenset({"say", "caption"})
 
 
 def parse_relation(text: str) -> Relation:
@@ -78,8 +78,9 @@ def normalise(data: dict[str, Any]) -> dict[str, Any]:
 
     Two shapes differ between the surface syntax and the IR: staging is written as
     sentences, and script entries are written as single-key mappings tagged by verb
-    (`- say: {...}`) so that future verbs can be added without a discriminator field the
-    author has to type.
+    (`- say: {...}`, `- caption: {...}`) so that a new verb can be added without a
+    discriminator field the author has to type. The tag is moved into the payload as
+    `verb`, which is where the IR's event models expect to find it.
 
     Args:
         data: A parsed top-level panel mapping, in surface form.
@@ -120,7 +121,11 @@ def normalise(data: dict[str, Any]) -> dict[str, Any]:
                 )
             if not isinstance(payload, dict):
                 raise PanelSyntaxError(f"script entry {index}: {verb!r} expects a mapping")
-            events.append(payload)
+            # The tag is injected rather than dropped. Now that a script holds more than
+            # one sort of event, discarding it would leave the union to be resolved by
+            # which model happens to accept the keys -- guesswork, on documents whose
+            # whole point is being unambiguous.
+            events.append({**payload, "verb": verb})
         result["script"] = events
 
     return result

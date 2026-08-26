@@ -14,6 +14,7 @@ FACE = "#d94f4f"
 ANCHOR = "#1f9c53"
 GAZE = "#b060d0"
 BALLOON = "#e08a1e"
+CAPTION = "#7a52c9"
 GRID = "#c9c9c9"
 
 
@@ -86,6 +87,21 @@ def render_debug(core: PanelCore) -> str:
             f'font-family="monospace" fill="{BALLOON}">'
             f"{balloon.id} #{balloon.order} -&gt; {balloon.speaker}"
             f"{' curved' if tail.control else ''}</text>"
+        )
+
+    # Captions in their own colour: they take part in the same reading order but obey
+    # a different cost function, so telling them apart at a glance is the point.
+    for caption in sorted(core.captions, key=lambda c: c.order):
+        box = caption.box
+        parts.append(
+            f'  <rect x="{fmt(box.x)}" y="{fmt(box.y)}" width="{fmt(box.width)}" '
+            f'height="{fmt(box.height)}" fill="{CAPTION}" fill-opacity="0.12" '
+            f'stroke="{CAPTION}" stroke-width="2"/>'
+        )
+        parts.append(
+            f'  <text x="{fmt(box.x + 4)}" y="{fmt(box.y - 8)}" font-size="18" '
+            f'font-family="monospace" fill="{CAPTION}">'
+            f"{caption.id} #{caption.order} {caption.kind.value}</text>"
         )
 
     parts.append(

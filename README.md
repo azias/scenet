@@ -92,8 +92,8 @@ computational geometry. The same input always produces byte-identical output.
 
 **Alpha — panels and sequences compile end to end, from the command line, the
 browser, or an editor.** Framing, actor placement, balloon
-placement, reading order, tail routing and SVG emission all work, from either of two
-frontends. Not yet built: page composition (tiers, panels of varying size) and the
+and caption placement, reading order, tail routing and SVG emission all work, from
+either of two frontends. Not yet built: page composition (tiers, panels of varying size) and the
 interpretation layer that would give a panel a *style*. See
 [the phase plan](docs/explanation/status.md) for detail.
 
@@ -127,8 +127,8 @@ same Python, unmodified — in your browser under WebAssembly via
 [Pyodide](https://pyodide.org/). It is not a reimplementation: the page installs the exact
 wheel `uv build` produces, so there is no second copy of the geometry to drift out of step.
 
-Fifteen worked examples, covering every shot type, every balloon kind, both frontends and
-the constraint priorities. Each one is a real file under
+Sixteen worked examples, covering every shot type, every balloon kind, every caption kind, both
+frontends and the constraint priorities. Each one is a real file under
 [`examples/gallery/`](examples/gallery/) that the test suite compiles, so the playground
 cannot offer an example that does not work.
 

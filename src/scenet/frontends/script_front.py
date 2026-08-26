@@ -22,6 +22,7 @@ front-matter block, per-panel settings as `@` directives.
 
     PANEL 1
     @shot: full_shot
+    CAPTION: Midnight. The docks.
     Alice and Bob face each other on a rainy street corner.
 
     ALICE
@@ -42,7 +43,7 @@ from pydantic import ValidationError
 from scenet.compose import merge
 from scenet.errors import PanelSyntaxError, ScriptSyntaxError
 from scenet.frontends.common import normalise, summarise
-from scenet.ir import BalloonKind, PanelIR
+from scenet.ir import BalloonKind, CaptionKind, PanelIR
 
 # Leading blank lines are tolerated. A script pasted out of an editor or produced by a
 # templating step very often starts with one, and refusing it would be a baffling
@@ -53,6 +54,13 @@ PAGE_HEADING = re.compile(r"^PAGE\s+(\S+)\s*:?\s*$", re.IGNORECASE)
 DIRECTIVE = re.compile(r"^@(\w+)\s*:\s*(.+)$")
 # A cue is a character name in capitals, optionally followed by a parenthetical.
 CUE = re.compile(r"^([A-Z][A-Z0-9 _'.-]*?)\s*(?:\(([^)]*)\))?\s*:?\s*$")
+# `CAPTION: Midnight. The docks.`, optionally `CAPTION (monologue): ...`. The text is
+# on the same line, which is what distinguishes a caption from a character cue.
+CAPTION_LINE = re.compile(r"^CAPTION\s*(?:\(([^)]*)\))?\s*:\s*(.+)$", re.IGNORECASE)
+# A CAPTION line with nothing after the colon. It matches `CUE` perfectly, so without
+# this it would be read as a character called CAPTION and quietly swallow the next
+# line as their dialogue.
+BARE_CAPTION = re.compile(r"^CAPTION\s*(?:\(([^)]*)\))?\s*:?\s*$", re.IGNORECASE)
 
 # Parentheticals a letterer would act on. Anything else is a performance note for the
 # artist and is not something the compiler can represent.
@@ -67,6 +75,11 @@ KIND_MODIFIERS = {
     "thinking": BalloonKind.THOUGHT,
 }
 
+# The parenthetical on a CAPTION line, which says what the box is doing. Spelled the
+# same as the IR's own vocabulary, since a writer typing `(monologue)` means the thing
+# the letterers call a monologue.
+CAPTION_KINDS = {kind.value: kind for kind in CaptionKind}
+
 # Directives that name a camera property rather than a top-level panel key.
 CAMERA_DIRECTIVES = {"shot", "angle"}
 
@@ -76,13 +89,13 @@ class _PanelDraft:
     """One panel being accumulated as the script is read.
 
     A typed accumulator rather than a bare dict: the script body contributes several
-    kinds of thing -- dialogue, directives, prose -- and keeping them apart until the
-    end makes it obvious that prose never reaches the compiler.
+    kinds of thing -- dialogue, captions, directives, prose -- and keeping them apart
+    until the end makes it obvious that prose never reaches the compiler.
     """
 
     settings: dict[str, Any] = field(default_factory=dict)
     camera: dict[str, Any] = field(default_factory=dict)
-    dialogue: list[dict[str, Any]] = field(default_factory=list)
+    events: list[dict[str, Any]] = field(default_factory=list)
     description: list[str] = field(default_factory=list)
 
     def as_document(self) -> dict[str, Any]:
@@ -94,7 +107,7 @@ class _PanelDraft:
         document: dict[str, Any] = dict(self.settings)
         if self.camera:
             document["camera"] = {**document.get("camera", {}), **self.camera}
-        document["script"] = self.dialogue
+        document["script"] = self.events
         return document
 
 
@@ -170,9 +183,15 @@ def _read_panels(body: str, source: Path | None) -> dict[str, _PanelDraft]:
         if _apply_directive(line, current, number, source):
             continue
 
+        caption = _read_caption(line, number, source)
+        if caption is not None:
+            current.events.append(caption)
+            pending_cue = None
+            continue
+
         if pending_cue is not None:
             speaker, kind = pending_cue
-            current.dialogue.append({"say": {"by": speaker, "text": line, "kind": kind.value}})
+            current.events.append({"say": {"by": speaker, "text": line, "kind": kind.value}})
             pending_cue = None
             continue
 
@@ -213,6 +232,35 @@ def _read_cue(line: str) -> tuple[str, BalloonKind] | None:
         return None
     modifier = (cue.group(2) or "").strip().lower()
     return cue.group(1).strip(), KIND_MODIFIERS.get(modifier, BalloonKind.SPEECH)
+
+
+def _read_caption(line: str, number: int, source: Path | None) -> dict[str, Any] | None:
+    """Parse a `CAPTION:` line, or return None if the line is not one.
+
+    Tested before character cues, because `CAPTION` on its own is a perfectly good
+    character name as far as the cue pattern is concerned.
+    """
+    match = CAPTION_LINE.match(line)
+    if not match:
+        if BARE_CAPTION.match(line):
+            raise ScriptSyntaxError(
+                f"line {number}: a CAPTION carries its text on the same line, as "
+                f"'CAPTION: Midnight. The docks.'",
+                source=source,
+                line=number,
+            )
+        return None
+
+    modifier = (match.group(1) or "").strip().lower()
+    if modifier and modifier not in CAPTION_KINDS:
+        known = ", ".join(sorted(CAPTION_KINDS))
+        raise ScriptSyntaxError(
+            f"line {number}: unknown caption kind '{modifier}'; known kinds are {known}",
+            source=source,
+            line=number,
+        )
+    kind = CAPTION_KINDS.get(modifier, CaptionKind.LOCALE)
+    return {"caption": {"text": match.group(2).strip(), "kind": kind.value}}
 
 
 def parse_script(text: str, *, source: Path | None = None) -> dict[str, PanelIR]:

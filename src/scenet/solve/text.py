@@ -20,6 +20,7 @@ from pathlib import Path
 # the attribute exists at runtime but cannot be seen statically.
 from fonts.ttf import (
     SourceSansPro,  # ty: ignore[unresolved-import]  # pyright: ignore[reportAttributeAccessIssue]
+    SourceSansProIt,  # ty: ignore[unresolved-import]  # pyright: ignore[reportAttributeAccessIssue]
 )
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.ttLib import TTFont
@@ -49,6 +50,13 @@ LINE_PENALTY = 0.08
 RAGGEDNESS_WEIGHT = 0.3
 
 DEFAULT_FONT_PATH = Path(SourceSansPro)
+
+#: The italic face of the same family, for the caption kinds letterers set in italic.
+#: A real font file rather than a skew transform: a synthetic oblique measures as the
+#: roman face and draws as neither, which is exactly the disagreement between
+#: measurement and rendering this module exists to prevent. It costs nothing to use --
+#: it ships in the same declared dependency.
+ITALIC_FONT_PATH = Path(SourceSansProIt)
 
 
 @dataclass(frozen=True, slots=True)

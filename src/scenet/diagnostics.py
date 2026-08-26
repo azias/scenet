@@ -217,10 +217,10 @@ RULES: dict[str, Rule] = {
         help="Relax or remove a conflicting staging relation.",
     ),
     "balloon-placement": Rule(
-        summary="A balloon has no legal position",
+        summary="A balloon or caption has no legal position",
         description=(
             "Every candidate position covered a face, left the panel, overlapped a "
-            "balloon already placed, or would have broken reading order."
+            "box already placed, or would have broken reading order."
         ),
         help="Widen the panel, shorten the line, or split it across two panels.",
     ),

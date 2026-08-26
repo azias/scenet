@@ -10,6 +10,7 @@ PAGE ONE
 
 PANEL 1
 @shot: full_shot
+CAPTION: Midnight. The docks.
 Alice and Bob face each other on a rainy street corner. She is exasperated.
 
 ALICE
@@ -43,11 +44,21 @@ scenet build umbrella.script --strip
 | `@shot: full_shot` | A directive. `@shot` and `@angle` set the camera; anything else sets a top-level panel key. |
 | `ALICE` (all caps, alone) | The next lines are dialogue spoken by `ALICE`. |
 | `BOB (whisper)` | Same, with a balloon kind. |
+| `CAPTION: Midnight.` | A caption box. The text is on the same line. |
+| `CAPTION (monologue): ...` | Same, with a caption kind. |
 | Anything else | Prose. Preserved, never interpreted. |
 | `PAGE ONE` | Ignored. Pages are not modelled yet. |
 
 The one detail that trips people up: **a speaker cue is recognised by the name being all
 caps, not the whole line.** `BOB (whisper)` qualifies, because only `BOB` is tested.
+
+`CAPTION` is checked before speaker cues, because as far as the cue pattern is concerned it is a
+perfectly good character name. That is also why the text has to be on the same line: a bare
+`CAPTION` line is rejected rather than read as a character about to speak.
+
+One thing the YAML syntax can express and this cannot: a `spoken` caption's `by`, naming the
+off-panel speaker. Write that panel in YAML, or leave the speaker unnamed — nothing in the drawn
+panel depends on it, since a caption has no tail.
 
 ## Prose is never interpreted
 

@@ -12,7 +12,7 @@ import pytest
 from scenet.compose import CompositionError, merge, resolve_overrides
 from scenet.frontends.script_front import ScriptSyntaxError, load_script, parse_script
 from scenet.frontends.yaml_front import PanelSyntaxError, load_scene, parse_panel, parse_scene
-from scenet.ir import BalloonKind, ShotType
+from scenet.ir import BalloonKind, CaptionEvent, CaptionKind, SayEvent, ShotType
 from scenet.pipeline import compile_document
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
@@ -161,6 +161,47 @@ NOT LIKE THAT!
 """)
         kinds = [event.kind for event in panels["1"].script]
         assert kinds == [BalloonKind.WHISPER, BalloonKind.SHOUT]
+
+    def test_caption_lines_become_captions(self):
+        """`CAPTION:` is the convention writers already use, recorded in prior_art.md
+        alongside PAGE ONE and PANEL 1."""
+        panels = parse_script("""
+---
+cast: {ALICE: {reference: alice}}
+---
+PANEL 1
+CAPTION: Midnight. The docks.
+ALICE
+Hello there.
+""")
+        caption, dialogue = panels["1"].script
+        assert isinstance(caption, CaptionEvent)
+        assert caption.text == "Midnight. The docks."
+        assert caption.kind is CaptionKind.LOCALE
+        assert isinstance(dialogue, SayEvent)
+
+    def test_a_parenthetical_selects_the_caption_kind(self):
+        panels = parse_script("""
+---
+cast: {ALICE: {reference: alice}}
+---
+PANEL 1
+CAPTION (monologue): I should have brought an umbrella.
+""")
+        assert panels["1"].script[0].kind is CaptionKind.MONOLOGUE
+
+    def test_a_bare_caption_line_is_not_read_as_a_cue(self):
+        """`CAPTION` on its own matches the character-cue pattern, so it has to be
+        ruled out before cue detection or the next line becomes its dialogue."""
+        with pytest.raises(ScriptSyntaxError, match="CAPTION"):
+            parse_script("""
+---
+cast: {ALICE: {reference: alice}}
+---
+PANEL 1
+CAPTION
+Midnight. The docks.
+""")
 
     def test_prose_descriptions_are_not_interpreted(self):
         """Turning prose into staging needs language understanding, and guessing

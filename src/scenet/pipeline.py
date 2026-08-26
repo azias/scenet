@@ -16,6 +16,7 @@ from scenet.core import (
     Capsule,
     CoreActor,
     CoreBalloon,
+    CoreCaption,
     Disc,
     PanelCore,
     Tail,
@@ -28,7 +29,7 @@ from scenet.frontends.script_front import load_script
 from scenet.frontends.yaml_front import load_panel, load_scene, parse_panel, parse_scene
 from scenet.geom import BBox, rounded
 from scenet.ir import PanelIR
-from scenet.solve.balloons import place_balloons
+from scenet.solve.balloons import place_script
 from scenet.solve.camera import CameraSolution
 from scenet.solve.staging import Placement, solve_staging
 from scenet.solve.text import FontMetrics
@@ -110,7 +111,7 @@ def compile_ir(
         panel.panel.width - 2 * panel.panel.margin,
         panel.panel.height - 2 * panel.panel.margin,
     )
-    balloons = place_balloons(panel.script, posed, frame, metrics=metrics)
+    layout = place_script(panel.script, posed, frame, metrics=metrics)
 
     core = PanelCore(
         width=rounded(panel.panel.width),
@@ -165,7 +166,21 @@ def compile_ir(
                     control=(point_pair(balloon.tail.control) if balloon.tail.control else None),
                 ),
             )
-            for balloon in balloons
+            for balloon in layout.balloons
+        ),
+        captions=tuple(
+            CoreCaption(
+                id=caption.id,
+                order=caption.order,
+                kind=caption.kind,
+                box=Box.of(caption.box),
+                lines=caption.block.lines,
+                font_size=rounded(caption.block.font_size),
+                line_height=rounded(caption.block.line_height),
+                italic=caption.kind.is_italic,
+                speaker=caption.speaker,
+            )
+            for caption in layout.captions
         ),
     )
     return CompileResult(core=core, camera=camera, placements=placements, posed=posed)

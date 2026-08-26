@@ -11,9 +11,9 @@ byte-identical across platforms, whose float repr differs in the last digit.
 import math
 from xml.sax.saxutils import escape, quoteattr
 
-from scenet.core import CoreActor, CoreBalloon, PanelCore, Tail
+from scenet.core import CoreActor, CoreBalloon, CoreCaption, PanelCore, Tail
 from scenet.ir import BalloonKind
-from scenet.solve.text import FontMetrics, load_metrics
+from scenet.solve.text import ITALIC_FONT_PATH, FontMetrics, load_metrics
 
 STROKE = "#111111"
 FILL_FIGURE = "#e8e6e1"
@@ -28,6 +28,8 @@ BALLOON_CORNER = 0.42
 
 # Half-width of a tail where it meets the balloon, as a fraction of balloon height.
 TAIL_BASE_FRACTION = 0.18
+
+CAPTION_STROKE_WIDTH = 2.5
 
 
 def fmt(value: float) -> str:
@@ -65,8 +67,17 @@ def render(
     for actor in sorted(core.actors, key=lambda a: (a.depth, a.id)):
         parts.append(_render_actor(actor))
 
-    for balloon in sorted(core.balloons, key=lambda b: b.order):
-        parts.append(_render_balloon(balloon, metrics, live_text=live_text))
+    # Balloons and captions sit above the figures and share one reading order, so they
+    # are emitted as one sequence rather than one layer stacked on the other.
+    italic = load_metrics(str(ITALIC_FONT_PATH)) if core.captions else metrics
+    lettering = sorted([*core.balloons, *core.captions], key=lambda item: item.order)
+    for item in lettering:
+        if isinstance(item, CoreCaption):
+            parts.append(
+                _render_caption(item, italic if item.italic else metrics, live_text=live_text)
+            )
+        else:
+            parts.append(_render_balloon(item, metrics, live_text=live_text))
 
     parts.append("  </g>")
     parts.append(
@@ -158,6 +169,42 @@ def _render_balloon(balloon: CoreBalloon, metrics: FontMetrics, *, live_text: bo
             _live_text(text, start_x, baseline, balloon.font_size)
             if live_text
             else _outlined_text(text, start_x, baseline, balloon.font_size, metrics)
+        )
+
+    lines.append("    </g>")
+    return "\n".join(lines)
+
+
+def _render_caption(caption: CoreCaption, metrics: FontMetrics, *, live_text: bool) -> str:
+    """A caption box: a plain rectangle with its text set flush left.
+
+    Square corners, because a caption is a box and not a balloon -- rounding it would
+    read as a speech balloon that had lost its tail.
+
+    Left alignment is a **convention**, not a rule the way reading order is. Multiple
+    lettering references describe it as the norm while calling it a house preference,
+    so it is implemented as the default and recorded as a choice. It is also the one
+    place captions deliberately differ from balloons, which centre their text.
+    """
+    box = caption.box
+    lines = [f"    <g id={attr('caption-' + caption.id)}>"]
+    lines.append(
+        f'      <rect x="{fmt(box.x)}" y="{fmt(box.y)}" width="{fmt(box.width)}" '
+        f'height="{fmt(box.height)}" fill="{FILL_BALLOON}" stroke="{STROKE}" '
+        f'stroke-width="{fmt(CAPTION_STROKE_WIDTH)}"/>'
+    )
+
+    # Padding is derived from the box the solver produced rather than restated as a
+    # constant here, so the emitter cannot drift out of agreement with it. The box was
+    # padded equally on both axes, so the vertical inset gives the horizontal one too.
+    padding = (box.height - len(caption.lines) * caption.line_height) / 2
+    ascent = caption.font_size * 0.74
+    for index, text in enumerate(caption.lines):
+        baseline = box.y + padding + index * caption.line_height + ascent
+        lines.append(
+            _live_text(text, box.x + padding, baseline, caption.font_size, italic=caption.italic)
+            if live_text
+            else _outlined_text(text, box.x + padding, baseline, caption.font_size, metrics)
         )
 
     lines.append("    </g>")
@@ -275,14 +322,17 @@ def _outlined_text(
     return "\n".join(glyphs)
 
 
-def _live_text(text: str, x: float, baseline: float, font_size: float) -> str:
+def _live_text(
+    text: str, x: float, baseline: float, font_size: float, *, italic: bool = False
+) -> str:
     """Lettering as a real `<text>` element.
 
     Selectable and editable, at the cost of depending on the reader having a
     metrically compatible font. Offered as an option, never the default.
     """
+    style = ' font-style="italic"' if italic else ""
     return (
         f'      <text x="{fmt(x)}" y="{fmt(baseline)}" font-size="{fmt(font_size)}" '
-        f'font-family="Source Sans Pro, sans-serif" fill="{STROKE}" '
+        f'font-family="Source Sans Pro, sans-serif"{style} fill="{STROKE}" '
         f'stroke="none">{escape(text)}</text>'
     )

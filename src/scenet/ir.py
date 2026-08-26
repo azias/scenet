@@ -10,7 +10,7 @@ wrong picture.
 """
 
 from enum import StrEnum
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -21,6 +21,8 @@ __all__ = [
     "BalloonKind",
     "CameraAngle",
     "CameraSpec",
+    "CaptionEvent",
+    "CaptionKind",
     "CastMember",
     "Facing",
     "PanelIR",
@@ -200,6 +202,46 @@ class BalloonKind(StrEnum):
     SHOUT = "shout"
 
 
+class CaptionKind(StrEnum):
+    """What a caption box is doing, which is how it gets set.
+
+    These four are the letterers' own vocabulary, taken from Blambot's *Comic Book
+    Grammar & Tradition* rather than invented -- for the same reason the predicates
+    were taken from Visual Genome. Note that "narration", the obvious guess, is not
+    among them.
+
+    | Kind | What it is | How it is set |
+    |---|---|---|
+    | `locale` | Location and time -- "Midnight. The docks." | Italic |
+    | `monologue` | A character's inner voice | Italic |
+    | `spoken` | Off-panel dialogue | Roman, in quotation marks |
+    | `editorial` | The voice of the writer or editor | Italic |
+
+    `monologue` has largely replaced the thought balloon in modern comics, so a panel
+    has two ways to render an inner voice: this and
+    :attr:`BalloonKind.THOUGHT <scenet.ir.BalloonKind>`. Both are correct. They are
+    different eras of the same convention, not a duplication.
+    """
+
+    LOCALE = "locale"
+    MONOLOGUE = "monologue"
+    SPOKEN = "spoken"
+    EDITORIAL = "editorial"
+
+    @property
+    def is_italic(self) -> bool:
+        """Whether this kind is set in italic. Everything except `spoken`."""
+        return self is not CaptionKind.SPOKEN
+
+    @property
+    def is_quoted(self) -> bool:
+        """Whether this kind takes quotation marks.
+
+        `spoken` only, because it is the one kind where somebody is talking.
+        """
+        return self is CaptionKind.SPOKEN
+
+
 class PanelSpec(Strict):
     """The panel's own dimensions.
 
@@ -331,6 +373,9 @@ class SayEvent(Strict):
     """One line of dialogue.
 
     Attributes:
+        verb: Always `say`. The tag the surface syntax writes as `- say: {...}`,
+            carried into the model so that a script entry knows which sort of event it
+            is without the frontend having to remember.
         by: Actor id of the speaker; must be in the cast.
         text: What is said. Line breaking is the compiler's job, so write it as one
             string and do not insert newlines yourself.
@@ -342,10 +387,74 @@ class SayEvent(Strict):
     these and you reorder the panel.
     """
 
+    verb: Literal["say"] = "say"
     by: str
     text: str = Field(min_length=1)
     prefer: PlacementZone | None = None
     kind: BalloonKind = BalloonKind.SPEECH
+
+
+class CaptionEvent(Strict):
+    """One caption box: the panel speaking in its own voice.
+
+    A caption is what lets a panel say where and when it happens without a character
+    having to explain it out loud. `MIDNIGHT. THE DOCKS.` in the corner does the work
+    of an establishing shot with no artwork at all, which is how comics established
+    place long before they had reliable backgrounds.
+
+    Attributes:
+        verb: Always `caption`, written as `- caption: {...}`.
+        text: What the box says. As with dialogue, line breaking is computed.
+        kind: What the box is doing, which decides how it is set.
+        prefer: Where it would like to sit. Defaults to `top_left`, which is where a
+            `locale` caption conventionally goes.
+        by: Who is speaking, for a `spoken` caption only.
+
+    **A caption is not a fifth balloon kind.** It has no speaker to point at and no
+    tail, and :attr:`CoreBalloon.tail <scenet.core.CoreBalloon.tail>` is required -- a
+    fifth kind would mean inventing a speaker and leaving a field dead.
+
+    `by` is the one place where the rule that every actor id resolves does not hold,
+    and deliberately: an off-panel speaker is not in the panel, so requiring them to be
+    in the cast would defeat the point of saying they are off panel.
+
+    Example:
+        >>> from scenet.ir import CaptionEvent
+        >>> CaptionEvent(text="Midnight. The docks.").kind.value
+        'locale'
+    """
+
+    verb: Literal["caption"] = "caption"
+    text: str = Field(min_length=1)
+    kind: CaptionKind = CaptionKind.LOCALE
+    prefer: PlacementZone = PlacementZone.TOP_LEFT
+    by: str | None = None
+
+    @model_validator(mode="after")
+    def check_speaker_is_meaningful(self) -> Self:
+        """Only an off-panel line has a speaker to name.
+
+        Returns:
+            The validated event.
+
+        Raises:
+            ValueError: `by` was given for a kind that has no speaker. A locale box
+                states a place; nobody says it, so naming who did is a mistake worth
+                reporting rather than a field to ignore.
+        """
+        if self.by is not None and not self.kind.is_quoted:
+            raise RuleViolationError(
+                f"only a 'spoken' caption may name a speaker, but this one is '{self.kind.value}'",
+                rule="caption-speaker",
+            )
+        return self
+
+
+#: One entry in a panel's script. Tagged by a defaulted literal rather than a pydantic
+#: discriminator: a discriminator requires the tag to be present in the input, which
+#: would break every caller that constructs `SayEvent(...)` directly. The default still
+#: produces an unambiguous `anyOf` in the generated JSON Schema.
+ScriptEvent = SayEvent | CaptionEvent
 
 
 class PanelIR(Strict):
@@ -362,7 +471,7 @@ class PanelIR(Strict):
         cast: Actor id to character. Declaration order is not significant; `staging`
             decides left-to-right order.
         staging: Spatial and attentional relations between actors.
-        script: Dialogue, in reading order.
+        script: Dialogue and captions, in reading order.
 
     Validation is strict and total: unknown keys are rejected, every actor id mentioned
     in `staging` or `script` must exist in `cast`, and the ordering relations must not
@@ -384,7 +493,7 @@ class PanelIR(Strict):
     camera: CameraSpec = CameraSpec()
     cast: dict[str, CastMember] = Field(default_factory=dict)
     staging: tuple[Relation, ...] = ()
-    script: tuple[SayEvent, ...] = ()
+    script: tuple[ScriptEvent, ...] = ()
 
     @model_validator(mode="after")
     def check_references_resolve(self) -> Self:
@@ -403,7 +512,12 @@ class PanelIR(Strict):
                         rule="unknown-actor",
                         loc=("staging", index),
                     )
+        # Captions are skipped rather than exempted by accident. A `spoken` caption's
+        # `by` names somebody *off panel*, so it is not in the cast by definition and
+        # checking it here would make the field impossible to use for what it is for.
         for index, event in enumerate(self.script):
+            if not isinstance(event, SayEvent):
+                continue
             if event.by not in known:
                 raise RuleViolationError(
                     f"script entry {index} is spoken by unknown actor '{event.by}'; "

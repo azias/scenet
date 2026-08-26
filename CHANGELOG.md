@@ -10,6 +10,36 @@ below 1.0 means.
 
 ## [Unreleased]
 
+### Added
+
+- **Captions.** A panel can now state where and when it happens without a character having
+  to explain it out loud, which is the thing writers are told not to do. `- caption: {text:
+  "Midnight. The docks."}` in YAML, `CAPTION: Midnight. The docks.` in a comic script.
+- **The four caption kinds are the letterers' own** — `locale`, `monologue`, `spoken` and
+  `editorial`, from Blambot's *Comic Book Grammar & Tradition* rather than invented, as the
+  predicates were taken from Visual Genome. Note for anyone who guessed otherwise:
+  "narration" is not one of them.
+- **Italic is a real face, not a skew.** The italic of the same family already shipped in a
+  declared dependency, so the three italic kinds are *measured* in the face they are drawn
+  in. A synthetic oblique would measure as the roman face and draw as neither, which is
+  exactly the disagreement between solver and emitter the lettering tier exists to prevent.
+- **Quotation marks are lettering, so the compiler applies them.** In a run of consecutive
+  `spoken` captions each opens with a quote and only the last one closes — Blambot's rule,
+  objective enough to test. They are added before measurement and carried through Panel Core
+  in `lines`; marks added by the emitter would not fit the box drawn for them.
+- **A caption may name an off-panel speaker.** `by` on a `spoken` caption is the one place
+  in the language where an actor id is allowed not to resolve, and deliberately: somebody
+  off panel is not in the cast, which is the whole point of saying they are off panel.
+- **`PanelCore.captions`**, and a sixteenth gallery example.
+
+### Changed
+
+- **Balloons and captions are placed in one pass, sharing one reading order.** `order` now
+  counts across both, so a caption written between two lines of dialogue takes the number
+  between theirs. Placing every caption first would have been simpler and wrong — a caption
+  written last would have imposed reading order on the balloons before it. Panels without
+  captions are unaffected, which is why the Core format version did not move.
+
 ## [0.3.0] - 2026-08-26
 
 Diagnostics a machine can read, and the deploy that had quietly been failing for a week.

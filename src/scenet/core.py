@@ -15,7 +15,7 @@ from typing import Any, Self
 from pydantic import BaseModel, ConfigDict
 
 from scenet.geom import PRECISION, BBox, Circle, Point, Vector, rounded
-from scenet.ir import BalloonKind
+from scenet.ir import BalloonKind, CaptionKind
 
 CORE_FORMAT_VERSION = 1
 
@@ -238,6 +238,42 @@ class CoreBalloon(CoreModel):
     tail: Tail
 
 
+class CoreCaption(CoreModel):
+    """One caption box, placed and with its lettering already broken into lines.
+
+    Attributes:
+        id: Stable identifier, `c0`, `c1`, ... in the order the captions appear.
+        order: Position in the panel's reading order. Captions and balloons share one
+            sequence, so a caption written between two lines of dialogue takes the
+            number between theirs.
+        kind: What the box is doing, which is what decides how it is set.
+        box: Where it sits.
+        lines: The **resolved** line breaking, quotation marks included. A `spoken`
+            caption's quotes are part of the text by the time it reaches here, because
+            marks added after measurement would not fit the box drawn for them.
+        font_size: Type size in panel units.
+        line_height: Baseline-to-baseline distance in panel units.
+        italic: Whether the lettering is set in the italic face. Recorded rather than
+            re-derived from `kind` so the emitter cannot draw the box in a face the
+            solver did not measure it in.
+        speaker: Who is talking, for a `spoken` caption. **Not an actor id**: the
+            speaker is off panel, so this resolves to nobody in `actors`.
+
+    There is no tail. That is the difference that makes this its own type rather than
+    a fifth :class:`BalloonKind <scenet.ir.BalloonKind>`.
+    """
+
+    id: str
+    order: int
+    kind: CaptionKind
+    box: Box
+    lines: tuple[str, ...]
+    font_size: float
+    line_height: float
+    italic: bool
+    speaker: str | None = None
+
+
 class PanelCore(CoreModel):
     """A fully resolved panel: numeric, named, and ready to emit.
 
@@ -255,6 +291,8 @@ class PanelCore(CoreModel):
         height: Panel height in panel units.
         actors: Resolved characters, in declaration order.
         balloons: Resolved balloons, in reading order.
+        captions: Resolved caption boxes, in reading order. Balloons and captions
+            share one `order` sequence, since the reader takes them in one sequence.
 
     Golden-file tests target this tier rather than the SVG, because it changes only when
     the layout genuinely changes. Diffing SVG text is brittle -- a reordered attribute or
@@ -276,6 +314,7 @@ class PanelCore(CoreModel):
     height: float
     actors: tuple[CoreActor, ...] = ()
     balloons: tuple[CoreBalloon, ...] = ()
+    captions: tuple[CoreCaption, ...] = ()
 
     @property
     def bounds(self) -> BBox:
@@ -353,6 +392,7 @@ __all__ = [
     "Capsule",
     "CoreActor",
     "CoreBalloon",
+    "CoreCaption",
     "Disc",
     "PanelCore",
     "Tail",

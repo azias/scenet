@@ -26,8 +26,8 @@ going straight to pixels. The same split pays for itself here, in four ways:
 
 - **Fully numeric.** Every position, size and scale is an absolute number in panel units. No
   `left_third`, no `medium_shot` — those are resolved away.
-- **Still named.** Actors, balloons and anchors keep their source identifiers, so a Core file is
-  readable and diffable. This is what separates it from SVG.
+- **Still named.** Actors, balloons, captions and anchors keep their source identifiers, so a Core
+  file is readable and diffable. This is what separates it from SVG.
 - **Deterministic.** Floats are rounded to a fixed precision on emission, so identical input yields
   byte-identical Core output on any platform.
 
@@ -52,10 +52,20 @@ going straight to pixels. The same split pays for itself here, in four ways:
     {
       "id": "b0",
       "speaker": "alice",
-      "order": 0,
+      "order": 1,
       "box": { "x": 60.0, "y": 55.0, "width": 330.0, "height": 118.0 },
       "lines": ["You forgot your", "umbrella!"],
       "tail": { "kind": "straight", "from": [225.0, 173.0], "to": [263.1, 268.4] }
+    }
+  ],
+  "captions": [
+    {
+      "id": "c0",
+      "order": 0,
+      "kind": "locale",
+      "box": { "x": 19.0, "y": 19.0, "width": 147.0, "height": 96.0 },
+      "lines": ["Midnight.", "The docks."],
+      "italic": true
     }
   ]
 }
@@ -63,4 +73,13 @@ going straight to pixels. The same split pays for itself here, in four ways:
 
 `lines` is the *resolved* line breaking, not the source string. Wrapping is decided during
 compilation using real font metrics, so the emitter never re-measures and never disagrees with the
-solver about how wide a balloon needs to be.
+solver about how wide a balloon needs to be. For a `spoken` caption the quotation marks are part of
+those lines for the same reason: marks added afterwards would not fit the box drawn for them.
+
+`italic` is recorded rather than re-derived from `kind`, so the emitter cannot draw a box in a face
+the solver did not measure it in.
+
+**`order` is one sequence across both lists.** Balloons and captions are placed in a single pass in
+script order, so a caption between two lines of dialogue takes the number between theirs and a
+balloon list can have gaps in it. A panel with no captions is unaffected, which is why this did not
+need a `format_version` bump.

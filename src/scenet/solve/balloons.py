@@ -1,4 +1,4 @@
-"""Balloon placement and tail routing.
+"""Placing everything in a panel that carries words: balloons, captions, and tails.
 
 Placement is a scored search over candidate positions rather than a sweep of a cost
 grid. Balloons belong in a small number of sensible places relative to their speaker
@@ -6,10 +6,21 @@ grid. Balloons belong in a small number of sensible places relative to their spe
 cheaper than scanning cells and produces more natural results. This is the approach
 used in the cartographic label-placement literature, which is the same problem.
 
-The constraint that naive implementations miss is **reading order**. A balloon may
-never sit above-and-left of the one before it in the script, because that makes the
-panel read in the wrong order. That is a correctness bug in a comic, not a cosmetic
-one, so it is enforced as a hard filter rather than scored.
+The constraint that naive implementations miss is **reading order**. A box may never
+sit above-and-left of the one before it in the script, because that makes the panel
+read in the wrong order. That is a correctness bug in a comic, not a cosmetic one, so
+it is enforced as a hard filter rather than scored.
+
+Captions go through this machinery rather than a parallel one. The placement
+principles the lettering references give for floating text -- keep off the important
+figures, preserve the space of the art, keep the reading order flowing -- are the ones
+already implemented here. What differs is where a caption *wants* to be: a balloon
+mildly dislikes hugging the panel edge, and a caption is looking for exactly that.
+
+So the two are placed in **one pass in script order**, sharing the list of boxes
+already down. Placing every caption first would be simpler and wrong: a caption
+written after the dialogue would then impose reading order on balloons that precede
+it.
 """
 
 import math
@@ -21,8 +32,15 @@ from shapely.geometry import Polygon, box
 from scenet.assets.kinematics import ResolvedPuppet
 from scenet.errors import BalloonPlacementError
 from scenet.geom import BBox, Circle, Point, segment_intersects_circle
-from scenet.ir import BalloonKind, PlacementZone, SayEvent
-from scenet.solve.text import FontMetrics, TextBlock, balloon_size, layout_text
+from scenet.ir import BalloonKind, CaptionEvent, CaptionKind, PlacementZone, SayEvent, ScriptEvent
+from scenet.solve.text import (
+    ITALIC_FONT_PATH,
+    FontMetrics,
+    TextBlock,
+    balloon_size,
+    layout_text,
+    load_metrics,
+)
 
 # Candidate ring around the speaker's head.
 RING_DIRECTIONS = 16
@@ -43,6 +61,25 @@ FONT_SIZE_FRACTION = 0.035
 
 # How far along a gaze direction the character is considered to be looking.
 GAZE_REACH_FACTOR = 3.0
+
+# Caption lettering runs slightly smaller than dialogue: a caption is the panel's own
+# voice rather than someone speaking, and setting it at dialogue size makes it compete
+# with the balloons instead of framing them.
+CAPTION_FONT_SIZE_FRACTION = 0.030
+
+# A caption box holds its text more tightly than a balloon does. A balloon's padding is
+# generous because the outline is a curve pulling away from the text at the corners; a
+# rectangle does not, so the same padding would look slack.
+CAPTION_PADDING_FACTOR = 0.42
+
+# How strongly a caption is drawn to the panel edge. The opposite sign to `W_EDGE`:
+# tucking into a corner is where a caption belongs, not a compromise it settles for.
+W_CAPTION_EDGE = 1.1
+
+# Quotation marks for a `spoken` caption. Applied here rather than in the emitter --
+# characters added after measurement would not fit the box drawn for them.
+OPENING_QUOTE = "“"
+CLOSING_QUOTE = "”"
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +127,45 @@ class PlacedBalloon:
     tail: TailRoute
 
 
+@dataclass(frozen=True, slots=True)
+class PlacedCaption:
+    """One caption after placement, before it is reduced to a Core document.
+
+    Attributes:
+        id: Stable identifier, `c0`, `c1`, ... in the order the captions appear.
+        order: Position in the panel's reading order, which captions share with
+            balloons -- so a caption between two lines of dialogue takes the number
+            between theirs.
+        kind: What the box is doing, which decides how it is set.
+        box: Where it ended up.
+        block: The text, already quoted where the kind calls for it, broken into lines
+            and measured against the face it will be drawn in.
+        speaker: Who is talking, for a `spoken` caption. They are off panel, so this
+            is not an actor id and resolves to nobody in the cast.
+
+    There is no tail, which is the reason this is not a fifth `BalloonKind`.
+    """
+
+    id: str
+    order: int
+    kind: CaptionKind
+    box: BBox
+    block: TextBlock
+    speaker: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ScriptLayout:
+    """Everything in a panel that carries words, placed.
+
+    Two tuples rather than one merged sequence: they reduce to two different Core
+    types, and the thing that orders them -- `order` -- is on both.
+    """
+
+    captions: tuple[PlacedCaption, ...] = ()
+    balloons: tuple[PlacedBalloon, ...] = ()
+
+
 def _hull_polygon(actor: ResolvedPuppet) -> Polygon:
     return Polygon([(point.x, point.y) for point in actor.hull])
 
@@ -127,6 +203,33 @@ def _candidate_positions(
     ):
         candidates.append(BBox(corner_x, corner_y, width, height))
 
+    return candidates
+
+
+def _caption_positions(size: tuple[float, float], panel: BBox) -> list[BBox]:
+    """Positions worth evaluating for a caption of this size.
+
+    One per :class:`PlacementZone <scenet.ir.PlacementZone>`, with the outer zones
+    snapped flat against the panel edge rather than floated at the zone's centre.
+    Derived from the enum rather than hand-listed, so a zone that becomes expressible
+    in the language is a zone a caption can actually reach.
+    """
+    width, height = size
+    inset = min(panel.width, panel.height) * 0.02
+    across = {
+        "left": panel.x + inset,
+        "center": panel.x + (panel.width - width) / 2,
+        "right": panel.right - inset - width,
+    }
+    down = {
+        "top": panel.y + inset,
+        "middle": panel.y + (panel.height - height) / 2,
+        "bottom": panel.bottom - inset - height,
+    }
+    candidates: list[BBox] = []
+    for zone in PlacementZone:
+        vertical, horizontal = zone.value.split("_")
+        candidates.append(BBox(across[horizontal], down[vertical], width, height))
     return candidates
 
 
@@ -180,6 +283,49 @@ def _reading_order_allows(placed: Sequence[BBox], candidate: BBox) -> bool:
     )
 
 
+def _is_legal(
+    candidate: BBox, actors: dict[str, ResolvedPuppet], panel: BBox, placed: list[BBox]
+) -> bool:
+    """The hard rules, which apply to anything carrying words.
+
+    A box over a face is never acceptable whatever else it has going for it, a box
+    outside the panel is not a box, and two overlapping boxes make both unreadable.
+    """
+    if not panel.contains(candidate):
+        return False
+    if any(candidate.intersects_circle(actor.face) for actor in actors.values()):
+        return False
+    return all(candidate.overlap_area(existing) == 0 for existing in placed)
+
+
+def _occlusion_cost(candidate: BBox, hulls: dict[str, Polygon], forgive: str | None) -> float:
+    """How much silhouette this box covers, normalised by its own area.
+
+    `forgive` names an actor whose silhouette is half-weighted -- a balloon resting on
+    its own speaker's shoulder reads naturally in a way that covering a bystander does
+    not. A caption has no speaker, so it forgives nobody.
+    """
+    area = max(candidate.area, 1.0)
+    shape = box(candidate.x, candidate.y, candidate.right, candidate.bottom)
+    cost = 0.0
+    for actor_id, hull in hulls.items():
+        overlap = shape.intersection(hull).area
+        if overlap:
+            weight = 0.5 if actor_id == forgive else 1.0
+            cost += W_OCCLUSION * weight * overlap / area
+    return cost
+
+
+def _edge_slack(candidate: BBox, panel: BBox) -> float:
+    """Distance from the box to the nearest panel edge."""
+    return min(
+        candidate.x - panel.x,
+        candidate.y - panel.y,
+        panel.right - candidate.right,
+        panel.bottom - candidate.bottom,
+    )
+
+
 def _score(
     candidate: BBox,
     *,
@@ -191,30 +337,10 @@ def _score(
     placed: list[BBox],
 ) -> float:
     """Cost of putting a balloon here. Lower is better; infinity means illegal."""
-    if not panel.contains(candidate):
+    if not _is_legal(candidate, actors, panel, placed):
         return math.inf
 
-    # A balloon over a face is never acceptable, whatever else it has going for it.
-    for actor in actors.values():
-        if candidate.intersects_circle(actor.face):
-            return math.inf
-
-    # Balloons must not overlap each other, or the lettering becomes unreadable.
-    for existing in placed:
-        if candidate.overlap_area(existing) > 0:
-            return math.inf
-
-    area = max(candidate.area, 1.0)
-    shape = box(candidate.x, candidate.y, candidate.right, candidate.bottom)
-
-    cost = 0.0
-    for actor_id, hull in hulls.items():
-        overlap = shape.intersection(hull).area
-        if overlap:
-            # Covering the speaker is more forgivable than covering someone else: a
-            # balloon resting on its own speaker's shoulder reads naturally.
-            weight = 0.5 if actor_id == speaker.name else 1.0
-            cost += W_OCCLUSION * weight * overlap / area
+    cost = _occlusion_cost(candidate, hulls, speaker.name)
 
     diagonal = math.hypot(panel.width, panel.height)
     mouth = speaker.anchors.get("mouth", speaker.face.centre)
@@ -230,13 +356,46 @@ def _score(
         if _blocks_gaze(candidate, actor, reach):
             cost += W_GAZE_BLOCKING
 
-    edge_slack = min(
-        candidate.x - panel.x,
-        candidate.y - panel.y,
-        panel.right - candidate.right,
-        panel.bottom - candidate.bottom,
-    )
-    cost += W_EDGE * max(0.0, 1.0 - edge_slack / (diagonal * 0.05))
+    cost += W_EDGE * max(0.0, 1.0 - _edge_slack(candidate, panel) / (diagonal * 0.05))
+
+    return cost
+
+
+def _score_caption(
+    candidate: BBox,
+    *,
+    actors: dict[str, ResolvedPuppet],
+    hulls: dict[str, Polygon],
+    panel: BBox,
+    prefer: PlacementZone,
+    placed: list[BBox],
+) -> float:
+    """Cost of putting a caption here. Lower is better; infinity means illegal.
+
+    The same hard rules as a balloon, and two differences in the soft ones. There is
+    no mouth to stay near, because a caption has no speaker in the panel. And the edge
+    term is reversed: a balloon floating against the frame looks stranded, while a
+    caption tucked into the corner is doing what a caption is for.
+    """
+    if not _is_legal(candidate, actors, panel, placed):
+        return math.inf
+
+    cost = _occlusion_cost(candidate, hulls, None)
+
+    diagonal = math.hypot(panel.width, panel.height)
+    across, down = prefer.fractions
+    target = Point(panel.x + panel.width * across, panel.y + panel.height * down)
+    cost += W_PREFERRED_ZONE * (candidate.centre.distance_to(target) / diagonal)
+
+    # Reach is taken from the largest face in the panel rather than a speaker's, since
+    # a caption has none. It is the conservative choice: the longest sight line any
+    # character in this panel has.
+    reach = max((actor.face.r for actor in actors.values()), default=0.0) * GAZE_REACH_FACTOR
+    for actor in actors.values():
+        if _blocks_gaze(candidate, actor, reach):
+            cost += W_GAZE_BLOCKING
+
+    cost += W_CAPTION_EDGE * min(1.0, _edge_slack(candidate, panel) / (diagonal * 0.05))
 
     return cost
 
@@ -334,75 +493,238 @@ def _rim_point(balloon: BBox, toward: Point) -> Point:
     return centre.translated(dx * scale, dy * scale)
 
 
-def place_balloons(
-    events: tuple[SayEvent, ...],
+def caption_text(events: Sequence[ScriptEvent], index: int) -> str:
+    """The text of a caption, with quotation marks where the kind calls for them.
+
+    Blambot's rule for a run of spoken captions: an opening quote on each, a closing
+    quote **only on the last**. Consecutive boxes are one continuous line of off-panel
+    speech, and closing each of them would read as four separate interruptions.
+
+    Applied here, before measurement, and carried through Panel Core as part of the
+    resolved lines. Adding the marks in the emitter would make the text wider than the
+    box that was drawn for it.
+
+    Args:
+        events: The whole script, because whether this caption closes depends on what
+            follows it.
+        index: Which entry to render.
+
+    Returns:
+        The text to letter.
+
+    Example:
+        >>> from scenet.ir import CaptionEvent, CaptionKind
+        >>> from scenet.solve.balloons import caption_text
+        >>> run = (
+        ...     CaptionEvent(text="Get down!", kind=CaptionKind.SPOKEN),
+        ...     CaptionEvent(text="All of you!", kind=CaptionKind.SPOKEN),
+        ... )
+        >>> caption_text(run, 0).endswith("”")
+        False
+        >>> caption_text(run, 1).endswith("”")
+        True
+    """
+    event = events[index]
+    if not isinstance(event, CaptionEvent) or not event.kind.is_quoted:
+        return events[index].text
+
+    following = events[index + 1] if index + 1 < len(events) else None
+    continues = isinstance(following, CaptionEvent) and following.kind.is_quoted
+    return OPENING_QUOTE + event.text + ("" if continues else CLOSING_QUOTE)
+
+
+def place_script(
+    events: Sequence[ScriptEvent],
     actors: dict[str, ResolvedPuppet],
     panel: BBox,
     *,
     metrics: FontMetrics | None = None,
+    italic_metrics: FontMetrics | None = None,
     font_size: float | None = None,
-) -> tuple[PlacedBalloon, ...]:
-    """Place every balloon in script order.
+) -> ScriptLayout:
+    """Place every balloon and caption, in script order.
 
-    Greedy rather than jointly optimised: each balloon is placed against those already
-    down, which is exactly how reading order works -- a balloon constrains its
-    successor, never its predecessor. That makes the greedy pass the natural
-    formulation rather than a compromise.
+    Greedy rather than jointly optimised: each box is placed against those already
+    down, which is exactly how reading order works -- a box constrains its successor,
+    never its predecessor. That makes the greedy pass the natural formulation rather
+    than a compromise.
+
+    One pass over the whole script, not captions and then balloons. The two share the
+    list of boxes already placed, so a caption written between two lines of dialogue
+    is read between them.
+
+    Args:
+        events: The panel's script, in reading order.
+        actors: Resolved puppets, keyed by actor id.
+        panel: The rectangle to compose within, margins already applied.
+        metrics: Font to measure roman lettering against.
+        italic_metrics: Font to measure italic captions against. Defaults to the
+            italic face of the same family.
+        font_size: Override for dialogue size, in panel units.
+
+    Returns:
+        Everything that carries words, placed.
+
+    Raises:
+        BalloonPlacementError: Some box had no legal position anywhere in the panel.
     """
     if not events:
-        return ()
+        return ScriptLayout()
 
     size = font_size if font_size is not None else panel.height * FONT_SIZE_FRACTION
+    caption_size = font_size if font_size is not None else panel.height * CAPTION_FONT_SIZE_FRACTION
     hulls = {actor_id: _hull_polygon(actor) for actor_id, actor in actors.items()}
     faces = [actor.face for actor in actors.values()]
 
     placed: list[BBox] = []
-    results: list[PlacedBalloon] = []
+    captions: list[PlacedCaption] = []
+    balloons: list[PlacedBalloon] = []
 
     for order, event in enumerate(events):
-        speaker = actors[event.by]
-        block = layout_text(event.text, font_size=size, metrics=metrics)
-        balloon_box = balloon_size(block)
+        if isinstance(event, CaptionEvent):
+            captions.append(
+                _place_caption(
+                    event,
+                    text=caption_text(events, order),
+                    identifier=f"c{len(captions)}",
+                    order=order,
+                    actors=actors,
+                    hulls=hulls,
+                    panel=panel,
+                    placed=placed,
+                    font_size=caption_size,
+                    metrics=metrics,
+                    italic_metrics=italic_metrics,
+                )
+            )
+            placed.append(captions[-1].box)
+            continue
 
-        best: BBox | None = None
-        best_cost = math.inf
-        for candidate in _candidate_positions(speaker, balloon_box, panel):
-            if not _reading_order_allows(placed, candidate):
-                continue
-            cost = _score(
-                candidate,
-                speaker=speaker,
+        balloons.append(
+            _place_balloon(
+                event,
+                identifier=f"b{len(balloons)}",
+                order=order,
                 actors=actors,
                 hulls=hulls,
+                faces=faces,
                 panel=panel,
-                prefer=event.prefer,
                 placed=placed,
-            )
-            if cost < best_cost:
-                best, best_cost = candidate, cost
-
-        if best is None:
-            raise BalloonPlacementError(
-                f"no legal position for balloon {order} spoken by '{event.by}': every "
-                "candidate either covered a face, left the panel, overlapped another "
-                "balloon, or broke reading order"
-            )
-
-        mouth = speaker.anchors.get("mouth", speaker.face.centre)
-        # A speaker's own face does not obstruct their own tail -- the tail is
-        # supposed to arrive there.
-        obstacles = [face for face in faces if face is not speaker.face]
-        results.append(
-            PlacedBalloon(
-                id=f"b{order}",
-                speaker=event.by,
-                order=order,
-                kind=event.kind,
-                box=best,
-                block=block,
-                tail=route_tail(best, mouth, obstacles, speaker_face=speaker.face),
+                font_size=size,
+                metrics=metrics,
             )
         )
-        placed.append(best)
+        placed.append(balloons[-1].box)
 
-    return tuple(results)
+    return ScriptLayout(captions=tuple(captions), balloons=tuple(balloons))
+
+
+def _place_balloon(
+    event: SayEvent,
+    *,
+    identifier: str,
+    order: int,
+    actors: dict[str, ResolvedPuppet],
+    hulls: dict[str, Polygon],
+    faces: list[Circle],
+    panel: BBox,
+    placed: list[BBox],
+    font_size: float,
+    metrics: FontMetrics | None,
+) -> PlacedBalloon:
+    """Choose a position for one balloon and route its tail."""
+    speaker = actors[event.by]
+    block = layout_text(event.text, font_size=font_size, metrics=metrics)
+    balloon_box = balloon_size(block)
+
+    best: BBox | None = None
+    best_cost = math.inf
+    for candidate in _candidate_positions(speaker, balloon_box, panel):
+        if not _reading_order_allows(placed, candidate):
+            continue
+        cost = _score(
+            candidate,
+            speaker=speaker,
+            actors=actors,
+            hulls=hulls,
+            panel=panel,
+            prefer=event.prefer,
+            placed=placed,
+        )
+        if cost < best_cost:
+            best, best_cost = candidate, cost
+
+    if best is None:
+        raise BalloonPlacementError(
+            f"no legal position for balloon {order} spoken by '{event.by}': every "
+            "candidate either covered a face, left the panel, overlapped another "
+            "balloon, or broke reading order"
+        )
+
+    mouth = speaker.anchors.get("mouth", speaker.face.centre)
+    # A speaker's own face does not obstruct their own tail -- the tail is
+    # supposed to arrive there.
+    obstacles = [face for face in faces if face is not speaker.face]
+    return PlacedBalloon(
+        id=identifier,
+        speaker=event.by,
+        order=order,
+        kind=event.kind,
+        box=best,
+        block=block,
+        tail=route_tail(best, mouth, obstacles, speaker_face=speaker.face),
+    )
+
+
+def _place_caption(
+    event: CaptionEvent,
+    *,
+    text: str,
+    identifier: str,
+    order: int,
+    actors: dict[str, ResolvedPuppet],
+    hulls: dict[str, Polygon],
+    panel: BBox,
+    placed: list[BBox],
+    font_size: float,
+    metrics: FontMetrics | None,
+    italic_metrics: FontMetrics | None,
+) -> PlacedCaption:
+    """Choose a position for one caption.
+
+    The face it is measured against is the face it will be drawn in, which is the
+    whole reason the italic kinds use a real italic file rather than a skew.
+    """
+    if event.kind.is_italic:
+        face = italic_metrics or load_metrics(str(ITALIC_FONT_PATH))
+    else:
+        face = metrics or load_metrics()
+
+    block = layout_text(text, font_size=font_size, metrics=face)
+    caption_box = balloon_size(block, CAPTION_PADDING_FACTOR)
+
+    best: BBox | None = None
+    best_cost = math.inf
+    for candidate in _caption_positions(caption_box, panel):
+        if not _reading_order_allows(placed, candidate):
+            continue
+        cost = _score_caption(
+            candidate,
+            actors=actors,
+            hulls=hulls,
+            panel=panel,
+            prefer=event.prefer,
+            placed=placed,
+        )
+        if cost < best_cost:
+            best, best_cost = candidate, cost
+
+    if best is None:
+        raise BalloonPlacementError(
+            f"no legal position for caption {order}: every candidate either covered a "
+            "face, left the panel, overlapped another box, or broke reading order"
+        )
+
+    return PlacedCaption(
+        id=identifier, order=order, kind=event.kind, box=best, block=block, speaker=event.by
+    )

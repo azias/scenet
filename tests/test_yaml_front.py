@@ -10,7 +10,15 @@ import pytest
 
 from scenet.frontends.common import parse_relation
 from scenet.frontends.yaml_front import PanelSyntaxError, load_panel, parse_panel
-from scenet.ir import BalloonKind, PlacementZone, Predicate, ShotType
+from scenet.ir import (
+    BalloonKind,
+    CaptionEvent,
+    CaptionKind,
+    PlacementZone,
+    Predicate,
+    SayEvent,
+    ShotType,
+)
 
 MINIMAL = """
 cast:
@@ -91,6 +99,50 @@ cast:
 script:
   - sing: {by: alice, text: "la"}
 """)
+
+    def test_the_unknown_verb_message_lists_every_verb(self):
+        with pytest.raises(PanelSyntaxError, match="caption, say"):
+            parse_panel("""
+cast:
+  alice: {reference: alice}
+script:
+  - sing: {by: alice, text: "la"}
+""")
+
+    def test_captions_are_parsed(self):
+        panel = parse_panel("""
+cast:
+  alice: {reference: alice}
+script:
+  - caption: {text: "Midnight. The docks.", kind: locale, prefer: top_left}
+""")
+        event = panel.script[0]
+        assert isinstance(event, CaptionEvent)
+        assert event.text == "Midnight. The docks."
+        assert event.kind is CaptionKind.LOCALE
+
+    def test_the_verb_decides_the_event_type(self):
+        """The surface tag is injected rather than discarded, so a mapping that could
+        satisfy either model is never resolved by guesswork."""
+        panel = parse_panel("""
+cast:
+  alice: {reference: alice}
+script:
+  - caption: {text: "Midnight."}
+  - say: {by: alice, text: "Hello."}
+""")
+        assert [type(event) for event in panel.script] == [CaptionEvent, SayEvent]
+
+    def test_a_caption_may_be_interleaved_with_dialogue(self):
+        panel = parse_panel("""
+cast:
+  alice: {reference: alice}
+script:
+  - say: {by: alice, text: "Hello."}
+  - caption: {text: "Later.", kind: editorial}
+  - say: {by: alice, text: "Still here."}
+""")
+        assert [event.text for event in panel.script] == ["Hello.", "Later.", "Still here."]
 
     def test_multi_key_script_entry_is_rejected(self):
         """Two verbs in one entry is ambiguous about ordering, so it is refused

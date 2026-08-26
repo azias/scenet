@@ -220,12 +220,16 @@ class LayoutError(SolverError):
 
 
 class BalloonPlacementError(SolverError):
-    """No legal position exists for a balloon.
+    """No legal position exists for a balloon or a caption.
 
     Every candidate position was rejected: it covered a face, left the panel,
-    overlapped a balloon already placed, or would have broken reading order. Usually
-    this means too much dialogue for the panel size -- widen the panel, shorten the
-    line, or split it across two panels.
+    overlapped a box already placed, or would have broken reading order. Usually this
+    means too many words for the panel size -- widen the panel, shorten the line, or
+    split it across two panels.
+
+    Captions raise this too. They obey the same hard rules and are placed in the same
+    pass, so the failure is the same failure; the name is kept because the rule id
+    `balloon-placement` is stable across releases.
     """
 
 

@@ -18,6 +18,7 @@ import yaml
 from scenet import (
     BalloonKind,
     CameraAngle,
+    CaptionKind,
     PlacementZone,
     Predicate,
     ShotType,
@@ -106,6 +107,11 @@ class TestTheGalleryCoversTheLanguage:
     def test_every_balloon_kind_appears(self):
         text = self._all_text()
         missing = [kind.value for kind in BalloonKind if kind.value not in text]
+        assert missing == []
+
+    def test_every_caption_kind_appears(self):
+        text = self._all_text()
+        missing = [kind.value for kind in CaptionKind if kind.value not in text]
         assert missing == []
 
     def test_every_predicate_appears(self):

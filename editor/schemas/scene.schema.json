@@ -49,6 +49,59 @@
       "title": "CameraSpec",
       "type": "object"
     },
+    "CaptionEvent": {
+      "additionalProperties": false,
+      "description": "One caption box: the panel speaking in its own voice.\n\nA caption is what lets a panel say where and when it happens without a character\nhaving to explain it out loud. `MIDNIGHT. THE DOCKS.` in the corner does the work\nof an establishing shot with no artwork at all, which is how comics established\nplace long before they had reliable backgrounds.\n\nAttributes:\n    verb: Always `caption`, written as `- caption: {...}`.\n    text: What the box says. As with dialogue, line breaking is computed.\n    kind: What the box is doing, which decides how it is set.\n    prefer: Where it would like to sit. Defaults to `top_left`, which is where a\n        `locale` caption conventionally goes.\n    by: Who is speaking, for a `spoken` caption only.\n\n**A caption is not a fifth balloon kind.** It has no speaker to point at and no\ntail, and :attr:`CoreBalloon.tail <scenet.core.CoreBalloon.tail>` is required -- a\nfifth kind would mean inventing a speaker and leaving a field dead.\n\n`by` is the one place where the rule that every actor id resolves does not hold,\nand deliberately: an off-panel speaker is not in the panel, so requiring them to be\nin the cast would defeat the point of saying they are off panel.\n\nExample:\n    >>> from scenet.ir import CaptionEvent\n    >>> CaptionEvent(text=\"Midnight. The docks.\").kind.value\n    'locale'",
+      "properties": {
+        "by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "By"
+        },
+        "kind": {
+          "$ref": "#/$defs/CaptionKind",
+          "default": "locale"
+        },
+        "prefer": {
+          "$ref": "#/$defs/PlacementZone",
+          "default": "top_left"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "verb": {
+          "const": "caption",
+          "default": "caption",
+          "title": "Verb",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "CaptionEvent",
+      "type": "object"
+    },
+    "CaptionKind": {
+      "description": "What a caption box is doing, which is how it gets set.\n\nThese four are the letterers' own vocabulary, taken from Blambot's *Comic Book\nGrammar & Tradition* rather than invented -- for the same reason the predicates\nwere taken from Visual Genome. Note that \"narration\", the obvious guess, is not\namong them.\n\n| Kind | What it is | How it is set |\n|---|---|---|\n| `locale` | Location and time -- \"Midnight. The docks.\" | Italic |\n| `monologue` | A character's inner voice | Italic |\n| `spoken` | Off-panel dialogue | Roman, in quotation marks |\n| `editorial` | The voice of the writer or editor | Italic |\n\n`monologue` has largely replaced the thought balloon in modern comics, so a panel\nhas two ways to render an inner voice: this and\n:attr:`BalloonKind.THOUGHT <scenet.ir.BalloonKind>`. Both are correct. They are\ndifferent eras of the same convention, not a duplication.",
+      "enum": [
+        "locale",
+        "monologue",
+        "spoken",
+        "editorial"
+      ],
+      "title": "CaptionKind",
+      "type": "string"
+    },
     "CastMember": {
       "additionalProperties": false,
       "description": "One character present in the panel.\n\nAttributes:\n    reference: Name of a puppet in the library. This is what gets drawn; the key\n        this member is filed under in `cast` is the actor id used everywhere else.\n    pose: Named pose from that puppet's declared set.\n    at: Preferred horizontal anchor.\n    facing: Which way the figure is turned.\n\nThe split between actor id and `reference` is what lets one puppet appear twice in\na panel as two different people:\n\n    cast:\n      guard_left:  {reference: bob, pose: arms_crossed}\n      guard_right: {reference: bob, pose: standing_neutral, facing: left}",
@@ -173,7 +226,7 @@
     },
     "SayEvent": {
       "additionalProperties": false,
-      "description": "One line of dialogue.\n\nAttributes:\n    by: Actor id of the speaker; must be in the cast.\n    text: What is said. Line breaking is the compiler's job, so write it as one\n        string and do not insert newlines yourself.\n    prefer: Optional hint about where the balloon should sit. The weakest of all\n        the placement terms -- face avoidance and reading order override it.\n    kind: Which sort of balloon carries it.\n\nScript order **is** reading order, and reading order is a hard constraint. Reorder\nthese and you reorder the panel.",
+      "description": "One line of dialogue.\n\nAttributes:\n    verb: Always `say`. The tag the surface syntax writes as `- say: {...}`,\n        carried into the model so that a script entry knows which sort of event it\n        is without the frontend having to remember.\n    by: Actor id of the speaker; must be in the cast.\n    text: What is said. Line breaking is the compiler's job, so write it as one\n        string and do not insert newlines yourself.\n    prefer: Optional hint about where the balloon should sit. The weakest of all\n        the placement terms -- face avoidance and reading order override it.\n    kind: Which sort of balloon carries it.\n\nScript order **is** reading order, and reading order is a hard constraint. Reorder\nthese and you reorder the panel.",
       "properties": {
         "by": {
           "title": "By",
@@ -197,6 +250,12 @@
         "text": {
           "minLength": 1,
           "title": "Text",
+          "type": "string"
+        },
+        "verb": {
+          "const": "say",
+          "default": "say",
+          "title": "Verb",
           "type": "string"
         }
       },
@@ -255,7 +314,7 @@
     "panels": {
       "additionalProperties": {
         "additionalProperties": false,
-        "description": "A complete, validated panel: the language's real definition.\n\nEvery frontend produces one of these and nothing else, which is what lets the YAML\nsyntax and the comic-script syntax coexist without the solver knowing either exists.\n**Nothing here carries a coordinate** -- computing those is the solver's job, and\nkeeping them out is what makes a panel reusable at any size.\n\nAttributes:\n    panel: Dimensions and margin.\n    camera: Framing and angle.\n    cast: Actor id to character. Declaration order is not significant; `staging`\n        decides left-to-right order.\n    staging: Spatial and attentional relations between actors.\n    script: Dialogue, in reading order.\n\nValidation is strict and total: unknown keys are rejected, every actor id mentioned\nin `staging` or `script` must exist in `cast`, and the ordering relations must not\ncontain a cycle. A misspelled key that was silently ignored would produce a panel\nthat is subtly wrong with no indication of why, which for a language meant to be\nprecise is the worst possible failure.\n\nExample:\n    >>> from scenet import parse_panel\n    >>> panel = parse_panel(\"panel: {size: [800.0, 600.0]}\")\n    >>> panel.panel.width, panel.camera.shot.value\n    (800.0, 'medium_shot')\n\nSee Also:\n    :func:`compile_ir <scenet.pipeline.compile_ir>`, to turn one of these into geometry.",
+        "description": "A complete, validated panel: the language's real definition.\n\nEvery frontend produces one of these and nothing else, which is what lets the YAML\nsyntax and the comic-script syntax coexist without the solver knowing either exists.\n**Nothing here carries a coordinate** -- computing those is the solver's job, and\nkeeping them out is what makes a panel reusable at any size.\n\nAttributes:\n    panel: Dimensions and margin.\n    camera: Framing and angle.\n    cast: Actor id to character. Declaration order is not significant; `staging`\n        decides left-to-right order.\n    staging: Spatial and attentional relations between actors.\n    script: Dialogue and captions, in reading order.\n\nValidation is strict and total: unknown keys are rejected, every actor id mentioned\nin `staging` or `script` must exist in `cast`, and the ordering relations must not\ncontain a cycle. A misspelled key that was silently ignored would produce a panel\nthat is subtly wrong with no indication of why, which for a language meant to be\nprecise is the worst possible failure.\n\nExample:\n    >>> from scenet import parse_panel\n    >>> panel = parse_panel(\"panel: {size: [800.0, 600.0]}\")\n    >>> panel.panel.width, panel.camera.shot.value\n    (800.0, 'medium_shot')\n\nSee Also:\n    :func:`compile_ir <scenet.pipeline.compile_ir>`, to turn one of these into geometry.",
         "properties": {
           "camera": {
             "$ref": "#/$defs/CameraSpec",
@@ -288,7 +347,14 @@
           "script": {
             "default": [],
             "items": {
-              "$ref": "#/$defs/SayEvent"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SayEvent"
+                },
+                {
+                  "$ref": "#/$defs/CaptionEvent"
+                }
+              ]
             },
             "title": "Script",
             "type": "array"
@@ -310,7 +376,14 @@
     "script": {
       "default": [],
       "items": {
-        "$ref": "#/$defs/SayEvent"
+        "anyOf": [
+          {
+            "$ref": "#/$defs/SayEvent"
+          },
+          {
+            "$ref": "#/$defs/CaptionEvent"
+          }
+        ]
       },
       "title": "Script",
       "type": "array"

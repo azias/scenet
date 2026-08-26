@@ -24,7 +24,8 @@ from scenet.assets.contract import (
 )
 from scenet.assets.face import MIN_FEATURE_RADIUS, FaceMark, ResolvedDisc, build_face
 from scenet.assets.kinematics import resolve
-from scenet.core import FaceDisc, PanelCore
+from scenet.core import CoreActor, FaceDisc, PanelCore
+from scenet.core import FaceMark as CoreFaceMark
 from scenet.geom import Point, Vector
 from scenet.pipeline import compile_source
 
@@ -241,8 +242,8 @@ class TestPupils:
     def test_they_sit_centred_when_nobody_is_being_looked_at(self):
         actor = face_of("alice", "neutral")
         for side in ("l", "r"):
-            eye = _mark(actor, f"eye_{side}")
-            pupil = _mark(actor, f"pupil_{side}")
+            eye = _core_disc(actor, f"eye_{side}")
+            pupil = _core_disc(actor, f"pupil_{side}")
             assert pupil.centre == eye.centre
 
     def test_they_follow_the_aim(self, library: PuppetLibrary):
@@ -319,17 +320,28 @@ class TestDeterminism:
         assert core.face_marks
 
 
-def _mark(actor, mark_id: str):
+def _mark(actor: CoreActor, mark_id: str) -> CoreFaceMark:
+    """The one mark with this id, of either shape."""
     return next(mark for mark in actor.face_marks if mark.id == mark_id)
 
 
-def _width_of(actor, mark_id: str) -> float:
+def _width_of(actor: CoreActor, mark_id: str) -> float:
     return _mark(actor, mark_id).width
 
 
+def _core_disc(actor: CoreActor, mark_id: str) -> FaceDisc:
+    """The one disc with this id, in a compiled panel."""
+    return next(
+        mark for mark in actor.face_marks if mark.id == mark_id and isinstance(mark, FaceDisc)
+    )
+
+
 def _disc(marks: Sequence[FaceMark], mark_id: str) -> ResolvedDisc:
-    """The one disc with this id. Narrows the union, which the type checker needs and
-    the reader does too."""
+    """The one disc with this id, before it reaches Panel Core.
+
+    Both of these narrow a union that the checkers will not narrow for us, and that a
+    reader would otherwise have to hold in their head.
+    """
     return next(mark for mark in marks if mark.id == mark_id and isinstance(mark, ResolvedDisc))
 
 

@@ -29,6 +29,7 @@ __all__ = [
     "CompositionError",
     "LayoutError",
     "PanelSyntaxError",
+    "RuleViolationError",
     "ScenetError",
     "ScriptSyntaxError",
     "SolverError",
@@ -56,6 +57,48 @@ class ScenetError(Exception):
         :exc:`SourceError <scenet.errors.SourceError>`, for the "bad document" branch.
         :exc:`SolverError <scenet.errors.SolverError>`, for the "impossible layout" branch.
     """
+
+
+class RuleViolationError(ValueError):
+    """A named rule, broken at a known place in the document.
+
+    Raised *inside* pydantic validators rather than out of them. pydantic wraps whatever
+    a validator raises into its own `ValidationError`, and for a model-level validator
+    it records the location as `()` -- the whole document -- because a validator has no
+    way to say which field it was unhappy about. That is accurate and useless: the two
+    checks that matter most here, `check_references_resolve` and
+    `check_ordering_is_consistent`, both knew the exact path and had nowhere to put it,
+    so every such diagnostic read `at <root>`.
+
+    pydantic keeps the exception object it caught, under `ctx["error"]`, so a subclass
+    carrying extra attributes survives validation intact and can be recovered on the
+    other side. That is the whole trick.
+
+    A plain `ValueError` so that a validator raising one behaves exactly as before for
+    anybody not looking for the extra attributes. It deliberately does *not* inherit
+    `ScenetError`: it never escapes validation as itself -- pydantic catches it and
+    re-raises its own `ValidationError` -- so putting it in that hierarchy would promise
+    a `except ScenetError` clause could catch it, which it cannot.
+
+    Attributes:
+        rule: Identifier from the catalogue in
+            :mod:`scenet.diagnostics <scenet.diagnostics>`. Stable across releases,
+            because a `ruleId` that moves breaks every alert that referenced it.
+        loc: Path to the offending value, in pydantic's `loc` form -- string keys and
+            integer indices, as in `("script", 0, "by")`.
+    """
+
+    def __init__(self, message: str, *, rule: str, loc: tuple[str | int, ...] = ()) -> None:
+        """Build the violation.
+
+        Args:
+            message: What is wrong, phrased for whoever wrote the document.
+            rule: Catalogue identifier for the rule that was broken.
+            loc: Path to the offending value. Empty means the document as a whole.
+        """
+        self.rule = rule
+        self.loc = loc
+        super().__init__(message)
 
 
 class SourceError(ScenetError, ValueError):
@@ -125,7 +168,28 @@ class ScriptSyntaxError(PanelSyntaxError):
     A subclass of :exc:`PanelSyntaxError <scenet.errors.PanelSyntaxError>` rather than a
     sibling, because both frontends produce the same IR and a caller handling "bad
     input" should not have to care which syntax it was written in.
+
+    Attributes:
+        line: One-based line the fault is on, when the parser knows it. The comic-script
+            frontend is line-oriented, so it usually does -- but it had only ever put
+            the number into the message text, which is fine to read and useless to an
+            editor drawing a squiggle. Structured diagnostics need it as a number.
+            There is no column: a script line is prose, and pointing at a character
+            within it would imply a precision the parser does not have.
     """
+
+    def __init__(
+        self, message: str, *, source: Path | None = None, line: int | None = None
+    ) -> None:
+        """Build the error, keeping the line number as data as well as prose.
+
+        Args:
+            message: What went wrong, phrased for whoever wrote the script.
+            source: Path the script came from, if it was read from disk.
+            line: One-based line the fault is on, if known.
+        """
+        self.line = line
+        super().__init__(message, source=source)
 
 
 class CompositionError(SourceError):

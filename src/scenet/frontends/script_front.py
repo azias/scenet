@@ -162,7 +162,9 @@ def _read_panels(body: str, source: Path | None) -> dict[str, _PanelDraft]:
 
         if current is None:
             raise ScriptSyntaxError(
-                f"line {number}: content before the first PANEL heading: {line!r}", source=source
+                f"line {number}: content before the first PANEL heading: {line!r}",
+                source=source,
+                line=number,
             )
 
         if _apply_directive(line, current, number, source):
@@ -195,7 +197,9 @@ def _apply_directive(line: str, draft: _PanelDraft, number: int, source: Path | 
         draft.settings[key] = yaml.safe_load(value)
     except yaml.YAMLError as exc:
         raise ScriptSyntaxError(
-            f"line {number}: cannot read directive '@{key}': {exc}", source=source
+            f"line {number}: cannot read directive '@{key}': {exc}",
+            source=source,
+            line=number,
         ) from exc
     return True
 

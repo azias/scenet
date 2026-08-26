@@ -23,6 +23,7 @@ attribution. A notation is only worth having if it is not owned.
 | 4 | SVG emitter, debug overlay and CLI | **Done** |
 | 5 | Comic-script frontend; multi-panel `over` inheritance | **Done** |
 | 6 | Browser playground (Pyodide); VS Code extension | **Done** |
+| 7 | Machine-readable diagnostics: `scenet check`, in SARIF | **Done** |
 
 Single panels compile end to end. Constructs described in `language.md` are the specification,
 not a report of what is implemented — the table above is authoritative on what actually runs.
@@ -34,7 +35,6 @@ dependency between them is stated in the tickets rather than implied by this tab
 
 | Scope | Ticket |
 |---|---|
-| Machine-readable diagnostics, in SARIF | [#7](https://github.com/azias/scenet/issues/7) |
 | Captions — stating where and when a panel happens | [#8](https://github.com/azias/scenet/issues/8) |
 | Setting — showing it, as tonal masses | [#9](https://github.com/azias/scenet/issues/9) |
 | Faces — characters carry an expression | [#10](https://github.com/azias/scenet/issues/10) |

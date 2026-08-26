@@ -4,9 +4,9 @@
 scenet [--version] <command> [options]
 ```
 
-Two commands: `build` compiles a document, `schema` emits the JSON Schema. A bare
-`scenet` prints help to stderr and exits **2** — it did nothing, and a script chaining off
-its status should not read that as success.
+Three commands: `build` compiles a document, `check` validates one without compiling it,
+and `schema` emits the JSON Schema. A bare `scenet` prints help to stderr and exits **2**
+— it did nothing, and a script chaining off its status should not read that as success.
 
 ## `scenet build`
 
@@ -90,6 +90,163 @@ scenet build examples/sequence.scene.yaml --strip
 ```bash
 scenet build examples/umbrella.script --strip -o out/umbrella.svg
 ```
+
+## `scenet check`
+
+```
+scenet check SOURCE... [--format {text,sarif}] [-o OUTPUT] [--quiet]
+```
+
+Reports everything wrong with one or more documents and exits non-zero if anything is.
+Nothing is written unless you ask for it — no SVG, no Panel Core.
+
+Unlike `build`, this does not stop at the first fault. pydantic reports every field error
+at once and several files are reported together, because whoever is fixing them — a person
+or an agent — wants the whole list rather than one round trip per mistake.
+
+### Why this exists
+
+**No JSON Schema can catch the errors that matter most here.** The interesting checks are
+`model_validator`s: every actor id in `staging` and `script` resolving to a cast member,
+and the `left_of`/`right_of` graph being acyclic. Neither is expressible in JSON Schema,
+and both are exactly what a generator gets wrong. So structured diagnostics — not the
+published schema — are what make a generate/validate/repair loop work.
+
+### Options
+
+`--format text` (default)
+: One line per finding on stderr, `file:line:column: rule: message`. What a person reads.
+
+`--format sarif`
+: [SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html), the
+  OASIS standard GCC, Clang and MSVC emit and GitHub code scanning ingests directly.
+  Nothing but the document reaches stdout, so redirecting it produces a file a parser
+  accepts.
+
+`-o`, `--output PATH`
+: Write the report to a file instead of stdout.
+
+`--quiet`
+: Suppress the per-file `ok` line. Findings are always reported — this hides the
+  reassurance, never the diagnosis.
+
+### Exit status
+
+| Code | Meaning |
+|---|---|
+| 0 | Every document is valid |
+| 1 | At least one finding |
+| 2 | Usage error, or a source file does not exist |
+
+The status means the same thing in both formats, so CI can key off it without parsing
+anything.
+
+### Rules
+
+Every finding carries a stable `ruleId`. These identifiers **do not change across
+releases**: a `ruleId` that moves silently closes every alert that referenced the old one
+and opens a duplicate under the new one, so renaming one is a breaking change even though
+nothing stops compiling.
+
+| Rule | Raised when |
+|---|---|
+| `scenet/syntax` | The file is not valid YAML, or is empty |
+| `scenet/not-a-mapping` | The top level is a list or a scalar |
+| `scenet/unknown-key` | A key the language does not define — usually a typo |
+| `scenet/missing-field` | A required value was not supplied |
+| `scenet/invalid-field` | A known key holding the wrong type or an out-of-range value |
+| `scenet/panel-geometry` | Non-positive size, or margins leaving no usable area |
+| `scenet/unknown-actor` | An id in `staging` or `script` that is not in `cast` |
+| `scenet/reflexive-relation` | A relation relating an actor to itself |
+| `scenet/ordering-cycle` | `left_of`/`right_of` relations that form a cycle |
+| `scenet/composition` | An `over:` chain that is missing or cyclic |
+| `scenet/unknown-puppet` | A `reference` naming a character the library lacks |
+| `scenet/layout` | Valid, but no layout satisfies its required constraints |
+| `scenet/balloon-placement` | No legal position exists for a balloon |
+| `scenet/internal` | A failure with no more specific rule — worth reporting |
+
+### Source positions
+
+`yaml.safe_load` discards the position of every value, so the document is composed a
+second time with `yaml.compose`, whose node tree carries `start_mark` and `end_mark`. Those
+marks are 0-based and SARIF is 1-based; the conversion happens once, at that boundary.
+
+`ruamel.yaml`'s `.lc` marks would do the same job and are what one usually reaches for.
+They were not used: PyYAML is already a dependency, so a second YAML implementation in the
+runtime — and in the licence gate — would buy nothing.
+
+Comic scripts are line-oriented, so a finding there carries a line and no column. A script
+line is prose, and pointing at a character within it would imply a precision the parser
+does not have.
+
+### Fingerprints
+
+Each result carries a `partialFingerprints` entry under `scenetDiagnostic/v1`, derived
+from the rule, the structural path, the message and the file — deliberately **not** from
+the line number. A fingerprint keyed on position changes whenever anybody adds a comment
+at the top of the file, which turns one long-standing alert into a new alert on every
+edit, and de-duplicating alerts is the entire point of the field.
+
+### Examples
+
+```bash
+scenet check examples/duel.panel.yaml
+```
+
+```bash
+scenet check examples/gallery/*.yaml
+```
+
+```bash
+scenet check --format sarif examples/duel.panel.yaml > results.sarif
+```
+
+Uploading to GitHub code scanning, which is how findings become annotations on a pull
+request:
+
+```yaml
+- run: uv run scenet check --format sarif -o results.sarif examples/gallery/*.yaml
+- uses: github/codeql-action/upload-sarif@v4
+  with:
+    sarif_file: results.sarif
+```
+
+### As a library
+
+The same findings are available without the process boundary:
+
+```python
+from pathlib import Path
+
+from scenet.diagnostics import diagnose_source, to_sarif
+
+source = """
+cast:
+  alice: {reference: alice}
+script:
+  - say: {by: bpb, text: Hello}
+"""
+
+found = diagnose_source(source, source=Path("duel.panel.yaml"))
+finding = found[0]
+
+assert finding.rule == "unknown-actor"
+assert finding.path == ("script", 0, "by")
+assert finding.region.start.line == 5
+
+document = to_sarif(found, root=Path.cwd())
+assert document["runs"][0]["results"][0]["ruleId"] == "scenet/unknown-actor"
+```
+
+The assertions are the point: this block is executed by the test suite, so an example
+that stopped being true would fail the build rather than quietly misinform.
+
+`diagnose_file` is the same thing for a path on disk, and picks the frontend by
+extension.
+
+`scenet.diagnostics` is a public module. It is not re-exported from the `scenet` package
+namespace, because it reads the package version and importing it from `__init__` would
+close an import cycle.
 
 ## `scenet schema`
 

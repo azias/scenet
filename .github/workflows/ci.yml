@@ -139,6 +139,57 @@ jobs:
       - run: uv sync --frozen --all-groups
       - run: uv run basedpyright
 
+  examples:
+    name: Gallery diagnostics
+    runs-on: ubuntu-latest
+    # The gallery is the language's shop window and the playground's contents. A false
+    # positive here would make `scenet check` useless the first time anybody ran it, and
+    # a real one means a published example does not compile.
+    permissions:
+      contents: read
+      # Only this job, and only to upload the SARIF. Every other job in this file would
+      # otherwise be able to write to the code-scanning database.
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+
+      # The status is captured rather than allowed to end the job, so the findings still
+      # reach code scanning when there are any -- which is the case the upload exists
+      # for. The job fails afterwards, at the last step.
+      - name: Check the gallery
+        id: check
+        run: |
+          set +e
+          uv run scenet check --format sarif -o results.sarif \
+            examples/gallery/*.panel.yaml examples/gallery/*.scene.yaml
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+
+      # A pull request from a fork gets a read-only token, so this cannot work there and
+      # is skipped rather than failed. `continue-on-error` covers the other case: a
+      # repository with code scanning not enabled, where the upload is rejected and that
+      # is a configuration fact rather than a problem with the examples.
+      - name: Upload to code scanning
+        if: >-
+          github.event_name != 'pull_request'
+          || github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4
+        with:
+          sarif_file: results.sarif
+          category: scenet-examples
+
+      - name: Fail if the gallery has findings
+        if: steps.check.outputs.status != '0'
+        run: |
+          echo "::error::scenet check reported findings in examples/gallery"
+          exit 1
+
   typescript:
     name: TypeScript
     runs-on: ubuntu-latest

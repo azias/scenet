@@ -14,6 +14,8 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from scenet.errors import RuleViolationError
+
 __all__ = [
     "AnchorX",
     "BalloonKind",
@@ -238,9 +240,9 @@ class PanelSpec(Strict):
                 middle leaving nothing to compose in.
         """
         if self.width <= 0 or self.height <= 0:
-            raise ValueError("panel size must be positive")
+            raise RuleViolationError("panel size must be positive", rule="panel-geometry")
         if self.margin * 2 >= min(self.width, self.height):
-            raise ValueError("margin leaves no usable panel area")
+            raise RuleViolationError("margin leaves no usable panel area", rule="panel-geometry")
         return self
 
 
@@ -318,8 +320,9 @@ class Relation(Strict):
                 language means anything reflexively, so this is always a typo.
         """
         if self.subject == self.object:
-            raise ValueError(
-                f"relation '{self.predicate}' cannot relate '{self.subject}' to itself"
+            raise RuleViolationError(
+                f"relation '{self.predicate}' cannot relate '{self.subject}' to itself",
+                rule="reflexive-relation",
             )
         return self
 
@@ -391,18 +394,22 @@ class PanelIR(Strict):
         identifier while the source is still in view.
         """
         known = set(self.cast)
-        for relation in self.staging:
+        for index, relation in enumerate(self.staging):
             for role, actor in (("subject", relation.subject), ("object", relation.object)):
                 if actor not in known:
-                    raise ValueError(
+                    raise RuleViolationError(
                         f"staging relation '{relation.predicate}' names unknown actor "
-                        f"'{actor}' as {role}; cast is {sorted(known)}"
+                        f"'{actor}' as {role}; cast is {sorted(known)}",
+                        rule="unknown-actor",
+                        loc=("staging", index),
                     )
         for index, event in enumerate(self.script):
             if event.by not in known:
-                raise ValueError(
+                raise RuleViolationError(
                     f"script entry {index} is spoken by unknown actor '{event.by}'; "
-                    f"cast is {sorted(known)}"
+                    f"cast is {sorted(known)}",
+                    rule="unknown-actor",
+                    loc=("script", index, "by"),
                 )
         return self
 
@@ -416,11 +423,20 @@ class PanelIR(Strict):
         comprehensible message instead of an opaque solver failure.
         """
         edges: dict[str, set[str]] = {actor: set() for actor in self.cast}
-        for relation in self.staging:
+        # Which staging entry introduced each edge, so a cycle can be reported against a
+        # line the author actually wrote rather than against the document as a whole.
+        # First writer wins: if two entries state the same ordering, the earlier one is
+        # the one to point at.
+        wrote: dict[tuple[str, str], int] = {}
+        for index, relation in enumerate(self.staging):
             if relation.predicate is Predicate.LEFT_OF:
-                edges[relation.subject].add(relation.object)
+                edge = (relation.subject, relation.object)
             elif relation.predicate is Predicate.RIGHT_OF:
-                edges[relation.object].add(relation.subject)
+                edge = (relation.object, relation.subject)
+            else:
+                continue
+            edges[edge[0]].add(edge[1])
+            wrote.setdefault(edge, index)
 
         # Iterative depth-first search, so a deep cast cannot blow the Python stack.
         colour = dict.fromkeys(edges, _UNVISITED)
@@ -437,9 +453,12 @@ class PanelIR(Strict):
                 stack.append((node, True))
                 for neighbour in sorted(edges[node]):
                     if colour[neighbour] == _ON_STACK:
-                        raise ValueError(
+                        culprit = wrote.get((node, neighbour))
+                        raise RuleViolationError(
                             f"horizontal ordering is cyclic around '{neighbour}'; "
-                            "left_of/right_of relations must form a consistent order"
+                            "left_of/right_of relations must form a consistent order",
+                            rule="ordering-cycle",
+                            loc=("staging",) if culprit is None else ("staging", culprit),
                         )
                     if colour[neighbour] == _UNVISITED:
                         stack.append((neighbour, False))

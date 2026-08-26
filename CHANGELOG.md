@@ -10,6 +10,10 @@ below 1.0 means.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-26
+
+Captions: a panel can now speak in its own voice.
+
 ### Added
 
 - **Captions.** A panel can now state where and when it happens without a character having
@@ -39,6 +43,20 @@ below 1.0 means.
   between theirs. Placing every caption first would have been simpler and wrong — a caption
   written last would have imposed reading order on the balloons before it. Panels without
   captions are unaffected, which is why the Core format version did not move.
+
+### Upgrading
+
+Nothing was removed and no document stops compiling. A panel with no captions compiles to
+byte-identical Core. Three things a caller might notice:
+
+- `PanelCore` gained `captions`, and `CoreBalloon.order` is now a position in the panel's
+  whole reading order rather than an index among balloons. They differ only once a panel
+  has a caption in it, so anything reading `order` as "which balloon is this" wants
+  `balloons.index(...)` instead.
+- `scenet.__all__` gained `CaptionEvent` and `CaptionKind`.
+- `solve.balloons.place_balloons` is now `place_script` and returns a `ScriptLayout`
+  rather than a tuple of balloons. `scenet.solve` is internal and outside the versioning
+  promise, but it is a name that existed and does not any more.
 
 ## [0.3.0] - 2026-08-26
 
@@ -253,7 +271,8 @@ or has drifted out of step with the code fails the build.
 - `long_shot` and `full_shot` crop at the same landmark, so with no environment to show
   they can differ only by headroom.
 
-[Unreleased]: https://github.com/azias/scenet/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/azias/scenet/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/azias/scenet/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/azias/scenet/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/azias/scenet/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/azias/scenet/releases/tag/v0.1.0

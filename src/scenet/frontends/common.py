@@ -16,7 +16,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from scenet.errors import PanelSyntaxError
+from scenet.errors import PanelSyntaxError, RuleViolationError
 from scenet.ir import Predicate, Relation
 
 __all__ = ["normalise", "parse_relation", "summarise"]
@@ -140,7 +140,18 @@ def summarise(exc: ValidationError) -> str:
     """
     lines: list[str] = []
     for error in exc.errors():
-        location = ".".join(str(part) for part in error["loc"]) or "<root>"
+        # A model-level validator reports `loc=()` -- the whole document -- because
+        # pydantic gives it no way to say which field it was unhappy about. The two
+        # checks that matter most here knew the exact path all along, and a
+        # `RuleViolationError` carries it through validation in `ctx["error"]`. Without this
+        # every unresolved actor id and every ordering cycle reported `at <root>`.
+        original = (error.get("ctx") or {}).get("error")
+        loc = (
+            original.loc
+            if isinstance(original, RuleViolationError) and original.loc
+            else error["loc"]
+        )
+        location = ".".join(str(part) for part in loc) or "<root>"
         # pydantic prefixes messages raised by custom validators with "Value error, ",
         # which is noise to somebody reading a language diagnostic.
         message = error["msg"].removeprefix("Value error, ")

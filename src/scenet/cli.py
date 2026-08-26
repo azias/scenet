@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from scenet import __version__
+from scenet.diagnostics import Diagnostic, diagnose_file, to_sarif
 from scenet.emit.debug_svg import render_debug
 from scenet.emit.strip import render_strip
 from scenet.emit.svg import render
@@ -32,7 +33,7 @@ def build_parser() -> argparse.ArgumentParser:
     generators and documentation tooling can inspect the interface without running it.
 
     Returns:
-        A parser with the `build` and `schema` subcommands defined.
+        A parser with the `build`, `check` and `schema` subcommands defined.
     """
     parser = argparse.ArgumentParser(
         prog="scenet",
@@ -76,6 +77,46 @@ def build_parser() -> argparse.ArgumentParser:
         help="for a multi-panel document, also lay the panels out as a strip",
     )
     build.add_argument("--quiet", action="store_true", help="suppress diagnostic notes")
+
+    check = subcommands.add_parser(
+        "check",
+        help="validate documents without compiling them",
+        description=(
+            "Report everything wrong with one or more documents, and exit non-zero if "
+            "anything is. Nothing is written unless you ask for it.\n\n"
+            "The default output is the same prose the compiler prints. `--format sarif` "
+            "emits SARIF 2.1.0, which GitHub code scanning ingests directly and which "
+            "editors and agents can consume -- the checks that matter most here, such as "
+            "an actor id that does not resolve to a cast member, cannot be expressed in "
+            "the published JSON Schema, so this is the only machine-readable form of "
+            "them."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    check.add_argument(
+        "sources",
+        type=Path,
+        nargs="+",
+        help="documents to check; several may be given, and all are reported together",
+    )
+    check.add_argument(
+        "--format",
+        choices=("text", "sarif"),
+        default="text",
+        dest="format",
+        help="text for people (default), sarif for everything else",
+    )
+    check.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        help="write the report to a file instead of stdout",
+    )
+    check.add_argument(
+        "--quiet",
+        action="store_true",
+        help="suppress the per-file success line; findings are always reported",
+    )
 
     schema = subcommands.add_parser(
         "schema",
@@ -177,6 +218,62 @@ def run_build(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_check(args: argparse.Namespace) -> int:
+    """Run the `check` subcommand: validate documents and report what is wrong.
+
+    Args:
+        args: Parsed arguments from :func:`build_parser <scenet.cli.build_parser>`.
+
+    Returns:
+        A process exit status: `0` when every document is valid, `1` when any has a
+        finding, `2` when a file does not exist.
+
+    Unlike `build`, this never stops at the first fault. pydantic reports every field
+    error at once and a run over several files reports all of them, because a caller
+    fixing them -- a person or an agent -- wants the whole list, not one round trip per
+    mistake.
+    """
+    sources: list[Path] = args.sources
+    missing = [path for path in sources if not path.exists()]
+    for path in missing:
+        print(f"scenet: no such file: {path}", file=sys.stderr)
+    if missing:
+        return 2
+
+    found: list[Diagnostic] = []
+    for path in sources:
+        found.extend(diagnose_file(path))
+
+    if args.format == "sarif":
+        # Relative to the working directory, which is the repository root under CI and
+        # is what code scanning matches results against.
+        document = to_sarif(found, root=Path.cwd())
+        # A trailing newline because this is a text file people will `cat`, and JSON
+        # without one is a nuisance in a terminal and in a diff.
+        report = f"{json.dumps(document, indent=2, ensure_ascii=False)}\n"
+        if args.output:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(report, encoding="utf-8")
+            if not args.quiet:
+                print(f"wrote {args.output}")
+        else:
+            # stdout carries the document and nothing else, so that
+            # `scenet check --format sarif x > results.sarif` produces a parseable file.
+            sys.stdout.write(report)
+        return 1 if found else 0
+
+    for item in found:
+        where = item.source if item.source else "<string>"
+        line = item.region.start.line if item.region else 1
+        column = item.region.start.column if item.region else 1
+        print(f"{where}:{line}:{column}: {item.rule}: {item.message}", file=sys.stderr)
+
+    if not found and not args.quiet:
+        for path in sources:
+            print(f"{path}: ok")
+    return 1 if found else 0
+
+
 def scene_schema() -> dict[str, Any]:
     """The schema for a multi-panel document.
 
@@ -260,6 +357,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "build":
         return run_build(args)
+    if args.command == "check":
+        return run_check(args)
     if args.command == "schema":
         return run_schema(args)
     # No subcommand. Help goes to stderr and the status is 2, matching the convention

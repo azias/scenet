@@ -58,3 +58,12 @@ examples:
   - file: 18-a-face.panel.yaml
     title: "A face, at last"
     kind: panel
+  - file: 19-setting.scene.yaml
+    title: "Masses, planes and the value ladder"
+    kind: scene
+  - file: 20-places.scene.yaml
+    title: "Ten places, by name"
+    kind: scene
+  - file: 21-atmosphere.scene.yaml
+    title: "Time of day, and weather"
+    kind: scene

@@ -1,0 +1,56 @@
+# Time of day and weather, on one place.
+#
+# `time` does not tint a daytime panel. It supplies the two ends of the value ladder --
+# the foreground and the atmosphere -- and the planes are spaced between them. So night
+# is a darker, narrower ladder, which is what night actually does to a drawn scene, and
+# the ladder stays monotonic in depth at every hour.
+#
+# `weather` adds a layer over that. Fog is a turbulence veil tinted with the atmosphere
+# itself, because fog *is* the atmosphere arriving in the foreground. Rain and snow carry
+# the same veil as cloud -- nearer, and so darker than the sky it covers -- and put
+# falling marks over everything, because weather is between the reader and the figures
+# rather than behind them. Rain flips to ink over a bright sky and to paper over a dark
+# one; snow never flips, because snow is white.
+#
+# The determinism contract is on the **emitted SVG text**, which stays byte-identical.
+# It has never been on pixels: `feTurbulence` is reproducible by specification -- the
+# spec ships reference code and the seed is fixed -- and browsers still agree only
+# approximately on what to paint from it. See docs/reference/language.md.
+
+panel:
+  size: [1100, 620]
+
+camera:
+  shot: long_shot
+
+cast:
+  alice: {reference: alice, at: left_third, pose: arms_crossed}
+  bob:   {reference: bob,   at: right_third, facing: left}
+
+staging:
+  - alice left_of bob
+  - alice looking_at bob
+  - alice ground_shared_with bob
+
+panels:
+  midnight:
+    setting: {place: docks, time: night, weather: rain}
+    script:
+      - caption: {text: "Midnight. The docks.", kind: locale, prefer: top_left}
+      - say: {by: alice, text: "You said you would be here at ten."}
+      - say: {by: bob, text: "I was.", kind: whisper}
+
+  morning:
+    setting: {place: docks, time: dawn, weather: fog}
+    script:
+      - caption: {text: "Six hours later.", kind: locale, prefer: top_left}
+
+  noon:
+    setting: {place: docks, time: day, weather: clear}
+    script:
+      - caption: {text: "It never rains at noon.", kind: editorial, prefer: top_right}
+
+  winter:
+    setting: {place: docks, time: dusk, weather: snow}
+    script:
+      - caption: {text: "December.", kind: locale, prefer: top_left}

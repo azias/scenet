@@ -45,20 +45,23 @@ class ShotSpec:
 
 
 SHOT_TABLE: dict[ShotType, ShotSpec] = {
-    # long_shot and full_shot both crop at the feet, so headroom is the only thing that
-    # separates them -- and it separated them the wrong way round. A long shot puts the
-    # figure *small in its environment*, so it needs MORE air above the head, not less.
-    # At 0.05 against full_shot's 0.08 it drew the figure larger than a full shot,
-    # inverting the ladder at its widest end with nothing to notice.
+    # long_shot and full_shot both crop at the feet, so headroom and footroom are the
+    # only things that separate them -- and they once separated them the wrong way
+    # round. A long shot puts the figure *small in its environment*, so it needs MORE air
+    # around it, not less. At 0.05 against full_shot's 0.08 it drew the figure larger
+    # than a full shot, inverting the ladder at its widest end with nothing to notice.
     #
-    # The honest limitation: with no environment to show, these two can differ only by
-    # headroom, so the gap stays modest however the numbers are set.
-    ShotType.LONG_SHOT: ShotSpec(Landmark.FEET, 0.14, footroom=0.06),
+    # The numbers were then modest because there was nothing to fill the air with: a
+    # figure alone on white at 0.14 headroom read as a full shot with a wide margin
+    # rather than as a long shot. With a `setting` behind it the air is the environment,
+    # which is the whole content of the shot, so the gap is now a real rung -- a long
+    # shot fills roughly two thirds of what a full shot does.
+    ShotType.LONG_SHOT: ShotSpec(Landmark.FEET, 0.28, footroom=0.10),
     # `wide` is a synonym for `long_shot`, not a wider shot. The two are used
     # interchangeably in the literature -- "a long shot (also called a wide shot)" --
     # and the language keeps both because writers reach for both. They are identical on
     # purpose, and the shot ladder example says so rather than looking broken.
-    ShotType.WIDE: ShotSpec(Landmark.FEET, 0.14, footroom=0.06),
+    ShotType.WIDE: ShotSpec(Landmark.FEET, 0.28, footroom=0.10),
     ShotType.FULL_SHOT: ShotSpec(Landmark.FEET, 0.05, footroom=0.04),
     # Medium full -- the "three-quarter shot" -- cuts at the KNEES. The cowboy or
     # American shot cuts at MID_THIGH, from 1930s Westerns framing to include the

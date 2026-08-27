@@ -19,9 +19,16 @@ from scenet import (
     BalloonKind,
     CameraAngle,
     CaptionKind,
+    Horizon,
+    MassKind,
+    Place,
     PlacementZone,
+    Plane,
     Predicate,
     ShotType,
+    Spans,
+    TimeOfDay,
+    Weather,
     compile_document,
     default_library,
     render,
@@ -123,6 +130,20 @@ class TestTheGalleryCoversTheLanguage:
         missing = [name for name in names if name not in text]
         assert missing == []
 
+    @pytest.mark.parametrize(
+        "enum",
+        [MassKind, Plane, Spans, Horizon, TimeOfDay, Weather, Place],
+        ids=lambda enum: enum.__name__,
+    )
+    def test_every_setting_word_appears(self, enum):
+        """The setting vocabulary is twelve mass kinds, four planes, four spans, three
+        horizons, four hours, four weathers and ten places. A word no example uses is a
+        word nobody has looked at -- and for this feature, "looked at" is literal: the
+        contact sheet is the only thing that can tell whether a value reads as depth."""
+        text = self._all_text()
+        missing = [member.value for member in enum if member.value not in text]
+        assert missing == []
+
     def test_every_predicate_appears(self):
         text = self._all_text()
         missing = [predicate.value for predicate in Predicate if predicate.value not in text]
@@ -143,6 +164,33 @@ class TestTheGalleryCoversTheLanguage:
         assert any(name.endswith(".script") for name in names)
         assert any(name.endswith(".panel.yaml") for name in names)
         assert any(name.endswith(".scene.yaml") for name in names)
+
+    def test_the_setting_examples_actually_draw_something(self):
+        """The examples claim to show masses. Check they resolve to some, rather than
+        trusting a comment that may have outlived the behaviour it describes."""
+        for name in ("19-setting.scene.yaml", "20-places.scene.yaml"):
+            for panel, result in compile_document(GALLERY / name).items():
+                assert result.core.backdrop is not None, f"{name}:{panel}"
+                assert result.core.backdrop.masses, f"{name}:{panel}"
+
+    def test_the_atmosphere_example_actually_has_weather(self):
+        """One panel of it is `clear`, which must resolve to no atmosphere at all --
+        that is the case most easily broken by making weather unconditional."""
+        results = compile_document(GALLERY / "21-atmosphere.scene.yaml")
+        air = {
+            name: result.core.backdrop.atmosphere
+            for name, result in results.items()
+            if result.core.backdrop is not None
+        }
+        assert air["noon"] is None
+
+        midnight, winter, morning = air["midnight"], air["winter"], air["morning"]
+        assert midnight is not None
+        assert winter is not None
+        assert morning is not None
+        assert midnight.streaks
+        assert winter.flecks
+        assert morning.veil is not None
 
     def test_the_camera_pullback_example_actually_pulls_back(self):
         """The example claims the camera retreats. Check it does, rather than trusting

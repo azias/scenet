@@ -10,6 +10,88 @@ below 1.0 means.
 
 ## [Unreleased]
 
+### Added
+
+- **The setting layer: a panel can show where and when it happens.** Every panel rendered
+  figures on white; there was no `setting` block at all. Captions (0.4.0) shipped the
+  cheap half of establishing place — a `locale` box can *say* `MIDNIGHT. THE DOCKS.` —
+  and this is the expensive half.
+
+  ```yaml
+  setting:
+    place: docks
+    horizon: mid
+    time: night
+    weather: rain
+  ```
+
+- **Backdrops are described tonal masses, never drawn geometry.** Crisp architecture needs
+  a vanishing point and this is deliberately a flat, orthographic compiler, so drawn
+  buildings would fight the compiler's own model — soft masses have no perspective to get
+  wrong. It is also how comics actually establish place: **notan** (Dow, *Composition*,
+  1899) says place is read from the arrangement of masses rather than from rendered
+  detail, and **aerial perspective** supplies the parametric rule — with distance, value
+  contrast drops toward the atmosphere.
+- **Twelve mass kinds, from COCO-Stuff supercategories** — `building`, `ground`, `plant`,
+  `sky`, `solid`, `structural`, `water` outdoors, `ceiling`, `floor`, `furniture`, `wall`,
+  `window` indoors. Taken from an existing taxonomy of *stuff* rather than invented, for
+  the same reason the predicates came from Visual Genome. Not its leaf names: the real
+  classes are `building-other` and `sky-other`, and nobody should have to type that.
+- **Ten named places** — `alley`, `desert`, `docks`, `field`, `forest`, `mountain`,
+  `office`, `room`, `shore`, `street` — each expanding into a mass list the author could
+  have written themselves. That rule is what keeps a preset a library rather than a second
+  opaque format, and it is enforced by a test. The expansion happens in the frontend, so
+  the IR has no `place` field at all — the same treatment `alice left_of bob` gets.
+- **`plane` reuses the existing painter's order** rather than introducing a second one.
+  The three backdrop planes take negative depths; `foreground` takes one above the
+  frontmost actor, so a foreground mass draws over the cast the way a silhouetted doorway
+  does. Value follows from the plane and from nothing else, which is what keeps the notan
+  reading literal.
+- **`time` and `weather`.** `time` supplies the two ends of the value ladder rather than
+  tinting a daytime panel, so `night` is a darker, narrower ladder — and the ladder stays
+  monotonic in depth at every hour by construction. `weather` adds `fog` as a
+  `feTurbulence` veil, and `rain` and `snow` as that veil plus falling marks.
+- **`CoreBackdrop`** on Panel Core, carrying fully resolved numeric polygons and tone
+  values — the same discipline as `capsules`, `blobs` and `face_marks`, so the emitter
+  still makes no layout decision. Absent on a panel that says nothing about where it is,
+  which is why this needed no `format_version` bump.
+- **Masses are a soft cost for balloon placement, never an exclusion.** Balloons sit over
+  backgrounds routinely; that is what a background is for. Covering one costs an order of
+  magnitude less than covering a face, weighted so a foreground silhouette costs more than
+  empty sky.
+- **`scenet check` reports `unknown-place` and `conflicting-setting`**, each naming the
+  field. A place and a mass list together is rejected rather than guessed at: a place *is*
+  a mass list.
+- **`scripts/setting_sheet.py`**, the calibration instrument — every place against every
+  hour on one sheet, every weather on another. Whether three greys read as depth is not a
+  question a test can answer, and four things moved because of what the first sheet showed.
+- Gallery examples 19, 20 and 21, and a `docs/reference/language.md` section for the block.
+
+### Changed
+
+- **`long_shot` reframes noticeably wider, and `wide` with it** — headroom `0.14` → `0.28`,
+  footroom `0.06` → `0.10`. `solve/camera.py` admitted the problem in a comment: with no
+  environment to show, `long_shot` and `full_shot` crop at the same landmark and could
+  differ only by a little headroom, so two rungs at the widest end of the ladder stayed
+  degenerate. There is an environment now, so a long shot can mean what it says — the
+  figure fills roughly two thirds of what a full shot does. **Every existing panel that
+  asks for `long_shot` or `wide` renders smaller than it did.** The comment is gone and
+  `docs/reference/shot_types.md` is updated.
+- **`PanelSyntaxError` carries an optional `rule` and `loc`**, so a check the frontend
+  performs itself can name a catalogue rule and a field instead of arriving as a generic
+  `invalid-field`. Both default to nothing, so every existing raise is unchanged.
+- **The determinism boundary is written down** in `docs/reference/language.md`: the
+  contract is on the emitted SVG *text*, which stays byte-identical, and has never been on
+  pixels. `feTurbulence` is reproducible by specification and browsers still agree only
+  approximately on what to paint from it. Stated now, while adding the first feature that
+  depends on it, rather than left for somebody to rediscover when a screenshot test flakes.
+- `docs/explanation/prior_art.md`: shape grammars move from *future* to **load-bearing**,
+  with the finding that no open-source Python CGA implementation exists — the reference one
+  is commercial, inside Esri CityEngine — so the formalism is reused rather than a library.
+  Notan, aerial perspective and COCO-Stuff are added as load-bearing; physically based sky
+  models (Preetham, Hosek-Wilkie) are recorded as examined and rejected, since they solve a
+  radiometric problem this compiler does not have.
+
 ### Fixed
 
 - **`extreme_close_up` framed the forehead, not the eyes.** Its crop landmark (`eyes`)

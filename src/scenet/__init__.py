@@ -86,13 +86,21 @@ from scenet.ir import (
     CaptionKind,
     CastMember,
     Facing,
+    Horizon,
+    Mass,
+    MassKind,
     PanelIR,
     PanelSpec,
     PlacementZone,
+    Plane,
     Predicate,
     Relation,
     SayEvent,
+    SettingSpec,
     ShotType,
+    Spans,
+    TimeOfDay,
+    Weather,
 )
 from scenet.pipeline import (
     CompileResult,
@@ -103,6 +111,7 @@ from scenet.pipeline import (
     compile_scene_file,
     compile_source,
 )
+from scenet.places import PLACES, Place
 
 try:
     __version__: str = version("scenet")
@@ -147,6 +156,17 @@ __all__ = [
     "Relation",
     "SayEvent",
     "ShotType",
+    # -- describing where and when it happens --------------------------------
+    "PLACES",
+    "Horizon",
+    "Mass",
+    "MassKind",
+    "Place",
+    "Plane",
+    "SettingSpec",
+    "Spans",
+    "TimeOfDay",
+    "Weather",
     # -- puppets -------------------------------------------------------------
     "Landmark",
     "PuppetLibrary",

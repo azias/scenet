@@ -32,7 +32,16 @@ from shapely.geometry import Polygon, box
 from scenet.assets.kinematics import ResolvedPuppet
 from scenet.errors import BalloonPlacementError
 from scenet.geom import BBox, Circle, Point, segment_intersects_circle
-from scenet.ir import BalloonKind, CaptionEvent, CaptionKind, PlacementZone, SayEvent, ScriptEvent
+from scenet.ir import (
+    BalloonKind,
+    CaptionEvent,
+    CaptionKind,
+    PlacementZone,
+    Plane,
+    SayEvent,
+    ScriptEvent,
+)
+from scenet.solve.backdrop import ResolvedBackdrop
 from scenet.solve.text import (
     ITALIC_FONT_PATH,
     FontMetrics,
@@ -52,6 +61,21 @@ W_MOUTH_DISTANCE = 0.9  # keeps a balloon near whoever is speaking
 W_PREFERRED_ZONE = 1.4  # honours an explicit `prefer:` hint
 W_GAZE_BLOCKING = 0.7  # do not stand in front of what a character is looking at
 W_EDGE = 0.25  # mild dislike of hugging the panel edge
+
+# A backdrop mass is *not* an exclusion. Balloons sit over backgrounds routinely; that
+# is what a background is for. So covering one is a soft cost, and a mild one -- an
+# order of magnitude below covering a face, which is forbidden outright.
+W_MASS_OCCLUSION = 0.5
+
+# What covering a mass costs, by how near it is. Empty sky is nearly free; a foreground
+# silhouette is the one thing in a backdrop a balloon should genuinely stay off, because
+# it reads as an object in the room rather than as scenery.
+PLANE_OCCLUSION_WEIGHT: dict[Plane, float] = {
+    Plane.FOREGROUND: 1.0,
+    Plane.NEAR: 0.55,
+    Plane.MID: 0.3,
+    Plane.FAR: 0.12,
+}
 
 # Tolerance when comparing balloon positions for reading order, in panel units.
 READING_EPSILON = 2.0
@@ -316,6 +340,39 @@ def _occlusion_cost(candidate: BBox, hulls: dict[str, Polygon], forgive: str | N
     return cost
 
 
+def _mass_polygons(backdrop: ResolvedBackdrop | None) -> list[tuple[Polygon, float]]:
+    """The backdrop as weighted shapes, built once per panel rather than per candidate.
+
+    Returns:
+        Each mass as a `shapely` polygon paired with what covering it costs.
+    """
+    if backdrop is None:
+        return []
+    return [
+        (Polygon([(point.x, point.y) for point in polygon]), PLANE_OCCLUSION_WEIGHT[plane])
+        for polygon, plane in backdrop.occluders()
+    ]
+
+
+def _mass_cost(candidate: BBox, masses: Sequence[tuple[Polygon, float]]) -> float:
+    """How much backdrop this box covers, weighted by how near that backdrop is.
+
+    The counterpart of `_occlusion_cost` for scenery. It never makes a position
+    illegal -- a balloon over a sky is not a fault, it is the ordinary case -- so this
+    only ever nudges a choice between candidates that are all legal.
+    """
+    if not masses:
+        return 0.0
+    area = max(candidate.area, 1.0)
+    shape = box(candidate.x, candidate.y, candidate.right, candidate.bottom)
+    cost = 0.0
+    for polygon, weight in masses:
+        overlap = shape.intersection(polygon).area
+        if overlap:
+            cost += W_MASS_OCCLUSION * weight * overlap / area
+    return cost
+
+
 def _edge_slack(candidate: BBox, panel: BBox) -> float:
     """Distance from the box to the nearest panel edge."""
     return min(
@@ -335,12 +392,13 @@ def _score(
     panel: BBox,
     prefer: PlacementZone | None,
     placed: list[BBox],
+    masses: Sequence[tuple[Polygon, float]],
 ) -> float:
     """Cost of putting a balloon here. Lower is better; infinity means illegal."""
     if not _is_legal(candidate, actors, panel, placed):
         return math.inf
 
-    cost = _occlusion_cost(candidate, hulls, speaker.name)
+    cost = _occlusion_cost(candidate, hulls, speaker.name) + _mass_cost(candidate, masses)
 
     diagonal = math.hypot(panel.width, panel.height)
     mouth = speaker.anchors.get("mouth", speaker.face.centre)
@@ -369,6 +427,7 @@ def _score_caption(
     panel: BBox,
     prefer: PlacementZone,
     placed: list[BBox],
+    masses: Sequence[tuple[Polygon, float]],
 ) -> float:
     """Cost of putting a caption here. Lower is better; infinity means illegal.
 
@@ -380,7 +439,7 @@ def _score_caption(
     if not _is_legal(candidate, actors, panel, placed):
         return math.inf
 
-    cost = _occlusion_cost(candidate, hulls, None)
+    cost = _occlusion_cost(candidate, hulls, None) + _mass_cost(candidate, masses)
 
     diagonal = math.hypot(panel.width, panel.height)
     across, down = prefer.fractions
@@ -541,6 +600,7 @@ def place_script(
     metrics: FontMetrics | None = None,
     italic_metrics: FontMetrics | None = None,
     font_size: float | None = None,
+    backdrop: ResolvedBackdrop | None = None,
 ) -> ScriptLayout:
     """Place every balloon and caption, in script order.
 
@@ -561,6 +621,8 @@ def place_script(
         italic_metrics: Font to measure italic captions against. Defaults to the
             italic face of the same family.
         font_size: Override for dialogue size, in panel units.
+        backdrop: The resolved setting, if the panel has one. Its masses are a soft
+            cost, never an exclusion: a balloon over a sky is the ordinary case.
 
     Returns:
         Everything that carries words, placed.
@@ -575,6 +637,7 @@ def place_script(
     caption_size = font_size if font_size is not None else panel.height * CAPTION_FONT_SIZE_FRACTION
     hulls = {actor_id: _hull_polygon(actor) for actor_id, actor in actors.items()}
     faces = [actor.face for actor in actors.values()]
+    masses = _mass_polygons(backdrop)
 
     placed: list[BBox] = []
     captions: list[PlacedCaption] = []
@@ -595,6 +658,7 @@ def place_script(
                     font_size=caption_size,
                     metrics=metrics,
                     italic_metrics=italic_metrics,
+                    masses=masses,
                 )
             )
             placed.append(captions[-1].box)
@@ -612,6 +676,7 @@ def place_script(
                 placed=placed,
                 font_size=size,
                 metrics=metrics,
+                masses=masses,
             )
         )
         placed.append(balloons[-1].box)
@@ -631,6 +696,7 @@ def _place_balloon(
     placed: list[BBox],
     font_size: float,
     metrics: FontMetrics | None,
+    masses: Sequence[tuple[Polygon, float]],
 ) -> PlacedBalloon:
     """Choose a position for one balloon and route its tail."""
     speaker = actors[event.by]
@@ -650,6 +716,7 @@ def _place_balloon(
             panel=panel,
             prefer=event.prefer,
             placed=placed,
+            masses=masses,
         )
         if cost < best_cost:
             best, best_cost = candidate, cost
@@ -689,6 +756,7 @@ def _place_caption(
     font_size: float,
     metrics: FontMetrics | None,
     italic_metrics: FontMetrics | None,
+    masses: Sequence[tuple[Polygon, float]],
 ) -> PlacedCaption:
     """Choose a position for one caption.
 
@@ -715,6 +783,7 @@ def _place_caption(
             panel=panel,
             prefer=event.prefer,
             placed=placed,
+            masses=masses,
         )
         if cost < best_cost:
             best, best_cost = candidate, cost

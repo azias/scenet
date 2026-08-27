@@ -144,6 +144,57 @@
       "title": "Facing",
       "type": "string"
     },
+    "Horizon": {
+      "description": "Where the ground meets whatever is behind it.\n\nOne line for the whole panel, which every mass is composed against: masses of the\nground sort start at it and run down, masses that stand in the world rise from it.\nNamed rather than given as a number for the same reason `at:` is -- the author is\nsaying how the panel is composed, not typing a coordinate.",
+      "enum": [
+        "high",
+        "mid",
+        "low"
+      ],
+      "title": "Horizon",
+      "type": "string"
+    },
+    "Mass": {
+      "additionalProperties": false,
+      "description": "One tonal mass in the backdrop: what it is, how far back, how wide.\n\nAttributes:\n    kind: What the mass is made of, which decides its silhouette.\n    plane: How far back it sits, which decides its value and its draw order.\n    spans: How much of the panel's width it covers.\n\n**Backdrops are never author-drawn**, and there are two reasons. The structural one:\ncrisp architecture needs a vanishing point, and this is deliberately a flat,\northographic compiler, so drawn buildings would fight the compiler's own model.\nSoft tonal masses have no perspective to get wrong.\n\nThe second is that this is how comics actually establish place. Notan -- the\nJapanese light/dark mass principle, which reached Western art teaching through\nArthur Wesley Dow's *Composition* (1899) -- says place is read from the arrangement\nof masses rather than from rendered detail.\n\nExample:\n    >>> from scenet.ir import Mass, MassKind\n    >>> Mass(kind=MassKind.SKY).plane.value\n    'mid'",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/MassKind"
+        },
+        "plane": {
+          "$ref": "#/$defs/Plane",
+          "default": "mid"
+        },
+        "spans": {
+          "$ref": "#/$defs/Spans",
+          "default": "full"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "Mass",
+      "type": "object"
+    },
+    "MassKind": {
+      "description": "What a tonal mass in the backdrop is made of.\n\nSubsetted from the **supercategories** of\n[COCO-Stuff](https://arxiv.org/pdf/1612.03716), the canonical taxonomy of *stuff* --\n\"amorphous background regions\" as opposed to *things* with a well-defined shape.\nIts own argument is that stuff classes explain scene type and the geometric\nproperties of a scene, which is exactly the job here. Taken from an existing\nvocabulary for the same reason the predicates were taken from Visual Genome.\n\n**Deliberately not the leaf names.** COCO-Stuff's actual classes are\n`building-other`, `sky-other`, `wall-brick`, `water-other` and so on, where the\n`-other` suffix marks the catch-all inside a supercategory. `building-other` is not\na word anyone should have to type.\n\nSeven are outdoor -- `building`, `ground`, `plant`, `sky`, `solid`, `structural`,\n`water` -- and five indoor: `ceiling`, `floor`, `furniture`, `wall`, `window`.\nCOCO-Stuff's own indoor/outdoor split is where that distinction comes from, so it\ndid not have to be invented either. Its `textile`, `food` and `rawmaterial`\nsupercategories are left out: drapery and objects, not scene-defining masses.\n\nA kind decides the **shape** a mass takes, never its value. Value comes from the\nplane, which is what keeps the notan reading honest -- see\n:class:`Plane <scenet.ir.Plane>`.",
+      "enum": [
+        "building",
+        "ceiling",
+        "floor",
+        "furniture",
+        "ground",
+        "plant",
+        "sky",
+        "solid",
+        "structural",
+        "wall",
+        "water",
+        "window"
+      ],
+      "title": "MassKind",
+      "type": "string"
+    },
     "PanelSpec": {
       "additionalProperties": false,
       "description": "The panel's own dimensions.\n\nAttributes:\n    size: `(width, height)` in panel units. Everything else in the language is\n        expressed relative to these, so they set what a unit means.\n    margin: Inset on all four sides. Balloons are kept inside it; actors may bleed\n        past it, which is ordinary comics practice.\n\nExample:\n    >>> from scenet import PanelSpec\n    >>> PanelSpec(size=(1200.0, 600.0)).width\n    1200.0",
@@ -190,6 +241,17 @@
         "bottom_right"
       ],
       "title": "PlacementZone",
+      "type": "string"
+    },
+    "Plane": {
+      "description": "How far back a mass sits, which decides both its draw order and its value.\n\nFour planes, ordered from the back of the panel forward. They map onto the existing\ninteger :attr:`CoreActor.depth <scenet.core.CoreActor.depth>` painter's order rather\nthan introducing a second ordering mechanism: the three backdrop planes take\nnegative depths, and `foreground` takes one above the frontmost actor, so a\nforeground mass draws over the cast the way a silhouetted doorway does.\n\nValue follows from the plane and from nothing else, which is what makes the\n[aerial perspective](https://en.wikipedia.org/wiki/Aerial_perspective) rule\nparametric: with distance, contrast drops toward the atmosphere. Reading front to\nback, a mass never gets darker. See\n:func:`tone_for <scenet.solve.backdrop.tone_for>`.",
+      "enum": [
+        "foreground",
+        "near",
+        "mid",
+        "far"
+      ],
+      "title": "Plane",
       "type": "string"
     },
     "Predicate": {
@@ -271,6 +333,34 @@
       "title": "SayEvent",
       "type": "object"
     },
+    "SettingSpec": {
+      "additionalProperties": false,
+      "description": "Where and when the panel happens, as tonal masses rather than drawn geometry.\n\nAttributes:\n    horizon: Where the ground meets what is behind it.\n    masses: The backdrop, back to front. Written directly, or produced by naming a\n        place in the surface syntax.\n    time: When it happens, which shifts the value ladder.\n    weather: What the air is doing.\n\n**There is no `place` field here, deliberately.** `place: docks` is surface syntax\nthat the frontend expands into exactly the mass list an author could have written\nthemselves -- the same treatment `alice left_of bob` gets, which reaches the IR as a\n:class:`Relation <scenet.ir.Relation>` and never as text. That is what keeps a\npreset a library for convenience rather than a second, opaque format: by the time\nanything downstream sees a backdrop, there is one representation of it.\n\nA panel with no masses and clear weather has no backdrop at all, which is what every\npanel written before this block existed still gets.\n\nExample:\n    >>> from scenet import parse_panel\n    >>> panel = parse_panel(\"setting: {place: docks, time: night}\")\n    >>> panel.setting.time.value, len(panel.setting.masses) > 0\n    ('night', True)",
+      "properties": {
+        "horizon": {
+          "$ref": "#/$defs/Horizon",
+          "default": "mid"
+        },
+        "masses": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Mass"
+          },
+          "title": "Masses",
+          "type": "array"
+        },
+        "time": {
+          "$ref": "#/$defs/TimeOfDay",
+          "default": "day"
+        },
+        "weather": {
+          "$ref": "#/$defs/Weather",
+          "default": "clear"
+        }
+      },
+      "title": "SettingSpec",
+      "type": "object"
+    },
     "ShotType": {
       "description": "How tightly the camera frames the cast.\n\nOrdered from widest to tightest, and the order is enforced by a test: reading down\nthe ladder, the figure never gets smaller.\n\nA shot type is defined by two things in two different units. The **crop landmark**\nis anatomical -- the waist, the chest, the shoulders -- which is what stops a shot\ntype baking in one body and one pose; naming a fraction of panel height instead\nwould do exactly that. The **headroom** is a plain fraction of panel height, because\nit is about composition within the frame rather than anatomy.\n`docs/reference/shot_types.md` is normative.\n\nThe requested shot is an *upper bound on tightness*, not a promise. If the cast\ncannot fit across the panel at that framing the camera retreats, and says so in\n:attr:`CompileResult.notes <scenet.pipeline.CompileResult.notes>`.\n\nExample:\n    >>> from scenet import ShotType\n    >>> ShotType(\"close_up\")\n    <ShotType.CLOSE_UP: 'close_up'>",
       "enum": [
@@ -286,6 +376,39 @@
         "extreme_close_up"
       ],
       "title": "ShotType",
+      "type": "string"
+    },
+    "Spans": {
+      "description": "How much of the panel's width a mass covers.\n\nResolved to an extent in the frontend, and that is **not cosmetic**. `CLAUDE.md`\nrequires any construct that would reintroduce a left/right disjunction to resolve it\nbefore the solver, because Cassowary cannot express \"A left of B *or* B left of A\".\nA span is an absolute extent rather than a relation, which is what stops masses\nbecoming an unordered `beside`.",
+      "enum": [
+        "full",
+        "left",
+        "center",
+        "right"
+      ],
+      "title": "Spans",
+      "type": "string"
+    },
+    "TimeOfDay": {
+      "description": "When the panel happens, which shifts the whole value ladder.\n\nEach time supplies two numbers -- the value of the foreground and the value of the\natmosphere -- and the planes are spaced evenly between them. So `night` is not a\nblue filter over a daytime panel: it is a darker, more compressed ladder, which is\nwhat night actually does to a drawn scene. The ladder stays monotonic in depth at\nevery time of day, by construction rather than by tuning.",
+      "enum": [
+        "dawn",
+        "day",
+        "dusk",
+        "night"
+      ],
+      "title": "TimeOfDay",
+      "type": "string"
+    },
+    "Weather": {
+      "description": "What the air is doing between the reader and the panel.\n\n`clouds` and `fog` are first-class *stuff* in COCO-Stuff, so this vocabulary did not\nhave to be invented either. `fog` renders as a turbulence veil over the backdrop;\n`rain` and `snow` add that veil as cloud and put falling marks over everything,\nbecause weather is between the reader and the figures rather than behind them.",
+      "enum": [
+        "clear",
+        "rain",
+        "fog",
+        "snow"
+      ],
+      "title": "Weather",
       "type": "string"
     }
   },
@@ -330,6 +453,15 @@
       },
       "title": "Script",
       "type": "array"
+    },
+    "setting": {
+      "$ref": "#/$defs/SettingSpec",
+      "default": {
+        "horizon": "mid",
+        "masses": [],
+        "time": "day",
+        "weather": "clear"
+      }
     },
     "staging": {
       "default": [],

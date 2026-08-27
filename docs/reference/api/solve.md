@@ -14,6 +14,11 @@ because their signatures are promised to stay put.
 ```{automodule} scenet.solve.staging
 ```
 
+## `scenet.solve.backdrop`
+
+```{automodule} scenet.solve.backdrop
+```
+
 ## `scenet.solve.text`
 
 ```{automodule} scenet.solve.text

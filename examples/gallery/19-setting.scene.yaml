@@ -1,0 +1,50 @@
+# Masses, planes and the notan value ladder -- written out by hand.
+#
+# `place:` is the headline surface, and 20-places shows it. This is the layer
+# underneath: the mass list a place expands into, which stays authorable when you want
+# control. Every one of the twelve mass kinds appears across these two panels.
+#
+# Value comes from the *plane*, never from the kind. Reading front to back a mass never
+# gets darker, which is aerial perspective as a parametric rule -- and it is why two
+# masses at one distance read as one mass, which is the whole notan argument.
+
+panel:
+  size: [1000, 620]
+
+camera:
+  shot: long_shot
+
+panels:
+  # Outdoors: the seven exterior kinds, stacked back to front.
+  outside:
+    setting:
+      horizon: mid
+      masses:
+        - {kind: sky,        plane: far}
+        - {kind: solid,      plane: far,  spans: left}
+        - {kind: building,   plane: mid,  spans: right}
+        - {kind: water,      plane: mid}
+        - {kind: structural, plane: near, spans: right}
+        - {kind: plant,      plane: near, spans: left}
+        - {kind: ground,     plane: near}
+    cast:
+      alice: {reference: alice, at: center}
+    script:
+      - caption: {text: "Seven kinds of stuff, four planes deep.", kind: editorial}
+
+  # Indoors: the five interior kinds. A `window` is toned one plane *farther* than the
+  # wall it is cut into, because a window is a hole showing a more distant plane.
+  inside:
+    setting:
+      horizon: mid
+      time: dusk
+      masses:
+        - {kind: wall,      plane: far}
+        - {kind: window,    plane: far,  spans: right}
+        - {kind: ceiling,   plane: mid}
+        - {kind: floor,     plane: near}
+        - {kind: furniture, plane: near, spans: left}
+    cast:
+      bob: {reference: bob, at: right_third, facing: left}
+    script:
+      - caption: {text: "Indoors, at dusk.", kind: locale}

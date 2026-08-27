@@ -12,7 +12,20 @@ from pathlib import Path
 import pytest
 
 from scenet.cli import main, scene_schema
-from scenet.ir import AnchorX, BalloonKind, PanelIR, PlacementZone, Predicate, ShotType
+from scenet.ir import (
+    AnchorX,
+    BalloonKind,
+    Horizon,
+    MassKind,
+    PanelIR,
+    PlacementZone,
+    Plane,
+    Predicate,
+    ShotType,
+    Spans,
+    TimeOfDay,
+    Weather,
+)
 
 REPO = Path(__file__).resolve().parents[1]
 SHIPPED = {
@@ -29,9 +42,24 @@ def generated(kind: str) -> str:
 class TestPanelSchema:
     def test_top_level_keys_match_the_language(self):
         properties = PanelIR.model_json_schema()["properties"]
-        assert set(properties) == {"panel", "camera", "cast", "staging", "script"}
+        assert set(properties) == {"panel", "camera", "setting", "cast", "staging", "script"}
 
-    @pytest.mark.parametrize("enum", [ShotType, AnchorX, Predicate, BalloonKind, PlacementZone])
+    @pytest.mark.parametrize(
+        "enum",
+        [
+            ShotType,
+            AnchorX,
+            Predicate,
+            BalloonKind,
+            PlacementZone,
+            MassKind,
+            Plane,
+            Spans,
+            Horizon,
+            TimeOfDay,
+            Weather,
+        ],
+    )
     def test_every_enum_member_reaches_the_schema(self, enum: type[StrEnum]):
         """Completion is only useful if it offers everything the compiler accepts."""
         document = json.dumps(PanelIR.model_json_schema())

@@ -205,6 +205,27 @@ RULES: dict[str, Rule] = {
         ),
         help="Check the panel name in `over:` and that the chain terminates.",
     ),
+    "unknown-place": Rule(
+        summary="Reference to a place the library does not have",
+        description=(
+            "`setting.place` names a preset that does not exist. The counterpart of "
+            "`unknown-pose`: the key is a real field and the value is a perfectly good "
+            "string, it just does not resolve to a place the compiler can expand."
+        ),
+        help="Check the name against the list in docs/reference/language.md.",
+    ),
+    "conflicting-setting": Rule(
+        summary="A setting names a place and lists masses",
+        description=(
+            "A place *is* a mass list -- the preset expands into exactly what an author "
+            "could have written -- so naming one and listing the other asks two "
+            "questions at once, and the compiler will not guess which was meant."
+        ),
+        help=(
+            "Keep the place, or keep the masses. docs/reference/language.md prints "
+            "what each place expands into."
+        ),
+    ),
     "unknown-puppet": Rule(
         summary="Reference to a character the library does not contain",
         description="A cast member's `reference` names a puppet that is not installed.",
@@ -396,11 +417,28 @@ _RULE_FOR_ERROR_TYPE: tuple[tuple[type[ScenetError], str], ...] = (
 
 
 def _rule_for_scenet_error(exc: ScenetError) -> str:
-    """Map an exception that escaped the compiler onto a rule."""
+    """Map an exception that escaped the compiler onto a rule.
+
+    An error that names its own rule wins. Most surface faults come back as
+    `invalid-field`, which is honest for a value pydantic rejected -- but a check the
+    frontend performs itself knows exactly what it found, and a catalogue is only worth
+    having if the specific rules are reachable.
+    """
+    named = getattr(exc, "rule", None)
+    if isinstance(named, str) and named in RULES:
+        return named
     for error_type, rule in _RULE_FOR_ERROR_TYPE:
         if isinstance(exc, error_type):
             return rule
     return "internal"
+
+
+def _path_for_scenet_error(
+    exc: ScenetError, prefix: tuple[str | int, ...]
+) -> tuple[str | int, ...]:
+    """Where in the document to point, for an error that knows its own location."""
+    loc = getattr(exc, "loc", ())
+    return (*prefix, *loc) if isinstance(loc, tuple) else prefix
 
 
 def _message_of(exc: BaseException) -> str:
@@ -568,13 +606,14 @@ def _diagnose_panel(
     try:
         normalised = normalise(data)
     except ScenetError as exc:
+        path = _path_for_scenet_error(exc, prefix)
         return [
             Diagnostic(
                 rule=_rule_for_scenet_error(exc),
                 message=_message_of(exc),
-                path=prefix,
+                path=path,
                 source=source,
-                region=locate(text, prefix) or DOCUMENT_START,
+                region=locate(text, path) or locate(text, prefix) or DOCUMENT_START,
             )
         ]
 

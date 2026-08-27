@@ -67,7 +67,31 @@ going straight to pixels. The same split pays for itself here, in four ways:
       "lines": ["Midnight.", "The docks."],
       "italic": true
     }
-  ]
+  ],
+  "backdrop": {
+    "horizon": 341.0,
+    "seed": 3062117294,
+    "masses": [
+      {
+        "id": "m0",
+        "kind": "sky",
+        "plane": "far",
+        "depth": -3,
+        "tone": "#4d4d4d",
+        "polygon": [[0.0, 0.0], [1000.0, 0.0], [1000.0, 341.0], [0.0, 341.0]]
+      }
+    ],
+    "atmosphere": {
+      "time": "night",
+      "weather": "rain",
+      "tone": "#4d4d4d",
+      "veil": { "tone": "#222222", "opacity": 0.3, "frequency": 0.0016, "octaves": 3, "seed": 52939 },
+      "streaks": [{ "start": [88.4, 12.0], "end": [99.7, 55.4] }],
+      "flecks": [],
+      "streak_width": 1.4,
+      "fall_tone": "#4d4d4d"
+    }
+  }
 }
 ```
 
@@ -83,3 +107,19 @@ the solver did not measure it in.
 script order, so a caption between two lines of dialogue takes the number between theirs and a
 balloon list can have gaps in it. A panel with no captions is unaffected, which is why this did not
 need a `format_version` bump.
+
+`backdrop` is absent on a panel that says nothing about where it is, which is why adding it did not
+need a bump either. Its masses carry **fully resolved numeric polygons and tone values**, the same
+discipline as `capsules`, `blobs` and `face_marks`: the emitter is left with no layout decision, and
+a backdrop can be read, diffed and hand-adjusted like everything else in this tier. `depth` is the
+same painter's order the actors use, so masses and figures sort into one sequence.
+
+`seed` is kept so that a Core document explains itself: two panels with the same masses and
+different skylines differ here, and here is where to look.
+
+### Determinism is on this text, and on the SVG text — not on pixels
+
+The atmosphere's `veil` is a set of `feTurbulence` parameters rather than an image, and the filter
+is reproducible by specification. What browsers paint from it agrees only approximately. See
+[the language reference](language.md#the-contract-is-on-the-svg-text-not-on-pixels), where the
+boundary is stated in full; golden-file tests target this tier and the SVG text, never a raster.

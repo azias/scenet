@@ -144,6 +144,82 @@ which is also the stronger one for this project:
 That keeps the notation at the objectifiable level and leaves interpretation to another layer, which
 is the thesis of the whole compiler.
 
+### Shape grammars — CGA, as a formalism rather than a library
+
+[Mueller, Wonka, Haegler, Ulmer & Van Gool, *Procedural Modeling of
+Buildings*](https://dl.acm.org/doi/10.1145/1141911.1141931) (SIGGRAPH 2006) ·
+Stiny & Gips, shape grammars
+
+This entry was under **Future** and called shape grammars "genuinely right for procedural
+backgrounds and props". That held, and the setting layer is where it came due. What changed is the
+finding that made it cheap:
+
+> **There is no open-source Python implementation of CGA shape grammar.** The reference
+> implementation is commercial, inside Esri CityEngine, whose Python integration shells out to a
+> separate `.cga` interpreter.
+
+So this is not "add a dependency". It is reusing the **rule formalism** — split, repeat,
+subdivide — directly, against a well-documented design: a skyline is a repeat of bays with a split
+choosing each height, a treeline is a repeat of canopies, a railing is a repeat of posts under one
+rail. A page of code, not a research project. Recorded here so nobody later goes looking for a
+library that does not exist.
+
+One discipline came with it and is worth stating: **how many** of a thing there are is derived from
+the geometry — a wider span gets more bays — and only **how big** each one is comes from the seed.
+Random counts make a backdrop flicker between panels that ought to look related.
+
+### Notan, and aerial perspective
+
+[Notan](https://mitchalbala.com/the-wisdom-of-notan/) · Arthur Wesley Dow, *Composition* (1899) ·
+[Aerial perspective](https://en.wikipedia.org/wiki/Aerial_perspective) ·
+[Layered silhouette depth](https://www.foxrenderfarm.com/share/silhouette-animation-guide/)
+
+Three ideas that between them make a backdrop expressible without a vanishing point, which matters
+because this compiler is deliberately orthographic and drawn architecture would fight its own model.
+
+**Notan** — the Japanese light/dark mass principle, which reached Western art teaching through Dow —
+holds that place is read from the *arrangement of masses* rather than from rendered detail. Taken
+literally: value comes from the plane and from nothing else, so masses at one distance read as one
+mass. **Layered silhouette depth** supplies the arrangement, foreground near-black and each
+receding plane paler.
+
+**Aerial perspective** is the one that earns its place in a compiler rather than in a style guide,
+because it is *parametric*: with distance, value contrast drops toward the atmosphere. Two numbers
+per time of day — the value of the foreground and the value of the atmosphere — and the planes are
+spaced between them. Monotonic in depth by construction rather than by tuning. That is notation.
+
+The spacing is done in [OKLab](https://bottosson.github.io/posts/oklab/) lightness, because evenly
+spaced greys are perceptually uneven. **No colour library was added**: the ladder is a handful of
+neutral values fixed once, computed during development and hardcoded, and for a neutral grey OKLab
+reduces to the cube root of the linear value anyway. Putting a package through the licence gate to
+produce numbers that never change would be the wrong trade.
+
+### COCO-Stuff — the mass vocabulary
+
+[Caesar, Uijlings & Ferrari, *COCO-Stuff: Thing and Stuff Classes in
+Context*](https://arxiv.org/pdf/1612.03716) (CVPR 2018) ·
+[label list](https://raw.githubusercontent.com/nightrome/cocostuff/master/labels.txt)
+
+The canonical taxonomy of **stuff**: "amorphous background regions" as opposed to *things* with a
+well-defined shape. Its own argument is that stuff classes explain scene type and the geometric
+properties of a scene, which is exactly the job a backdrop vocabulary has. Same reasoning as taking
+the predicates from Visual Genome and the caption kinds from Blambot: a vocabulary somebody else
+has already argued about beats one invented here.
+
+Taken at the **supercategory** level, not the leaf level. The real classes are `building-other`,
+`sky-other`, `wall-brick`, `water-other`; the `-other` suffix is COCO-Stuff's marker for the
+catch-all inside a supercategory, and `building-other` is not a word anyone should have to type.
+
+A caveat for anyone extending this: **the supercategory hierarchy is not a file in the repository.**
+[nightrome/cocostuff](https://github.com/nightrome/cocostuff) ships `labels.txt` and `labels.md`
+only, and the groupings have to be read off the hierarchy figure in the paper. The twelve used here
+were each confirmed against the label list by the presence of their `-other` leaf. `textile`, `food`
+and `rawmaterial` exist too and are left out: drapery and objects, not scene-defining masses.
+
+Two happy accidents. COCO-Stuff carries `clouds` and `fog` as first-class stuff, so `weather` needed
+no vocabulary invented for it either; and its indoor/outdoor split gives the interior/exterior
+distinction for free.
+
 ### Lettering convention — Blambot, and Balloon Tales
 
 [Comic Book Grammar & Tradition](https://blambot.com/pages/comic-book-grammar-tradition) ·
@@ -168,11 +244,13 @@ than a parallel one.
 
 ## Future
 
-### Shape grammars (Stiny & Gips) and L-systems
+### L-systems
 
-Rule-rewriting systems that generate *form*. Useless for panel composition, which is a placement
-problem rather than a generative one. Genuinely right for **procedural backgrounds and props** — a
-street corner, a room interior, foliage — which is a real future module.
+The other half of the rule-rewriting family, and still unused. Where CGA subdivides a shape, an
+L-system grows a string, which suits branching structure — a tree drawn as a tree rather than as a
+canopy silhouette, foliage with individual limbs. Nothing in the current backdrop needs it: masses
+are read as values, and a mass has no branches. It becomes interesting if props ever want to be
+drawn rather than massed.
 
 ## Examined and not reusable
 
@@ -186,3 +264,5 @@ street corner, a room interior, foliage — which is a real future module.
 | **ARKit / MediaPipe blendshapes** | 52 continuous coefficients that "loosely correspond to FACS Action Units". Continuous blending is the wrong model for comics, which use a small set of conventionalised glyphs rather than interpolations between them. |
 | **[FACS](https://www.sciencedirect.com/topics/computer-science/facial-action-coding-system)** | Codes anatomical muscle actions for *observation*, is continuous, and is documented as weak on the lower face. Wrong direction, wrong granularity. |
 | **A-star pathfinding for balloon tails** | Frequently suggested, and wrong. A tail is a short tapered stroke from balloon rim to mouth; grid-based A-star produces jagged paths that look nothing like drawn tails. A straight tail with a collision test, bending to a single-control-point Bézier only when obstructed, is both simpler and better. |
+| **Physically based sky models — [Preetham](https://dl.acm.org/doi/10.1145/311535.311545) and [Hosek-Wilkie](https://cgg.mff.cuni.cz/projects/SkylightModelling/)** | The obvious neighbours for `time`, and the wrong tool. They solve a *radiometric* problem — spectral radiance over a hemisphere, parameterised by turbidity and solar elevation — which this compiler does not have. Scenet produces a small number of flat tonal values for a drawn comic panel; it is not simulating scattering. The parametric rule it actually needs is aerial perspective, which is two numbers per hour and is recorded above as load-bearing. Adopting a sky model would import a physical simulation to answer a question about ink. |
+| **`coloraide` / `colour-science` at runtime** | Genuinely good libraries, and the OKLab ladder was worth computing with one — *during development*. Shipping it would put a package through `.github/allowed-licenses.txt` to recompute a handful of neutral greys that never change. The values are hardcoded with the lightnesses they came from written beside them. |

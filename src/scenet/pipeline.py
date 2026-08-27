@@ -16,8 +16,13 @@ from scenet.core import (
     Box,
     Capsule,
     CoreActor,
+    CoreAtmosphere,
+    CoreBackdrop,
     CoreBalloon,
     CoreCaption,
+    CoreMass,
+    CoreStreak,
+    CoreVeil,
     Disc,
     FaceDisc,
     FaceMark,
@@ -33,6 +38,7 @@ from scenet.frontends.script_front import load_script
 from scenet.frontends.yaml_front import load_panel, load_scene, parse_panel, parse_scene
 from scenet.geom import BBox, Vector, rounded
 from scenet.ir import PanelIR
+from scenet.solve.backdrop import ResolvedBackdrop, solve_backdrop
 from scenet.solve.balloons import place_script
 from scenet.solve.camera import CameraSolution
 from scenet.solve.staging import Placement, solve_staging
@@ -137,6 +143,57 @@ def _core_mark(mark: ResolvedStroke | ResolvedDisc) -> FaceMark:
     )
 
 
+def _core_backdrop(backdrop: ResolvedBackdrop | None) -> CoreBackdrop | None:
+    """Reduce a resolved backdrop to its serialisable Core twin.
+
+    Rounding happens here, as it does for every other tier boundary, so that a Core
+    document is byte-identical across platforms whose float formatting differs in the
+    last digit.
+    """
+    if backdrop is None:
+        return None
+
+    air = backdrop.atmosphere
+    return CoreBackdrop(
+        horizon=rounded(backdrop.horizon),
+        seed=backdrop.seed,
+        masses=tuple(
+            CoreMass(
+                id=mass.id,
+                kind=mass.kind,
+                plane=mass.plane,
+                depth=mass.depth,
+                tone=mass.tone,
+                polygon=round_pairs(mass.polygon),
+            )
+            for mass in backdrop.masses
+        ),
+        atmosphere=None
+        if air is None
+        else CoreAtmosphere(
+            time=air.time,
+            weather=air.weather,
+            tone=air.tone,
+            veil=None
+            if air.veil is None
+            else CoreVeil(
+                tone=air.veil.tone,
+                opacity=air.veil.opacity,
+                frequency=air.veil.frequency,
+                octaves=air.veil.octaves,
+                seed=air.veil.seed,
+            ),
+            streaks=tuple(
+                CoreStreak(start=point_pair(start), end=point_pair(end))
+                for start, end in air.streaks
+            ),
+            flecks=tuple(Disc.of(fleck) for fleck in air.flecks),
+            streak_width=rounded(air.streak_width),
+            fall_tone=air.fall_tone,
+        ),
+    )
+
+
 def compile_ir(
     panel: PanelIR,
     *,
@@ -173,13 +230,23 @@ def compile_ir(
         for actor, spec in specs.items()
     }
 
+    # The backdrop is resolved against the whole panel, not the margined frame: artwork
+    # bleeds to the edge and only lettering is kept inside a margin. It runs after
+    # staging, which is what knows how deep the cast goes, and before placement, which
+    # reads the masses as a soft cost.
+    backdrop = solve_backdrop(
+        panel.setting,
+        BBox(0.0, 0.0, panel.panel.width, panel.panel.height),
+        frontmost_actor=max((placement.depth for placement in placements), default=0),
+    )
+
     frame = BBox(
         panel.panel.margin,
         panel.panel.margin,
         panel.panel.width - 2 * panel.panel.margin,
         panel.panel.height - 2 * panel.panel.margin,
     )
-    layout = place_script(panel.script, posed, frame, metrics=metrics)
+    layout = place_script(panel.script, posed, frame, metrics=metrics, backdrop=backdrop)
 
     core = PanelCore(
         width=rounded(panel.panel.width),
@@ -255,6 +322,7 @@ def compile_ir(
             )
             for caption in layout.captions
         ),
+        backdrop=_core_backdrop(backdrop),
     )
     return CompileResult(core=core, camera=camera, placements=placements, posed=posed)
 

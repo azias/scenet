@@ -10,13 +10,14 @@ Coordinates do not appear anywhere in the language; producing them is the compil
 
 ## The layers
 
-A panel description has four authored layers. A fifth — resolution — is computed, and a sixth —
+A panel description has five authored layers. A sixth — resolution — is computed, and a seventh —
 rendering — is emitted.
 
 | Layer | Block | What it says |
 |---|---|---|
 | Frame | `panel` | Size and margins of the panel |
 | Camera | `camera` | How the scene is framed |
+| Setting | `setting` | Where and when it happens |
 | Cast and staging | `cast`, `staging` | Who is present, and how they relate |
 | Narrative | `script` | What is said, and in what order |
 
@@ -32,6 +33,11 @@ panel:
 camera:
   shot: medium_shot
   angle: eye_level
+
+setting:
+  place: docks
+  time: night
+  weather: rain
 
 cast:
   alice: {reference: alice, pose: pointing,     at: left_third,  facing: right}
@@ -65,6 +71,169 @@ Panel units are arbitrary and internally consistent; they become SVG user units.
 
 `shot` determines the **scale** of every actor, by naming where the frame cuts the body rather than
 what fraction of the panel a figure fills. This is the single most consequential value in a panel.
+
+## `setting`
+
+Where and when the panel happens, drawn as **tonal masses** rather than as geometry.
+
+```yaml
+setting:
+  place: docks       # a named place, which expands into masses
+  horizon: mid       # high | mid | low
+  time: night        # dawn | day | dusk | night
+  weather: rain      # clear | rain | fog | snow
+```
+
+A panel with no `setting` renders exactly as it always did: figures on white.
+
+### Backdrops are never author-drawn
+
+Two reasons, and the first is structural. Crisp architecture needs a vanishing point, and this is
+deliberately a flat, orthographic compiler — a tilted camera does not foreshorten anything — so
+drawn buildings would fight the compiler's own model. Soft tonal masses have no perspective to get
+wrong.
+
+The second is that this is how comics actually establish place:
+
+- **[Notan](https://mitchalbala.com/the-wisdom-of-notan/)**, the Japanese light/dark mass
+  principle, which entered Western art teaching through Arthur Wesley Dow's *Composition* (1899):
+  place is read from the *arrangement of masses*, not from rendered detail.
+- **Layered silhouette depth**: foreground near-black, each receding plane paler.
+- **[Aerial perspective](https://en.wikipedia.org/wiki/Aerial_perspective)** supplies the
+  parametric rule for free — with distance, value contrast drops toward the atmosphere. Two numbers
+  per hour, monotonic in depth. That is notation, not interpretation, which is why it belongs in a
+  compiler.
+
+### `masses`
+
+A place is a convenience. Underneath it is a list of masses, which stays authorable whenever you
+want control — and which is *exactly* what a place expands into:
+
+```yaml
+setting:
+  horizon: mid
+  masses:
+    - {kind: building, plane: far,  spans: full}
+    - {kind: plant,    plane: mid,  spans: left}
+    - {kind: ground,   plane: near, spans: full}
+```
+
+| Key | Values | Default | Meaning |
+|---|---|---|---|
+| `kind` | see below | required | What the mass is made of, which decides its silhouette |
+| `plane` | `foreground`, `near`, `mid`, `far` | `mid` | How far back it sits |
+| `spans` | `full`, `left`, `center`, `right` | `full` | How much of the width it covers |
+
+**`kind`** is subsetted from the *supercategories* of
+[COCO-Stuff](https://arxiv.org/pdf/1612.03716), the canonical taxonomy of **stuff** — "amorphous
+background regions" as opposed to *things* with a well-defined shape. Taken from an existing
+vocabulary for the same reason the predicates were taken from Visual Genome. Twelve of them, seven
+outdoor and five indoor:
+
+| | Kinds |
+|---|---|
+| Outdoor | `building` `ground` `plant` `sky` `solid` `structural` `water` |
+| Indoor | `ceiling` `floor` `furniture` `wall` `window` |
+
+Deliberately *not* COCO-Stuff's leaf names. Its actual classes are `building-other`, `sky-other`,
+`wall-brick`, `water-other`; the `-other` suffix marks the catch-all inside a supercategory, and
+`building-other` is not a word anyone should have to type. Its `textile`, `food` and `rawmaterial`
+supercategories are left out: drapery and objects, not scene-defining masses.
+
+**`plane`** decides two things at once, and neither is a new mechanism. It maps onto the same
+integer painter's order `in_front_of` already uses — the three backdrop planes take negative
+depths, and `foreground` takes one above the frontmost actor, so a foreground mass draws over the
+cast the way a silhouetted doorway does. And it decides **value**: reading front to back, a mass
+never gets darker.
+
+Value comes from the plane and from **nothing else** — not from the kind. That is what keeps the
+notan reading literal: masses at one distance read as one mass, and their arrangement is what
+carries the place. Two kinds sit off their own plane's rung, and both stay on the ladder rather
+than beside it: `sky` is at infinite distance so it always takes the atmosphere's value, and
+`window` is a hole showing a more distant plane so it takes the rung one step farther back.
+
+A **nearer plane is also drawn larger**, which is size perspective alongside aerial perspective: a
+near hill is not merely darker than a far one, it is bigger.
+
+**`spans`** is an absolute extent, and that is not cosmetic. Any construct that would reintroduce a
+left/right *disjunction* has to resolve it before the solver — see
+[why ordering must be explicit](#why-ordering-must-be-explicit). A span is an extent rather than a
+relation, which is what stops masses becoming an unordered `beside`. `left` and `right` overlap
+slightly in the middle so that using both leaves no seam down the centre of the panel.
+
+One authored mass may resolve to **several polygons**: furniture is a few separate blocks, a wall
+holds several windows. Joining them into one comb with a zero-height baseline would be a lie about
+the shape.
+
+### `place`
+
+The headline surface, because the thing an author wants to write is *where the scene is*, not a
+list of shapes.
+
+| Place | Expands into |
+|---|---|
+| `alley` | sky·far, building·near·left, building·near·right, ground·near, building·foreground·left |
+| `desert` | sky·far, solid·far·right, ground·mid, ground·near |
+| `docks` | sky·far, building·far·left, water·mid, structural·mid·right, ground·near |
+| `field` | sky·far, plant·far, ground·mid, ground·near |
+| `forest` | sky·far, plant·far, plant·near·left, plant·near·right, ground·near |
+| `mountain` | sky·far, solid·far, solid·mid·left, plant·mid·right, ground·near |
+| `office` | wall·far, window·far·center, ceiling·mid, floor·near, furniture·near |
+| `room` | wall·far, window·far·right, ceiling·mid, floor·near, furniture·near·left |
+| `shore` | sky·far, water·mid, ground·near |
+| `street` | sky·far, building·far, building·mid·left, building·mid·right, ground·near |
+
+**The rule that keeps `place:` honest**: a preset expands into a mass list the author could have
+written themselves, and is never a second opaque format. A library for convenience, not a parallel
+language. The expansion happens in the frontend, exactly as `alice left_of bob` is expanded into a
+relation — so by the time anything downstream sees a backdrop, there is one representation of it.
+
+`place` and `masses` are **mutually exclusive**. A place *is* a mass list; writing both asks two
+questions at once, and the compiler will not guess which was meant.
+
+**Free prose is deliberately not offered.** `setting: "a rainy street corner at midnight"` needs
+language understanding, and the comic-script frontend already refuses to interpret prose on the
+grounds that guessing produces panels that are confidently wrong. A named place is the honest
+middle: it reads like a description and resolves deterministically. `scenet check` reports an
+unmatched name as `unknown-place`, listing the ones that exist.
+
+### `horizon`
+
+One line for the whole panel, which every mass is composed against: masses of the ground sort start
+at it and run down, masses that stand in the world rise from it. A **high** horizon sits nearer the
+top of the frame, so more ground is in view.
+
+Ground, floor and water all run to the bottom edge, so a near quayside drawn from the horizon would
+bury the water behind it. Each starts lower than the plane behind it, and that stack of receding
+bands is the depth cue. The exception is the *farthest* one in a panel, which meets the horizon
+itself: there is nothing behind it to reveal.
+
+### `time` and `weather`
+
+`time` does not tint a daytime panel. It supplies the two ends of the value ladder — the value of
+the foreground and the value of the atmosphere — and the planes are spaced evenly between them in
+[OKLab](https://bottosson.github.io/posts/oklab/) lightness, which predicts perceived lightness
+well. So `night` is a darker, *narrower* ladder, which is what night does to a drawn scene, and the
+ladder stays monotonic in depth at every hour by construction rather than by tuning.
+
+`weather` adds a layer over that. `clouds` and `fog` are first-class stuff in COCO-Stuff, so this
+vocabulary did not have to be invented either:
+
+| `weather` | What it does |
+|---|---|
+| `clear` | Nothing. The panel has no atmosphere layer at all |
+| `fog` | A dense, low-frequency noise veil, tinted with the atmosphere itself |
+| `rain` | The same veil as cloud — nearer, so darker than the sky — plus slanted streaks |
+| `snow` | The same veil, plus flecks |
+
+The veil sits over the backdrop and *under* the cast: fog between the reader and the figures would
+be the more literal reading and would bury them. Falling weather goes over everything, because it
+**is** between the reader and the panel — which is why it crosses the figures.
+
+Rain flips to ink over a bright sky and to paper over a dark one, as inkers do, because a white
+streak over noon is invisible and a black one over midnight is too. Snow never flips: snow is
+white, and the overcast veil is what gives it something to read against.
+
 
 ## `cast`
 
@@ -229,3 +398,27 @@ preference. If you need a guarantee, express it as a relation in `staging`.
 The same source always compiles to byte-identical output. No wall-clock time, no unseeded
 randomness, no dependence on mapping iteration order. This is what makes a panel description a
 durable artifact rather than a prompt: it will render the same in five years as it does today.
+
+Backdrop silhouettes are generated, so they are seeded — from the declared setting and the panel
+size, through a content hash. Never a clock, and never Python's `hash()`, which is salted per
+process and would agree with itself all day while disagreeing with tomorrow's build.
+
+### The contract is on the SVG text, not on pixels
+
+Worth stating explicitly, because it is exactly the kind of assumption that rots silently.
+
+> **The determinism contract is on the emitted SVG text, which stays byte-identical. It has never
+> been on pixels.**
+
+The `feTurbulence` filter that draws fog and cloud is reproducible *by definition* — SVG has Perlin
+noise built in, the specification includes reference code, and the `seed` is fixed by the compiler
+— so the emitted document is identical every time. In practice browsers agree only
+[approximately](https://tympanus.net/codrops/2019/02/19/svg-filter-effects-creating-texture-with-feturbulence/)
+on what to paint from it. That is fine, and it was already true of every glyph outline and every
+antialiased edge in the file.
+
+Golden-file tests therefore target Panel Core and SVG **text**, never a raster. If a raster check is
+ever wanted, [resvg](https://github.com/linebender/resvg) is the candidate: it supports
+`feTurbulence`, aims at the whole specification rather than the common cases, and ships around 1600
+SVG-to-PNG regression tests — which matters because the W3C SVG test suite was abandoned long ago,
+making resvg's the practical conformance reference.

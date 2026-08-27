@@ -290,6 +290,18 @@ class TestTheLadderIsALadder:
         scales = self._scales()
         assert scales[-1] > scales[0] * 4
 
+    def test_a_long_shot_is_meaningfully_wider_than_a_full_shot(self):
+        """The two rungs at the widest end used to be degenerate, and the comment in
+        `camera.py` admitted it: with nothing behind the figure, "small in its
+        environment" and "the whole body" could differ only by a little headroom.
+
+        There is an environment now, so a long shot can mean what it says. This asserts
+        the gap is a real rung rather than a nudge -- which is the half of the setting
+        work that shows up in the camera rather than in the backdrop.
+        """
+        scales = dict(zip(self.ORDER, self._scales(), strict=False))
+        assert scales[ShotType.LONG_SHOT] <= scales[ShotType.FULL_SHOT] * 0.8
+
     def test_wide_and_long_shot_are_exact_synonyms(self):
         reference = default_library().get("alice")
         first = solve_camera(

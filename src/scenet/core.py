@@ -15,7 +15,7 @@ from typing import Any, Literal, Self
 from pydantic import BaseModel, ConfigDict
 
 from scenet.geom import PRECISION, BBox, Circle, Point, Vector, rounded
-from scenet.ir import BalloonKind, CaptionKind
+from scenet.ir import BalloonKind, CaptionKind, MassKind, Plane, TimeOfDay, Weather
 
 CORE_FORMAT_VERSION = 1
 
@@ -94,7 +94,8 @@ class Box(CoreModel):
 class Disc(CoreModel):
     """A circle, as stored in a Core document.
 
-    In practice always a face exclusion zone -- the region no balloon may cover.
+    Usually a face exclusion zone -- the region no balloon may cover. Also a fleck of
+    falling snow, which is the same shape and wants the same rounding.
 
     Attributes:
         cx: Centre x.
@@ -191,6 +192,118 @@ class FaceDisc(CoreModel):
 #: discriminator, for the same reason `ScriptEvent` is: a discriminator would require
 #: the tag in every hand-written document.
 FaceMark = FaceStroke | FaceDisc
+
+
+class CoreMass(CoreModel):
+    """One tonal mass of the backdrop, resolved to a numeric polygon.
+
+    The same discipline as `capsules`, `blobs` and `face_marks`: everything the emitter
+    needs is a number by the time it gets here, so drawing a backdrop involves no layout
+    decision at all.
+
+    Attributes:
+        id: Stable identifier, `m0`, `m1`, ... back to front.
+        kind: What the mass is made of. Carried so a Core document stays readable -- it
+            is not consulted when drawing, since the tone is already resolved.
+        plane: How far back it sits.
+        depth: Painter's order, shared with the actors. Backdrop planes are negative;
+            a foreground mass sits above the frontmost actor.
+        tone: The `#rrggbb` fill, already chosen from the value ladder.
+        polygon: The silhouette, in panel coordinates.
+    """
+
+    id: str
+    kind: MassKind
+    plane: Plane
+    depth: int
+    tone: str
+    polygon: tuple[tuple[float, float], ...]
+
+
+class CoreVeil(CoreModel):
+    """The atmospheric noise layer, as parameters rather than as pixels.
+
+    SVG has Perlin noise built in through `feTurbulence`, and the specification includes
+    reference code, so a fixed `seed` is reproducible **by definition**: the emitted text
+    is byte-identical. Browsers agree only approximately on what to paint from it, which
+    is fine and is exactly why the determinism contract is on the SVG text and has never
+    been on pixels.
+
+    Attributes:
+        tone: The `#rrggbb` the veil is tinted.
+        opacity: How much of it lands, `0 .. 1`.
+        frequency: `baseFrequency`, per panel unit.
+        octaves: `numOctaves`.
+        seed: `seed`, derived from the declared content and the panel size.
+    """
+
+    tone: str
+    opacity: float
+    frequency: float
+    octaves: int
+    seed: int
+
+
+class CoreStreak(CoreModel):
+    """One streak of falling rain.
+
+    The width is on :class:`CoreAtmosphere <scenet.core.CoreAtmosphere>` rather than
+    here: every streak in a panel shares it, and repeating it per streak would make the
+    file longer without making it say anything more.
+    """
+
+    start: tuple[float, float]
+    end: tuple[float, float]
+
+
+class CoreAtmosphere(CoreModel):
+    """What the air is doing, resolved.
+
+    Attributes:
+        time: When the panel happens. Recorded rather than re-derived, for the same
+            reason `CoreCaption.italic` is: the emitter must not be able to draw
+            something the solver did not resolve.
+        weather: What is falling, if anything.
+        tone: The atmosphere's own value at this hour.
+        veil: The noise layer -- fog, or cloud for rain and snow.
+        streaks: Rain, every streak at the same angle.
+        flecks: Snow.
+        streak_width: Stroke width for a streak, in panel units.
+        fall_tone: What rain and snow are drawn in -- ink over a bright sky, paper over
+            a dark one. Resolved rather than left to the emitter, because which one
+            reads is a fact about this panel.
+    """
+
+    time: TimeOfDay
+    weather: Weather
+    tone: str
+    veil: CoreVeil | None = None
+    streaks: tuple[CoreStreak, ...] = ()
+    flecks: tuple[Disc, ...] = ()
+    streak_width: float = 0.0
+    fall_tone: str = ""
+
+
+class CoreBackdrop(CoreModel):
+    """Where the panel is, resolved: masses, tones, and the air.
+
+    Attributes:
+        horizon: Where the ground meets what is behind it, in panel units.
+        seed: What every silhouette in here was generated from. Kept so that a Core
+            document explains itself: two panels with the same masses and different
+            skylines differ here, and here is where to look.
+        masses: The tonal masses, back to front.
+        atmosphere: The air, or None when the weather is clear.
+
+    Optional on :class:`PanelCore <scenet.core.PanelCore>`, so every document written
+    before this existed is still a valid one -- which is why adding it did not need a
+    `format_version` bump, the same argument captions made.
+    """
+
+    horizon: float
+    seed: int
+    masses: tuple[CoreMass, ...] = ()
+    atmosphere: CoreAtmosphere | None = None
 
 
 class CoreActor(CoreModel):
@@ -357,6 +470,8 @@ class PanelCore(CoreModel):
         balloons: Resolved balloons, in reading order.
         captions: Resolved caption boxes, in reading order. Balloons and captions
             share one `order` sequence, since the reader takes them in one sequence.
+        backdrop: Where the panel is, or None when it says nothing about that -- which
+            is every panel written before the setting layer existed.
 
     Golden-file tests target this tier rather than the SVG, because it changes only when
     the layout genuinely changes. Diffing SVG text is brittle -- a reordered attribute or
@@ -379,6 +494,7 @@ class PanelCore(CoreModel):
     actors: tuple[CoreActor, ...] = ()
     balloons: tuple[CoreBalloon, ...] = ()
     captions: tuple[CoreCaption, ...] = ()
+    backdrop: CoreBackdrop | None = None
 
     @property
     def bounds(self) -> BBox:
@@ -455,8 +571,13 @@ __all__ = [
     "Box",
     "Capsule",
     "CoreActor",
+    "CoreAtmosphere",
+    "CoreBackdrop",
     "CoreBalloon",
     "CoreCaption",
+    "CoreMass",
+    "CoreStreak",
+    "CoreVeil",
     "Disc",
     "FaceDisc",
     "FaceMark",

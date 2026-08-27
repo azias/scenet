@@ -25,14 +25,22 @@ __all__ = [
     "CaptionKind",
     "CastMember",
     "Facing",
+    "Horizon",
+    "Mass",
+    "MassKind",
     "PanelIR",
     "PanelSpec",
     "PlacementZone",
+    "Plane",
     "Predicate",
     "Relation",
     "SayEvent",
+    "SettingSpec",
     "ShotType",
+    "Spans",
     "Strict",
+    "TimeOfDay",
+    "Weather",
 ]
 
 # Depth-first search marks, used by the ordering cycle check.
@@ -242,6 +250,163 @@ class CaptionKind(StrEnum):
         return self is CaptionKind.SPOKEN
 
 
+class MassKind(StrEnum):
+    """What a tonal mass in the backdrop is made of.
+
+    Subsetted from the **supercategories** of
+    [COCO-Stuff](https://arxiv.org/pdf/1612.03716), the canonical taxonomy of *stuff* --
+    "amorphous background regions" as opposed to *things* with a well-defined shape.
+    Its own argument is that stuff classes explain scene type and the geometric
+    properties of a scene, which is exactly the job here. Taken from an existing
+    vocabulary for the same reason the predicates were taken from Visual Genome.
+
+    **Deliberately not the leaf names.** COCO-Stuff's actual classes are
+    `building-other`, `sky-other`, `wall-brick`, `water-other` and so on, where the
+    `-other` suffix marks the catch-all inside a supercategory. `building-other` is not
+    a word anyone should have to type.
+
+    Seven are outdoor -- `building`, `ground`, `plant`, `sky`, `solid`, `structural`,
+    `water` -- and five indoor: `ceiling`, `floor`, `furniture`, `wall`, `window`.
+    COCO-Stuff's own indoor/outdoor split is where that distinction comes from, so it
+    did not have to be invented either. Its `textile`, `food` and `rawmaterial`
+    supercategories are left out: drapery and objects, not scene-defining masses.
+
+    A kind decides the **shape** a mass takes, never its value. Value comes from the
+    plane, which is what keeps the notan reading honest -- see
+    :class:`Plane <scenet.ir.Plane>`.
+    """
+
+    BUILDING = "building"
+    CEILING = "ceiling"
+    FLOOR = "floor"
+    FURNITURE = "furniture"
+    GROUND = "ground"
+    PLANT = "plant"
+    SKY = "sky"
+    SOLID = "solid"
+    STRUCTURAL = "structural"
+    WALL = "wall"
+    WATER = "water"
+    WINDOW = "window"
+
+
+class Plane(StrEnum):
+    """How far back a mass sits, which decides both its draw order and its value.
+
+    Four planes, ordered from the back of the panel forward. They map onto the existing
+    integer :attr:`CoreActor.depth <scenet.core.CoreActor.depth>` painter's order rather
+    than introducing a second ordering mechanism: the three backdrop planes take
+    negative depths, and `foreground` takes one above the frontmost actor, so a
+    foreground mass draws over the cast the way a silhouetted doorway does.
+
+    Value follows from the plane and from nothing else, which is what makes the
+    [aerial perspective](https://en.wikipedia.org/wiki/Aerial_perspective) rule
+    parametric: with distance, contrast drops toward the atmosphere. Reading front to
+    back, a mass never gets darker. See
+    :func:`tone_for <scenet.solve.backdrop.tone_for>`.
+    """
+
+    FOREGROUND = "foreground"
+    NEAR = "near"
+    MID = "mid"
+    FAR = "far"
+
+
+class Spans(StrEnum):
+    """How much of the panel's width a mass covers.
+
+    Resolved to an extent in the frontend, and that is **not cosmetic**. `CLAUDE.md`
+    requires any construct that would reintroduce a left/right disjunction to resolve it
+    before the solver, because Cassowary cannot express "A left of B *or* B left of A".
+    A span is an absolute extent rather than a relation, which is what stops masses
+    becoming an unordered `beside`.
+    """
+
+    FULL = "full"
+    LEFT = "left"
+    CENTRE = "center"
+    RIGHT = "right"
+
+    @property
+    def fractions(self) -> tuple[float, float]:
+        """The extent as `(start, end)` fractions of panel width.
+
+        `left` and `right` overlap slightly in the middle. Butting them exactly would
+        leave a seam down the centre of the panel wherever both are used at the same
+        plane, which reads as a mistake rather than as two masses.
+
+        Example:
+            >>> from scenet.ir import Spans
+            >>> Spans.FULL.fractions
+            (0.0, 1.0)
+        """
+        return {
+            Spans.FULL: (0.0, 1.0),
+            Spans.LEFT: (0.0, 0.56),
+            Spans.CENTRE: (0.26, 0.74),
+            Spans.RIGHT: (0.44, 1.0),
+        }[self]
+
+
+class Horizon(StrEnum):
+    """Where the ground meets whatever is behind it.
+
+    One line for the whole panel, which every mass is composed against: masses of the
+    ground sort start at it and run down, masses that stand in the world rise from it.
+    Named rather than given as a number for the same reason `at:` is -- the author is
+    saying how the panel is composed, not typing a coordinate.
+    """
+
+    HIGH = "high"
+    MID = "mid"
+    LOW = "low"
+
+    @property
+    def fraction(self) -> float:
+        """Where the line sits, as a fraction of panel height.
+
+        A **high** horizon sits nearer the top of the frame, so more ground is in view
+        and the camera reads as looking down over it.
+
+        Example:
+            >>> from scenet.ir import Horizon
+            >>> Horizon.HIGH.fraction < Horizon.LOW.fraction
+            True
+        """
+        return {Horizon.HIGH: 0.38, Horizon.MID: 0.55, Horizon.LOW: 0.72}[self]
+
+
+class TimeOfDay(StrEnum):
+    """When the panel happens, which shifts the whole value ladder.
+
+    Each time supplies two numbers -- the value of the foreground and the value of the
+    atmosphere -- and the planes are spaced evenly between them. So `night` is not a
+    blue filter over a daytime panel: it is a darker, more compressed ladder, which is
+    what night actually does to a drawn scene. The ladder stays monotonic in depth at
+    every time of day, by construction rather than by tuning.
+    """
+
+    DAWN = "dawn"
+    DAY = "day"
+    DUSK = "dusk"
+    NIGHT = "night"
+
+
+class Weather(StrEnum):
+    """What the air is doing between the reader and the panel.
+
+    `clouds` and `fog` are first-class *stuff* in COCO-Stuff, so this vocabulary did not
+    have to be invented either. `fog` renders as a turbulence veil over the backdrop;
+    `rain` and `snow` add that veil as cloud and put falling marks over everything,
+    because weather is between the reader and the figures rather than behind them.
+    """
+
+    CLEAR = "clear"
+    RAIN = "rain"
+    FOG = "fog"
+    SNOW = "snow"
+
+
 class PanelSpec(Strict):
     """The panel's own dimensions.
 
@@ -304,6 +469,73 @@ class CameraSpec(Strict):
 
     shot: ShotType = ShotType.MEDIUM_SHOT
     angle: CameraAngle = CameraAngle.EYE_LEVEL
+
+
+class Mass(Strict):
+    """One tonal mass in the backdrop: what it is, how far back, how wide.
+
+    Attributes:
+        kind: What the mass is made of, which decides its silhouette.
+        plane: How far back it sits, which decides its value and its draw order.
+        spans: How much of the panel's width it covers.
+
+    **Backdrops are never author-drawn**, and there are two reasons. The structural one:
+    crisp architecture needs a vanishing point, and this is deliberately a flat,
+    orthographic compiler, so drawn buildings would fight the compiler's own model.
+    Soft tonal masses have no perspective to get wrong.
+
+    The second is that this is how comics actually establish place. Notan -- the
+    Japanese light/dark mass principle, which reached Western art teaching through
+    Arthur Wesley Dow's *Composition* (1899) -- says place is read from the arrangement
+    of masses rather than from rendered detail.
+
+    Example:
+        >>> from scenet.ir import Mass, MassKind
+        >>> Mass(kind=MassKind.SKY).plane.value
+        'mid'
+    """
+
+    kind: MassKind
+    plane: Plane = Plane.MID
+    spans: Spans = Spans.FULL
+
+
+class SettingSpec(Strict):
+    """Where and when the panel happens, as tonal masses rather than drawn geometry.
+
+    Attributes:
+        horizon: Where the ground meets what is behind it.
+        masses: The backdrop, back to front. Written directly, or produced by naming a
+            place in the surface syntax.
+        time: When it happens, which shifts the value ladder.
+        weather: What the air is doing.
+
+    **There is no `place` field here, deliberately.** `place: docks` is surface syntax
+    that the frontend expands into exactly the mass list an author could have written
+    themselves -- the same treatment `alice left_of bob` gets, which reaches the IR as a
+    :class:`Relation <scenet.ir.Relation>` and never as text. That is what keeps a
+    preset a library for convenience rather than a second, opaque format: by the time
+    anything downstream sees a backdrop, there is one representation of it.
+
+    A panel with no masses and clear weather has no backdrop at all, which is what every
+    panel written before this block existed still gets.
+
+    Example:
+        >>> from scenet import parse_panel
+        >>> panel = parse_panel("setting: {place: docks, time: night}")
+        >>> panel.setting.time.value, len(panel.setting.masses) > 0
+        ('night', True)
+    """
+
+    horizon: Horizon = Horizon.MID
+    masses: tuple[Mass, ...] = ()
+    time: TimeOfDay = TimeOfDay.DAY
+    weather: Weather = Weather.CLEAR
+
+    @property
+    def is_bare(self) -> bool:
+        """Whether there is nothing to draw: no masses, and nothing in the air."""
+        return not self.masses and self.weather is Weather.CLEAR
 
 
 class CastMember(Strict):
@@ -495,6 +727,7 @@ class PanelIR(Strict):
 
     panel: PanelSpec = PanelSpec()
     camera: CameraSpec = CameraSpec()
+    setting: SettingSpec = SettingSpec()
     cast: dict[str, CastMember] = Field(default_factory=dict)
     staging: tuple[Relation, ...] = ()
     script: tuple[ScriptEvent, ...] = ()

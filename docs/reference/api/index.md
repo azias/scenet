@@ -22,7 +22,8 @@ promised to survive a minor version.
 | **Parsing only** | `parse_panel` · `parse_scene` · `parse_script` · `load_panel` · `load_scene` · `load_script` |
 | **Rendering** | `render` · `render_debug` · `render_strip` |
 | **Tiers** | `PanelIR` · `PanelCore` |
-| **Describing a panel** | `PanelSpec` · `CameraSpec` · `CastMember` · `Relation` · `SayEvent` · `ShotType` · `CameraAngle` · `AnchorX` · `PlacementZone` · `Facing` · `Predicate` · `BalloonKind` |
+| **Describing a panel** | `PanelSpec` · `CameraSpec` · `CastMember` · `Relation` · `SayEvent` · `CaptionEvent` · `ShotType` · `CameraAngle` · `AnchorX` · `PlacementZone` · `Facing` · `Predicate` · `BalloonKind` · `CaptionKind` |
+| **Describing a setting** | `SettingSpec` · `Mass` · `MassKind` · `Plane` · `Spans` · `Horizon` · `TimeOfDay` · `Weather` · `Place` · `PLACES` |
 | **Characters** | `PuppetLibrary` · `PuppetSpec` · `Landmark` · `default_library` · `load_puppet` |
 | **Errors** | `ScenetError` · `SourceError` · `SolverError` · `AssetError` · `PanelSyntaxError` · `ScriptSyntaxError` · `CompositionError` · `LayoutError` · `BalloonPlacementError` · `UnknownPuppetError` |
 

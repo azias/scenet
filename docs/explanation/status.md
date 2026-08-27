@@ -24,6 +24,7 @@ attribution. A notation is only worth having if it is not owned.
 | 5 | Comic-script frontend; multi-panel `over` inheritance | **Done** |
 | 6 | Browser playground (Pyodide); VS Code extension | **Done** |
 | 7 | Machine-readable diagnostics: `scenet check`, in SARIF | **Done** |
+| 8 | Captions, faces, and the setting layer — places, masses, planes, atmosphere | **Done** |
 
 Single panels compile end to end. Constructs described in `language.md` are the specification,
 not a report of what is implemented — the table above is authoritative on what actually runs.
@@ -35,9 +36,8 @@ dependency between them is stated in the tickets rather than implied by this tab
 
 | Scope | Ticket |
 |---|---|
-| Captions — stating where and when a panel happens | [#8](https://github.com/azias/scenet/issues/8) |
-| Setting — showing it, as tonal masses | [#9](https://github.com/azias/scenet/issues/9) |
-| Faces — characters carry an expression | [#10](https://github.com/azias/scenet/issues/10) |
+| Emanata — the marks that are not on the face | [#21](https://github.com/azias/scenet/issues/21) |
+| Tinted caption boxes | [#28](https://github.com/azias/scenet/issues/28) |
 | The agent-facing surface — spec pack, skill, MCP server | [#11](https://github.com/azias/scenet/issues/11) |
 
 Still further out, and not yet ticketed: page composition (tiers, panels of varying size) and the

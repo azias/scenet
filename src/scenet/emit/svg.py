@@ -13,8 +13,10 @@ from xml.sax.saxutils import escape, quoteattr
 
 from scenet.core import (
     CoreActor,
+    CoreAtmosphere,
     CoreBalloon,
     CoreCaption,
+    CoreMass,
     FaceDisc,
     FaceMark,
     PanelCore,
@@ -39,6 +41,11 @@ TAIL_BASE_FRACTION = 0.18
 
 CAPTION_STROKE_WIDTH = 2.5
 
+# Falling weather is drawn at less than full opacity so it reads as passing through the
+# panel rather than as marks on top of it. *Which* tone it uses was chosen by the solver
+# and travels in `CoreAtmosphere.fall_tone`.
+WEATHER_OPACITY = 0.85
+
 
 def fmt(value: float) -> str:
     """Format a number for SVG output.
@@ -62,18 +69,41 @@ def render(
 ) -> str:
     """Render a compiled panel as a standalone SVG document."""
     metrics = metrics or load_metrics()
+    backdrop = core.backdrop
+    air = backdrop.atmosphere if backdrop is not None else None
+
     parts: list[str] = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{fmt(core.width)}" '
         f'height="{fmt(core.height)}" viewBox="0 0 {fmt(core.width)} {fmt(core.height)}">',
-        f'  <rect x="0" y="0" width="{fmt(core.width)}" height="{fmt(core.height)}" '
-        f'fill="{FILL_PANEL}"/>',
-        f'  <g stroke="{STROKE}" stroke-linecap="round" stroke-linejoin="round">',
     ]
+    if air is not None:
+        parts.append(_atmosphere_filter(air))
+    parts.append(
+        f'  <rect x="0" y="0" width="{fmt(core.width)}" height="{fmt(core.height)}" '
+        f'fill="{FILL_PANEL}"/>'
+    )
 
-    # Painter's order: lower depth first, so higher-depth actors land in front.
-    for actor in sorted(core.actors, key=lambda a: (a.depth, a.id)):
-        parts.append(_render_actor(actor))
+    # Masses and actors share one painter's order, which is the whole point of `plane`
+    # mapping onto `depth`: a far mass, the cast, and a foreground mass fall into place
+    # in a single sort with no layering code of their own. Ties break on id, exactly as
+    # they did when actors sorted alone.
+    drawn: list[tuple[int, str, str]] = [
+        (actor.depth, actor.id, _render_actor(actor)) for actor in core.actors
+    ]
+    if backdrop is not None:
+        drawn += [(mass.depth, mass.id, _render_mass(mass)) for mass in backdrop.masses]
+    drawn.sort(key=lambda item: (item[0], item[1]))
+
+    parts.extend(body for depth, _, body in drawn if depth < 0)
+
+    # The veil sits over the backdrop and under the cast. Fog between the reader and the
+    # figures would be the more literal reading and would bury them; comics put it behind.
+    if air is not None:
+        parts.append(_render_veil(core, air))
+
+    parts.append(f'  <g stroke="{STROKE}" stroke-linecap="round" stroke-linejoin="round">')
+    parts.extend(body for depth, _, body in drawn if depth >= 0)
 
     # Balloons and captions sit above the figures and share one reading order, so they
     # are emitted as one sequence rather than one layer stacked on the other.
@@ -88,12 +118,113 @@ def render(
             parts.append(_render_balloon(item, metrics, live_text=live_text))
 
     parts.append("  </g>")
+
+    # Falling weather goes over everything but the frame. It is between the reader and
+    # the panel rather than inside it, which is why it crosses the figures.
+    if air is not None:
+        parts.append(_render_falling(air))
+
     parts.append(
         f'  <rect x="0" y="0" width="{fmt(core.width)}" height="{fmt(core.height)}" '
         f'fill="none" stroke="{STROKE}" stroke-width="6"/>'
     )
     parts.append("</svg>")
-    return "\n".join(parts) + "\n"
+    return "\n".join(part for part in parts if part) + "\n"
+
+
+def _render_mass(mass: CoreMass) -> str:
+    """One tonal mass: a flat fill, and nothing else.
+
+    No outline, deliberately. A stroked mass reads as a drawn object, and the argument
+    for masses in the first place is that a backdrop is read from the arrangement of
+    values rather than from drawn detail.
+    """
+    return (
+        f'    <polygon id={attr("mass-" + mass.id)} points="{_points(list(mass.polygon))}" '
+        f'fill="{mass.tone}" stroke="none"/>'
+    )
+
+
+def _filter_id(atmosphere: CoreAtmosphere) -> str:
+    """A document-unique id for the turbulence filter.
+
+    It carries the seed, so a strip emitting several panels into one document cannot end
+    up with two filters answering to the same name.
+    """
+    veil = atmosphere.veil
+    return f"scenet-veil-{0 if veil is None else veil.seed}"
+
+
+def _atmosphere_filter(atmosphere: CoreAtmosphere) -> str:
+    """The `feTurbulence` filter, written out from parameters the solver resolved.
+
+    Perlin noise is built into SVG and the specification includes reference code, so a
+    fixed seed is reproducible **by definition**: the emitted text is byte-identical.
+    Browsers agree only approximately on what to paint from it, and that is fine -- the
+    determinism contract is on the SVG text and has never been on pixels. See
+    `docs/reference/language.md`.
+
+    The colour matrix flattens the noise to one tone and takes the alpha from it, so the
+    veil is a cloud of the atmosphere colour rather than coloured static.
+    """
+    veil = atmosphere.veil
+    if veil is None:
+        return ""
+    red, green, blue = _channels(veil.tone)
+    matrix = (
+        f"0 0 0 0 {fmt(red)} 0 0 0 0 {fmt(green)} 0 0 0 0 {fmt(blue)} "
+        f"{fmt(veil.opacity)} {fmt(veil.opacity / 2)} 0 0 0"
+    )
+    return (
+        f'  <filter id="{_filter_id(atmosphere)}" x="0%" y="0%" width="100%" height="100%" '
+        'color-interpolation-filters="sRGB">\n'
+        f'    <feTurbulence type="fractalNoise" baseFrequency="{veil.frequency}" '
+        f'numOctaves="{veil.octaves}" seed="{veil.seed}" result="noise"/>\n'
+        f'    <feColorMatrix in="noise" type="matrix" values="{matrix}"/>\n'
+        "  </filter>"
+    )
+
+
+def _channels(tone: str) -> tuple[float, float, float]:
+    """A `#rrggbb` tone as the three `0 .. 1` values a colour matrix wants.
+
+    Format conversion rather than a decision: the tone itself was chosen by the solver.
+    """
+    red, green, blue = (int(tone[index : index + 2], 16) / 255.0 for index in (1, 3, 5))
+    return red, green, blue
+
+
+def _render_veil(core: PanelCore, atmosphere: CoreAtmosphere) -> str:
+    """The rectangle the turbulence filter is painted through."""
+    if atmosphere.veil is None:
+        return ""
+    return (
+        f'  <rect x="0" y="0" width="{fmt(core.width)}" height="{fmt(core.height)}" '
+        f'fill="{atmosphere.veil.tone}" filter="url(#{_filter_id(atmosphere)})"/>'
+    )
+
+
+def _render_falling(atmosphere: CoreAtmosphere) -> str:
+    """Rain or snow, every mark of which was resolved during compilation."""
+    if not atmosphere.streaks and not atmosphere.flecks:
+        return ""
+    marks = [
+        f'  <g id="weather" fill="{atmosphere.fall_tone}" stroke="{atmosphere.fall_tone}" '
+        f'fill-opacity="{fmt(WEATHER_OPACITY)}" stroke-opacity="{fmt(WEATHER_OPACITY)}">'
+    ]
+    for streak in atmosphere.streaks:
+        (x1, y1), (x2, y2) = streak.start, streak.end
+        marks.append(
+            f'    <line x1="{fmt(x1)}" y1="{fmt(y1)}" x2="{fmt(x2)}" y2="{fmt(y2)}" '
+            f'stroke-width="{fmt(atmosphere.streak_width)}" stroke-linecap="round"/>'
+        )
+    for fleck in atmosphere.flecks:
+        marks.append(
+            f'    <circle cx="{fmt(fleck.cx)}" cy="{fmt(fleck.cy)}" r="{fmt(fleck.r)}" '
+            'stroke="none"/>'
+        )
+    marks.append("  </g>")
+    return "\n".join(marks)
 
 
 def attr(value: str) -> str:

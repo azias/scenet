@@ -18,8 +18,9 @@ from pydantic import ValidationError
 
 from scenet.errors import PanelSyntaxError, RuleViolationError
 from scenet.ir import Predicate, Relation
+from scenet.places import PLACES, Place
 
-__all__ = ["normalise", "parse_relation", "summarise"]
+__all__ = ["expand_place", "normalise", "parse_relation", "summarise"]
 
 # `alice left_of bob` -- subject, predicate, object, separated by whitespace.
 RELATION_RE = re.compile(r"^\s*(\S+)\s+(\S+)\s+(\S+)\s*$")
@@ -73,14 +74,81 @@ def parse_relation(text: str) -> Relation:
         raise PanelSyntaxError(f"in staging entry {text!r}: {summarise(exc)}") from exc
 
 
+def expand_place(setting: object) -> object:
+    """Rewrite `place:` into the mass list it stands for.
+
+    A preset is a library for convenience, never a second format -- so it is expanded
+    here, in the frontend, exactly as a staging sentence is. Everything downstream sees
+    one representation of a backdrop.
+
+    Args:
+        setting: The value of the `setting` key, exactly as the YAML parser produced it
+            -- which is why this is `object` and not a mapping: rejecting a setting
+            written as prose is half of what this function is for.
+
+    Returns:
+        The same mapping with `place` replaced by `masses`, or unchanged when no place
+        was named. The input is not modified.
+
+    Raises:
+        PanelSyntaxError: `setting` is not a mapping (prose is not accepted), the place
+            is not one the library has, or `place` was given alongside `masses`.
+
+    Example:
+        >>> from scenet.frontends.common import expand_place
+        >>> [mass.kind.value for mass in expand_place({"place": "shore"})["masses"]]
+        ['sky', 'water', 'ground']
+    """
+    if not isinstance(setting, dict):
+        raise PanelSyntaxError(
+            "'setting' must be a mapping of horizon, masses, time and weather. A "
+            "description in prose is not accepted: interpreting one needs language "
+            "understanding, and guessing produces panels that are confidently wrong. "
+            f"Name a place instead -- known places are {_known_places()}",
+            rule="invalid-field",
+            loc=("setting",),
+        )
+    if "place" not in setting:
+        return setting
+
+    if "masses" in setting:
+        raise PanelSyntaxError(
+            "'setting' names a place and lists masses; a place *is* a mass list, so "
+            "this asks two questions at once. Write one or the other -- "
+            "docs/reference/language.md prints what each place expands into",
+            rule="conflicting-setting",
+            loc=("setting", "place"),
+        )
+    try:
+        place = Place(setting["place"])
+    except ValueError as exc:
+        raise PanelSyntaxError(
+            f"unknown place {setting['place']!r}; known places are {_known_places()}",
+            rule="unknown-place",
+            loc=("setting", "place"),
+        ) from exc
+
+    # The `Mass` objects go in directly rather than as dicts, exactly as `parse_relation`
+    # puts `Relation` objects into `staging`: pydantic accepts a model where its own type
+    # is expected, and round-tripping through dicts would only invite the two to drift.
+    expanded = {key: value for key, value in setting.items() if key != "place"}
+    expanded["masses"] = list(PLACES[place])
+    return expanded
+
+
+def _known_places() -> str:
+    return ", ".join(sorted(place.value for place in Place))
+
+
 def normalise(data: dict[str, Any]) -> dict[str, Any]:
     """Rewrite surface conveniences into the IR's canonical shape.
 
-    Two shapes differ between the surface syntax and the IR: staging is written as
-    sentences, and script entries are written as single-key mappings tagged by verb
+    Three shapes differ between the surface syntax and the IR. Staging is written as
+    sentences. Script entries are written as single-key mappings tagged by verb
     (`- say: {...}`, `- caption: {...}`) so that a new verb can be added without a
-    discriminator field the author has to type. The tag is moved into the payload as
-    `verb`, which is where the IR's event models expect to find it.
+    discriminator field the author has to type; the tag is moved into the payload as
+    `verb`, which is where the IR's event models expect to find it. And a setting may
+    name a place, which stands for a list of masses.
 
     Args:
         data: A parsed top-level panel mapping, in surface form.
@@ -90,9 +158,13 @@ def normalise(data: dict[str, Any]) -> dict[str, Any]:
 
     Raises:
         PanelSyntaxError: `staging` or `script` is not a list, a script entry is not a
-            single-key mapping, or it names a verb that does not exist.
+            single-key mapping, it names a verb that does not exist, or `setting` names
+            a place that does not exist or lists masses alongside one.
     """
     result = dict(data)
+
+    if "setting" in result:
+        result["setting"] = expand_place(result["setting"])
 
     if "staging" in result:
         raw = result["staging"]

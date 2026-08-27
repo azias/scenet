@@ -44,7 +44,7 @@ which is why `extreme_close_up` is the one shot in the table that needs it despi
 
 | `shot` | Crop landmark | Headroom | Footroom | Reads as |
 |---|---|---|---|---|
-| `long_shot` (alias `wide`) | `feet` | 0.14 | 0.06 | Figure small in its environment |
+| `long_shot` (alias `wide`) | `feet` | 0.28 | 0.10 | Figure small in its environment |
 | `full_shot` | `feet` | 0.05 | 0.04 | Whole body, environment secondary |
 | `medium_full` | `knees` | 0.08 | — | The three-quarter shot |
 | `cowboy` | `mid_thigh` | 0.08 | — | Stance and confrontation |
@@ -81,10 +81,12 @@ makes it a ladder, and it is enforced by a test rather than left to inspection �
 and having those two the wrong way round inverted the ladder at its widest end without
 anything noticing.
 
-A limitation worth stating: with no environment to show, `long_shot` and `full_shot` can
-differ only by headroom, so the gap between them is necessarily modest. In film the
-distinction is mostly about how much of the world is in frame, which this compiler does
-not yet model — see [the setting layer](../explanation/status.md).
+**`long_shot` and `full_shot` crop at the same landmark**, so headroom and footroom are all
+that separate them. Until the [setting layer](language.md#setting) existed the gap between them
+had to stay modest: with nothing behind the figure, air is just white, and a small figure alone on
+a page reads as a full shot with a generous margin rather than as a long shot. Now the air is the
+environment — which is what a long shot is *about* — so the gap is a real rung, and a long shot
+frames the figure at roughly two thirds the size a full shot does.
 
 ## Angle
 

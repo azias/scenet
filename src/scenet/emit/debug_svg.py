@@ -18,6 +18,8 @@ FEATURE = "#d98b1e"
 BALLOON = "#e08a1e"
 CAPTION = "#7a52c9"
 GRID = "#c9c9c9"
+MASS = "#3aa39a"
+HORIZON = "#c2451f"
 
 
 def render_debug(core: PanelCore) -> str:
@@ -29,6 +31,7 @@ def render_debug(core: PanelCore) -> str:
         f'  <rect x="0" y="0" width="{fmt(core.width)}" height="{fmt(core.height)}" '
         'fill="#ffffff"/>',
         _thirds(core),
+        _backdrop(core),
     ]
 
     for actor in sorted(core.actors, key=lambda a: a.id):
@@ -128,6 +131,39 @@ def render_debug(core: PanelCore) -> str:
     )
     parts.append("</svg>")
     return "\n".join(parts) + "\n"
+
+
+def _backdrop(core: PanelCore) -> str:
+    """The setting as the solver sees it: outlines, planes, and the horizon.
+
+    Drawn as outlines rather than fills, because the question this overlay answers about
+    a backdrop is *where the solver thinks the masses are* -- which the finished panel
+    hides precisely by filling them in.
+    """
+    if core.backdrop is None:
+        return ""
+
+    lines = [
+        f'  <line x1="0" y1="{fmt(core.backdrop.horizon)}" x2="{fmt(core.width)}" '
+        f'y2="{fmt(core.backdrop.horizon)}" stroke="{HORIZON}" stroke-width="2" '
+        'stroke-dasharray="14 8"/>',
+        f'  <text x="6" y="{fmt(core.backdrop.horizon - 6)}" font-size="15" '
+        f'font-family="monospace" fill="{HORIZON}">horizon</text>',
+    ]
+    for mass in core.backdrop.masses:
+        points = " ".join(f"{fmt(x)},{fmt(y)}" for x, y in mass.polygon)
+        top = min(y for _, y in mass.polygon)
+        left = min(x for x, _ in mass.polygon)
+        lines.append(
+            f'  <polygon points="{points}" fill="{MASS}" fill-opacity="0.10" '
+            f'stroke="{MASS}" stroke-width="2"/>'
+        )
+        lines.append(
+            f'  <text x="{fmt(left + 6)}" y="{fmt(top + 18)}" font-size="15" '
+            f'font-family="monospace" fill="{MASS}">'
+            f"{mass.id} {mass.kind.value} {mass.plane.value} depth={mass.depth}</text>"
+        )
+    return "\n".join(lines)
 
 
 def _thirds(core: PanelCore) -> str:

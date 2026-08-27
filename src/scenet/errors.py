@@ -153,6 +153,17 @@ class PanelSyntaxError(SourceError):
     `path/to/duel.panel.yaml: invalid panel: ...` rather than losing the file it came
     from.
 
+    Attributes:
+        rule: Identifier from the catalogue in
+            :data:`RULES <scenet.diagnostics.RULES>`, when the frontend knows which rule
+            was broken. Most surface faults reach `scenet check` as `invalid-field`,
+            which is honest for a value pydantic rejected; but a check the frontend
+            performs itself -- a place that does not exist, a setting that names one and
+            lists masses too -- knows exactly what it found, and saying so is the whole
+            point of having a rule catalogue.
+        loc: Path to the offending value, relative to the panel, in pydantic's `loc`
+            form. Empty means the panel as a whole.
+
     Example:
         >>> from scenet import PanelSyntaxError, compile_source
         >>> try:
@@ -162,6 +173,26 @@ class PanelSyntaxError(SourceError):
         invalid panel:
           at panel: panel size must be positive
     """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        source: Path | None = None,
+        rule: str | None = None,
+        loc: tuple[str | int, ...] = (),
+    ) -> None:
+        """Build the error, keeping the rule and location as data as well as prose.
+
+        Args:
+            message: What went wrong, phrased for whoever wrote the document.
+            source: Path the document came from, if it was read from disk.
+            rule: Catalogue identifier, when the frontend knows which rule was broken.
+            loc: Path to the offending value within the panel.
+        """
+        self.rule = rule
+        self.loc = loc
+        super().__init__(message, source=source)
 
 
 class ScriptSyntaxError(PanelSyntaxError):

@@ -1,0 +1,32 @@
+# The place library: all ten, one panel each.
+#
+# `place:` is the headline surface, because the thing an author wants to write is where
+# the scene is, not a list of shapes. Each of these expands into exactly the mass list
+# you could have typed yourself -- 19-setting shows that layer -- which is the rule that
+# keeps a preset a library rather than a second, opaque format.
+#
+# Free prose is deliberately not offered. `setting: "a rainy street corner at midnight"`
+# needs language understanding, and guessing produces panels that are confidently wrong.
+# A named place is the honest middle: it reads like a description and resolves
+# deterministically.
+
+panel:
+  size: [900, 560]
+
+camera:
+  shot: long_shot
+
+cast:
+  alice: {reference: alice, at: center}
+
+panels:
+  docks:    {setting: {place: docks,    time: night}}
+  street:   {setting: {place: street}}
+  alley:    {setting: {place: alley,    time: dusk}}
+  room:     {setting: {place: room}}
+  office:   {setting: {place: office,   horizon: high}}
+  forest:   {setting: {place: forest,   time: dawn}}
+  field:    {setting: {place: field,    horizon: low}}
+  shore:    {setting: {place: shore,    time: dusk}}
+  desert:   {setting: {place: desert}}
+  mountain: {setting: {place: mountain, time: dawn}}

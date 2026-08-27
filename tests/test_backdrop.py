@@ -81,7 +81,10 @@ class TestTheValueLadder:
     def test_night_is_a_compressed_ladder_not_a_filter(self):
         """Night does not shift a daytime ladder; it narrows it. That is what night
         does to a drawn scene."""
-        span = lambda time: lightness(LADDER[time][-1]) - lightness(LADDER[time][0])  # noqa: E731
+
+        def span(time: TimeOfDay) -> float:
+            return lightness(LADDER[time][-1]) - lightness(LADDER[time][0])
+
         assert span(TimeOfDay.NIGHT) < span(TimeOfDay.DAY)
 
     @pytest.mark.parametrize("tone", [tone for rungs in LADDER.values() for tone in rungs])

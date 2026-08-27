@@ -318,6 +318,8 @@ def compile_ir(
                 font_size=rounded(caption.block.font_size),
                 line_height=rounded(caption.block.line_height),
                 italic=caption.kind.is_italic,
+                fill=caption.fill,
+                ink=caption.ink,
                 speaker=caption.speaker,
             )
             for caption in layout.captions

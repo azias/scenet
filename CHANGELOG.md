@@ -66,6 +66,37 @@ below 1.0 means.
   hour on one sheet, every weather on another. Whether three greys read as depth is not a
   question a test can answer, and four things moved because of what the first sheet showed.
 - Gallery examples 19, 20 and 21, and a `docs/reference/language.md` section for the block.
+- **Caption boxes can be tinted.** Captions shipped in 0.4.0 with four kinds and the
+  typography that goes with them, and one value: `#ffffff`, hardcoded in the emitter. A
+  `tone` key now chooses from a three-value palette.
+
+  ```yaml
+  - caption: {text: "Noon. Nothing for miles.", kind: locale, tone: ink}
+  ```
+
+  The failing case is the pale end, not the dark one. A caption box is opaque, so its
+  lettering was never at risk — the text sits on the fill whatever is behind it. The
+  *box* is what stops reading: against the ladder above, a white box on a noon sky is
+  1.16:1, and only the stroke separates it at all.
+- **The palette is rungs of the backdrop's own value ladder** — `paper` `#ffffff`, `pale`
+  `#adadad`, `ink` `#090909`, the last two taken from the `day` row by index rather than
+  restated, so lettering and backdrop cannot drift apart as either is tuned. `paper` is
+  the default, so no existing panel moves. No free-form `fill:`, and no yellow: an open
+  colour field would be this language's one open vocabulary, and the classic yellow
+  `locale` box would be the first non-neutral value in the codebase.
+- **`ink` inverts the lettering to paper** — reversed type — chosen by contrast in the
+  solver and carried on `CoreCaption` as `fill` and `ink`. The same rule and the same
+  reason as falling rain, and it leaves the emitter with no decision about which mark
+  reads. Both fields are defaulted, so a Core document written before this still parses
+  and no `format_version` bump was needed.
+- **The lettering floor is enforced rather than asserted.** `contrast_ratio` in
+  `solve/backdrop.py` measures WCAG relative luminance — the ladder is *spaced* in OKLab
+  because that predicts even perceived steps, but legibility is *checked* against the
+  published threshold. Every tone clears 4.5:1 against its own lettering, and every rung
+  of every hour has at least one tone above 3:1 to sit on. This is the one visual rule in
+  the compiler with an objective answer, so it is a test rather than a taste.
+- Gallery example 22, a `tone` row and section in `docs/reference/language.md`, and
+  `fill` / `ink` in `docs/reference/panel_core.md`.
 
 ### Changed
 

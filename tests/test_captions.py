@@ -9,19 +9,26 @@ Two of these tests guard rules that are easy to get subtly wrong. Quotation mark
 applied *before* measurement, because text the emitter adds afterwards would not fit
 the box drawn for it. And the italic face is a real font file, not a skew: the tests
 check the measured width, which is the only thing that proves the right face was used.
+
+A third joins them at the end: a caption's tone decides its fill, and the fill decides
+the ink. The contrast arithmetic behind that lives in `test_setting.py`, beside the
+ladder both palettes come from.
 """
+
+import json
 
 import pytest
 
 from scenet.core import PanelCore
 from scenet.emit.debug_svg import render_debug
 from scenet.emit.svg import render
-from scenet.errors import BalloonPlacementError
+from scenet.errors import BalloonPlacementError, PanelSyntaxError
 from scenet.geom import BBox
-from scenet.ir import CaptionKind
+from scenet.ir import CaptionKind, CaptionTone
 from scenet.pipeline import compile_source
 from scenet.solve.balloons import (
     CAPTION_PADDING_FACTOR,
+    CAPTION_TONES,
     CLOSING_QUOTE,
     OPENING_QUOTE,
     _caption_positions,
@@ -29,6 +36,10 @@ from scenet.solve.balloons import (
 from scenet.solve.text import ITALIC_FONT_PATH, balloon_size, layout_text, load_metrics
 
 PANEL = BBox(0.0, 0.0, 1000.0, 800.0)
+
+# One caption with a tone to be filled in. A percent template rather than an f-string
+# at every call site, because the braces here are YAML and doubling them reads badly.
+CAPTION = '  - caption: {text: "Midnight.", tone: %s}\n'
 
 
 def compile_panel(script: str, *, cast: str = "  alice: {reference: alice}\n") -> PanelCore:
@@ -262,3 +273,109 @@ class TestDeterminism:
     def test_a_caption_survives_a_round_trip_through_json(self):
         core = compile_panel('  - caption: {text: "Midnight. The docks."}\n')
         assert PanelCore.from_json(core.to_json()) == core
+
+
+class TestTone:
+    """A caption box has a value, not just a shape.
+
+    The box is opaque, so the lettering was never the thing at risk -- the risk is a
+    white box on a pale sky, which is 1.16:1 at noon. What a dark tone costs is the
+    inversion: black type on a near-black box is not lettering, it is a filled
+    rectangle, so the ink follows the fill.
+    """
+
+    def test_the_default_is_paper(self):
+        """No existing panel moves, which is the point of defaulting rather than
+        choosing."""
+        core = compile_panel('  - caption: {text: "Midnight. The docks."}\n')
+        assert core.captions[0].fill == "#ffffff"
+        assert core.captions[0].ink == "#111111"
+
+    @pytest.mark.parametrize("tone", list(CaptionTone), ids=[t.value for t in CaptionTone])
+    def test_the_declared_tone_reaches_panel_core(self, tone: CaptionTone):
+        core = compile_panel(CAPTION % tone.value)
+        assert core.captions[0].fill == CAPTION_TONES[tone]
+
+    @pytest.mark.parametrize(
+        ("tone", "ink"),
+        [("paper", "#111111"), ("pale", "#111111"), ("ink", "#ffffff")],
+    )
+    def test_the_lettering_inverts_on_a_dark_box(self, tone: str, ink: str):
+        """Resolved here rather than in the emitter, exactly as `fall_tone` is: which
+        mark reads is a fact about the panel, not a rendering preference."""
+        core = compile_panel(CAPTION % tone)
+        assert core.captions[0].ink == ink
+
+    def test_an_unknown_tone_is_refused(self):
+        with pytest.raises(PanelSyntaxError):
+            compile_panel('  - caption: {text: "Midnight.", tone: chartreuse}\n')
+
+    def test_a_balloon_has_no_tone(self):
+        """`tone` is a caption key. A balloon that quietly accepted it would be a
+        misspelling the author never hears about."""
+        with pytest.raises(PanelSyntaxError):
+            compile_panel('  - say: {by: alice, text: "Hello.", tone: ink}\n')
+
+
+class TestToneReachesTheSvg:
+    @staticmethod
+    def _caption_rect(markup: str) -> str:
+        """The rect inside the caption group, rather than the panel ground or the
+        frame, both of which are also rects."""
+        lines = markup.splitlines()
+        start = next(index for index, line in enumerate(lines) if 'id="caption-c0"' in line)
+        return next(line for line in lines[start:] if "<rect" in line)
+
+    @pytest.mark.parametrize("tone", list(CaptionTone), ids=[t.value for t in CaptionTone])
+    def test_the_fill_is_the_declared_tone(self, tone: CaptionTone):
+        core = compile_panel(CAPTION % tone.value)
+        assert f'fill="{CAPTION_TONES[tone]}"' in self._caption_rect(render(core))
+
+    def test_outlined_lettering_is_drawn_in_the_inverted_ink(self):
+        core = compile_panel('  - caption: {text: "Midnight.", tone: ink}\n')
+        glyphs = [
+            line for line in render(core).splitlines() if "<path" in line and "scale(" in line
+        ]
+        assert glyphs
+        assert all('fill="#ffffff"' in line for line in glyphs)
+
+    def test_live_text_is_drawn_in_the_inverted_ink(self):
+        core = compile_panel('  - caption: {text: "Midnight.", tone: ink}\n')
+        text = [line for line in render(core, live_text=True).splitlines() if "<text" in line]
+        assert text
+        assert all('fill="#ffffff"' in line for line in text)
+
+    def test_a_balloon_is_lettered_in_ink_whatever_the_captions_do(self):
+        """The emitter's default must not follow the caption's inversion."""
+        core = compile_panel("""  - caption: {text: "Midnight.", tone: ink}
+  - say: {by: alice, text: "Hello."}
+""")
+        markup = render(core, live_text=True)
+        balloon_text = [line for line in markup.splitlines() if "<text" in line and "Hello" in line]
+        assert balloon_text
+        assert all('fill="#111111"' in line for line in balloon_text)
+
+    def test_a_paper_caption_renders_exactly_as_it_did(self):
+        """The regression that matters: defaulting means byte-identical output for
+        every panel written before tones existed."""
+        default = compile_panel('  - caption: {text: "Midnight. The docks."}\n')
+        explicit = compile_panel('  - caption: {text: "Midnight. The docks.", tone: paper}\n')
+        assert render(default) == render(explicit)
+
+
+class TestToneSurvivesTheCoreFormat:
+    def test_it_round_trips(self):
+        core = compile_panel('  - caption: {text: "Midnight.", tone: pale}\n')
+        assert PanelCore.from_json(core.to_json()) == core
+
+    def test_a_document_written_before_tones_still_parses(self):
+        """The claim that this needed no `format_version` bump, made checkable. Both
+        keys are defaulted, so a Core file from 0.5.0 is still a valid one."""
+        core = compile_panel('  - caption: {text: "Midnight."}\n')
+        payload = json.loads(core.to_json())
+        for caption in payload["captions"]:
+            del caption["fill"]
+            del caption["ink"]
+        restored = PanelCore.from_json(json.dumps(payload))
+        assert restored.captions[0].fill == "#ffffff"
+        assert restored.captions[0].ink == "#111111"

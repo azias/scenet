@@ -65,7 +65,9 @@ going straight to pixels. The same split pays for itself here, in four ways:
       "kind": "locale",
       "box": { "x": 19.0, "y": 19.0, "width": 147.0, "height": 96.0 },
       "lines": ["Midnight.", "The docks."],
-      "italic": true
+      "italic": true,
+      "fill": "#ffffff",
+      "ink": "#111111"
     }
   ],
   "backdrop": {
@@ -101,7 +103,11 @@ solver about how wide a balloon needs to be. For a `spoken` caption the quotatio
 those lines for the same reason: marks added afterwards would not fit the box drawn for them.
 
 `italic` is recorded rather than re-derived from `kind`, so the emitter cannot draw a box in a face
-the solver did not measure it in.
+the solver did not measure it in. `fill` and `ink` are there for the same reason: a caption's tone
+resolves to a value here, and the ink is chosen against it by contrast — so a dark box arrives at the
+emitter already lettered in paper, and the emitter is left with no decision about which mark reads.
+Both are defaulted to the white and near-black every caption had before tones existed, which is why
+adding them needed no `format_version` bump either.
 
 **`order` is one sequence across both lists.** Balloons and captions are placed in a single pass in
 script order, so a caption between two lines of dialogue takes the number between theirs and a

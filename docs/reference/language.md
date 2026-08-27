@@ -330,6 +330,7 @@ to do. Comics solved this long before they had reliable backgrounds.
 |---|---|---|
 | `text` | string | What the box says. Line breaking is computed, as for dialogue |
 | `kind` | `locale`, `monologue`, `spoken`, `editorial` | What the box is doing |
+| `tone` | `paper`, `pale`, `ink` | What the box is filled with. Defaults to `paper` |
 | `prefer` | zone | Where it would like to sit. Defaults to `top_left` |
 | `by` | any name | Who is speaking, for a `spoken` caption only |
 
@@ -357,6 +358,41 @@ the marks are lettering.
 who is not in `cast` is an error. A `spoken` caption's speaker is *off panel* by definition, so
 requiring them to be cast would defeat the purpose. It is accepted only on `spoken`; on any other
 kind it is a mistake and is rejected.
+
+#### `tone`
+
+A caption box is opaque, so its lettering is never the thing at risk — the text sits on the fill
+whatever is behind it. What a tone changes is whether the **box** reads. Against the value ladder
+the `setting` block produces, a white box on a noon sky is 1.16:1: legible, and invisible.
+
+| Tone | Fill | Where it comes from | Lettered in |
+|---|---|---|---|
+| `paper` | `#ffffff` | the paper the panel is printed on — **the default** | ink |
+| `pale` | `#adadad` | the `day` row of the value ladder, far plane | ink |
+| `ink` | `#090909` | the `day` row of the value ladder, foreground | paper |
+
+Two of the three are rungs of the ladder in `solve/backdrop.py`, taken by index rather than restated
+as literals, so lettering and backdrop cannot drift apart as either is tuned. A tone is **fixed, not
+a function of the panel's `time`**: a caption's value is a property of the caption, and letting it
+follow the hour would make the table below a function of the panel.
+
+`ink` produces what letterers call reversed type. **The inversion is decided by the compiler**, by
+contrast, and travels in Panel Core as a resolved value — the same rule and the same reason as
+falling rain, which is inked over a bright sky and papered over a dark one.
+
+Two floors, and only the first is a rule every tone must meet:
+
+- **Lettering, 4.5:1.** A caption's text against its own fill, WCAG AA for body text. This is the
+  contrast a reader actually gets, and every tone in the palette clears it with room — 18.9:1,
+  8.4:1 and 19.9:1 respectively.
+- **Separation, 3:1.** The box against the plane behind it. *No tone is required to clear this on
+  every rung*, and the default does not: white on a noon sky is the case that motivated the feature.
+  What the palette owes you is an escape from every background the compiler can produce — at least
+  one tone above 3:1 for every rung of every hour — and that is what the test suite checks.
+
+There is no free-form `fill:`, and no yellow. An open colour field would be this language's one open
+vocabulary and would let you produce an unreadable box; the classic yellow `locale` caption would be
+the first non-neutral value in the codebase, and there is no colour policy to put it under yet.
 
 **Text is set flush left.** This is a *convention*, not a rule the way reading order is: the
 lettering references describe left alignment as the norm while calling it a house preference. It is

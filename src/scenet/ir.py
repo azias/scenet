@@ -23,6 +23,7 @@ __all__ = [
     "CameraSpec",
     "CaptionEvent",
     "CaptionKind",
+    "CaptionTone",
     "CastMember",
     "Facing",
     "Horizon",
@@ -248,6 +249,45 @@ class CaptionKind(StrEnum):
         `spoken` only, because it is the one kind where somebody is talking.
         """
         return self is CaptionKind.SPOKEN
+
+
+class CaptionTone(StrEnum):
+    """The value a caption box is filled with.
+
+    A caption box is opaque, so its lettering is never at risk: the text sits on the
+    fill whatever is behind it. What a tone changes is whether the *box* reads. On a
+    clear day the atmosphere is `#eeeeee` and a white box on it is 1.16:1 -- legible,
+    and invisible. The failing case is the pale end, not the dark one.
+
+    | Tone | Fill | Where it comes from | Lettered in |
+    |---|---|---|---|
+    | `paper` | `#ffffff` | the paper the panel is printed on | ink |
+    | `pale` | `#adadad` | the `day` row of the value ladder, far plane | ink |
+    | `ink` | `#090909` | the `day` row of the value ladder, foreground | paper |
+
+    **Drawn from the ladder in `solve/backdrop.py`, not from a second palette.** Two of
+    the three are rungs of it, taken by index rather than restated, which is what keeps
+    lettering and backdrop from drifting apart as either is tuned. The `day` row is the
+    ladder at its widest, so tones taken from it span the most ground.
+
+    **A tone is fixed, not a function of the panel's hour.** A caption's value is a
+    property of the caption; letting it drift with `time` would make the contrast table
+    a function of the panel and the legibility floor unenforceable.
+
+    `ink` produces what letterers call reversed type: the lettering inverts to paper,
+    because black type on a near-black box is not lettering, it is a filled rectangle.
+    Which mark reads is resolved by the solver -- see
+    :attr:`CoreCaption.ink <scenet.core.CoreCaption>` -- exactly as falling rain's is.
+
+    There is no free-form colour here, and no yellow. A `fill:` taking any string would
+    be the language's one open vocabulary and would let an author produce an unreadable
+    box; the classic yellow `locale` caption would be the first non-neutral value in the
+    codebase, and the language has no colour policy yet to put it under.
+    """
+
+    PAPER = "paper"
+    PALE = "pale"
+    INK = "ink"
 
 
 class MassKind(StrEnum):
@@ -642,6 +682,8 @@ class CaptionEvent(Strict):
         verb: Always `caption`, written as `- caption: {...}`.
         text: What the box says. As with dialogue, line breaking is computed.
         kind: What the box is doing, which decides how it is set.
+        tone: What the box is filled with. Defaults to `paper`, the white every caption
+            has been since captions shipped, so no existing panel moves.
         prefer: Where it would like to sit. Defaults to `top_left`, which is where a
             `locale` caption conventionally goes.
         by: Who is speaking, for a `spoken` caption only.
@@ -663,6 +705,7 @@ class CaptionEvent(Strict):
     verb: Literal["caption"] = "caption"
     text: str = Field(min_length=1)
     kind: CaptionKind = CaptionKind.LOCALE
+    tone: CaptionTone = CaptionTone.PAPER
     prefer: PlacementZone = PlacementZone.TOP_LEFT
     by: str | None = None
 

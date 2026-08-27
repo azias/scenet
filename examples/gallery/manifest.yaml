@@ -67,3 +67,6 @@ examples:
   - file: 21-atmosphere.scene.yaml
     title: "Time of day, and weather"
     kind: scene
+  - file: 22-caption-tones.panel.yaml
+    title: "Caption tones, and what they read against"
+    kind: panel

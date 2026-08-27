@@ -1,10 +1,11 @@
 """The `setting` block: places, masses, planes, and the atmosphere vocabulary.
 
-The language surface only. Whether three greys read as depth is a question about a
-picture and lives in `test_backdrop.py` and in the contact sheet; what is testable here
-is that the vocabularies are closed, that a preset expands into a mass list an author
-could have written, and that the two ways of saying where a panel is cannot be used at
-once.
+The language surface, and the one thing about the value ladder that is arithmetic
+rather than taste. Whether three greys read as depth is a question about a picture and
+lives in `test_backdrop.py` and in the contact sheet; what is testable here is that the
+vocabularies are closed, that a preset expands into a mass list an author could have
+written, that the two ways of saying where a panel is cannot be used at once -- and, at
+the end, that a caption tone is legible on the rung it is asked to sit on.
 """
 
 from enum import StrEnum
@@ -16,6 +17,7 @@ from scenet import compile_source, parse_panel
 from scenet.errors import PanelSyntaxError
 from scenet.frontends.common import normalise
 from scenet.ir import (
+    CaptionTone,
     Horizon,
     Mass,
     MassKind,
@@ -27,6 +29,13 @@ from scenet.ir import (
     Weather,
 )
 from scenet.places import PLACES, Place
+from scenet.solve.backdrop import LADDER, contrast_ratio
+from scenet.solve.balloons import (
+    CAPTION_TONES,
+    LETTERING_FLOOR,
+    SEPARATION_FLOOR,
+    letter_tone,
+)
 
 
 class TestTheVocabulariesAreClosed:
@@ -221,3 +230,56 @@ class TestEveryPlaceIsUsable:
         )
         assert result.core.backdrop is not None
         assert result.core.backdrop.masses
+
+
+class TestContrastIsCheckable:
+    """The one lettering rule with an objective answer.
+
+    Both palettes in this compiler come from the ladder above, so "is this box legible
+    on this background" is arithmetic rather than taste. Two rules, because the obvious
+    one -- every tone reads on every rung -- is false, and would be false first for the
+    white box that has shipped since 0.4.0.
+    """
+
+    def test_the_ruler_is_not_broken(self):
+        """Black on white is 21:1 by definition. If this drifts, every floor below is
+        being measured with the wrong instrument."""
+        assert contrast_ratio("#000000", "#ffffff") == pytest.approx(21.0, abs=0.01)
+
+    def test_it_does_not_care_which_way_round(self):
+        assert contrast_ratio("#090909", "#eeeeee") == contrast_ratio("#eeeeee", "#090909")
+
+    def test_a_tone_against_itself_is_flat(self):
+        assert contrast_ratio("#707070", "#707070") == pytest.approx(1.0)
+
+    @pytest.mark.parametrize("tone", list(CaptionTone), ids=[t.value for t in CaptionTone])
+    def test_every_tone_letters_above_the_floor(self, tone: CaptionTone):
+        """The hard one. A caption's text sits on its own fill whatever is behind it,
+        so this is the contrast the reader actually gets -- and the inversion rule
+        exists to keep it above WCAG AA for body text."""
+        fill = CAPTION_TONES[tone]
+        assert contrast_ratio(letter_tone(fill), fill) >= LETTERING_FLOOR
+
+    @pytest.mark.parametrize(
+        ("time", "rung"),
+        [(time, rung) for time in TimeOfDay for rung in range(5)],
+        ids=[f"{time.value}-{rung}" for time in TimeOfDay for rung in range(5)],
+    )
+    def test_some_tone_separates_the_box_from_every_rung(self, time: TimeOfDay, rung: int):
+        """The honest form of the table in the ticket. Not every tone reads on every
+        rung -- white on a noon sky is 1.16:1, which is the whole reason `tone` exists.
+        What the palette owes the author is an escape from every background this
+        compiler can produce, and that is what this checks."""
+        behind = LADDER[time][rung]
+        best = max(contrast_ratio(fill, behind) for fill in CAPTION_TONES.values())
+        assert best >= SEPARATION_FLOOR, f"no caption tone separates from {behind}"
+
+    def test_the_default_is_the_white_that_already_shipped(self):
+        """Stated as a test because it is what guarantees no existing panel moves."""
+        assert CAPTION_TONES[CaptionTone.PAPER] == "#ffffff"
+
+    def test_the_palette_is_drawn_from_the_ladder(self):
+        """Not a second palette. Two of the three tones are rungs of the ladder the
+        backdrop uses, which is what stops the two features drifting apart."""
+        day = set(LADDER[TimeOfDay.DAY])
+        assert {CAPTION_TONES[CaptionTone.PALE], CAPTION_TONES[CaptionTone.INK]} <= day

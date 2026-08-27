@@ -10,6 +10,11 @@ below 1.0 means.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-27
+
+Setting: a panel can now show where and when it happens — and a caption box can be
+tinted to read against it.
+
 ### Added
 
 - **The setting layer: a panel can show where and when it happens.** Every panel rendered
@@ -98,6 +103,13 @@ below 1.0 means.
 - Gallery example 22, a `tone` row and section in `docs/reference/language.md`, and
   `fill` / `ink` in `docs/reference/panel_core.md`.
 
+- **`scenet check --deep`.** Runs the full compiler on any document that passes the
+  cheap checks, to additionally catch `layout` and `balloon-placement` failures — the
+  two rules in the catalogue that were in the catalogue but unreachable from `check`.
+  Off by default: it costs a real compile, including font metrics, and `check` stays
+  the cheap pass it is documented as unless asked otherwise.
+
+
 ### Changed
 
 - **`long_shot` reframes noticeably wider, and `wide` with it** — headroom `0.14` → `0.28`,
@@ -123,6 +135,13 @@ below 1.0 means.
   models (Preetham, Hosek-Wilkie) are recorded as examined and rejected, since they solve a
   radiometric problem this compiler does not have.
 
+- **`PuppetSpec.pose_angles` and `.expression_states` raise `UnknownPoseError` and
+  `UnknownExpressionError`** on a name the puppet does not declare, rather than a bare
+  `KeyError`. Both are also `KeyError` — following the precedent `UnknownPuppetError`
+  already set — so `except KeyError` and the documented `Raises: KeyError` on both
+  methods keep working unchanged.
+
+
 ### Fixed
 
 - **`extreme_close_up` framed the forehead, not the eyes.** Its crop landmark (`eyes`)
@@ -144,21 +163,41 @@ below 1.0 means.
   entirely rather than for two known bad field names: `--deep` (below) extends the same
   guarantee to `layout` and `balloon-placement`.
 
-### Added
 
-- **`scenet check --deep`.** Runs the full compiler on any document that passes the
-  cheap checks, to additionally catch `layout` and `balloon-placement` failures — the
-  two rules in the catalogue that were in the catalogue but unreachable from `check`.
-  Off by default: it costs a real compile, including font metrics, and `check` stays
-  the cheap pass it is documented as unless asked otherwise.
+### Upgrading
 
-### Changed
+Nothing was removed and no document stops compiling. Four things a caller should expect
+to see move:
 
-- **`PuppetSpec.pose_angles` and `.expression_states` raise `UnknownPoseError` and
-  `UnknownExpressionError`** on a name the puppet does not declare, rather than a bare
-  `KeyError`. Both are also `KeyError` — following the precedent `UnknownPuppetError`
-  already set — so `except KeyError` and the documented `Raises: KeyError` on both
-  methods keep working unchanged.
+- **Every panel that asks for `long_shot` or `wide` renders smaller.** The two rungs at
+  the wide end of the ladder were degenerate with no environment to show, and now that
+  there is one they are not. This is the change most likely to be visible in your own
+  panels.
+- **`extreme_close_up` frames the eyes rather than the forehead.** Any panel using it
+  renders differently, and correctly, for the first time.
+- **Panel Core output has changed for any panel with a caption.** `CoreCaption` gained
+  `fill` and `ink`, and `PanelCore` gained `backdrop`. All three are defaulted or
+  optional, so a 0.5.0 document still parses and `format_version` did not move — but a
+  golden file captured against 0.5.0 will differ.
+- **Eleven names joined `scenet.__all__`** — `SettingSpec`, `Mass`, `MassKind`, `Plane`,
+  `Spans`, `Horizon`, `TimeOfDay`, `Weather`, `PLACES`, `Place` and `CaptionTone`.
+  Additions only; nothing was removed or renamed.
+
+### Known limitations
+
+- **A caption's tone is checked against the palette, not against the panel it lands in.**
+  The contrast floors hold between every tone and every rung of the ladder, which is what
+  makes them enforceable — but nothing warns you that *this* caption was placed over a
+  foreground mass it barely separates from. The information is all present by the time
+  the box is placed; the check is not written.
+- **No yellow caption box.** The classic yellow `locale` box would be the first
+  non-neutral value in the codebase, and the language has no colour policy to put it
+  under yet. The three tones that shipped are neutral greys from an existing ladder.
+- **A caption tone is per caption, with no panel-level default.** A letterer would set
+  one once for a page; here you write it on each box that wants it.
+- **A backdrop is tonal masses, and will not draw a specific building.** That is the
+  design, not a gap — but it does mean `place: docks` gives you the docks in the way a
+  thumbnail does, not in the way a background artist would.
 
 ## [0.5.0] - 2026-08-26
 
@@ -487,7 +526,8 @@ or has drifted out of step with the code fails the build.
 - `long_shot` and `full_shot` crop at the same landmark, so with no environment to show
   they can differ only by headroom.
 
-[Unreleased]: https://github.com/azias/scenet/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/azias/scenet/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/azias/scenet/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/azias/scenet/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/azias/scenet/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/azias/scenet/compare/v0.2.0...v0.3.0

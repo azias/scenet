@@ -15,6 +15,7 @@ from scenet.cli import main, scene_schema
 from scenet.ir import (
     AnchorX,
     BalloonKind,
+    CaptionTone,
     Horizon,
     MassKind,
     PanelIR,
@@ -51,6 +52,7 @@ class TestPanelSchema:
             AnchorX,
             Predicate,
             BalloonKind,
+            CaptionTone,
             PlacementZone,
             MassKind,
             Plane,

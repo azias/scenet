@@ -62,6 +62,7 @@ __all__ = [
     "ResolvedBackdrop",
     "ResolvedMass",
     "ResolvedVeil",
+    "contrast_ratio",
     "depth_for",
     "lightness",
     "seed_for",
@@ -200,7 +201,9 @@ def lightness(tone: str) -> float:
 
     The inverse of how the ladder was built, so that monotonicity is checkable rather
     than asserted. For a neutral, OKLab's matrices cancel and `L` is the cube root of
-    the linear value, which is the whole conversion.
+    the linear value, which is the whole conversion -- and that linear value is exactly
+    the relative luminance `contrast_ratio` weighs, so the two share one linearisation
+    rather than each carrying its own copy of the sRGB transfer curve.
 
     Args:
         tone: A `#rrggbb` neutral grey.
@@ -213,9 +216,46 @@ def lightness(tone: str) -> float:
         >>> round(lightness("#ffffff"), 3)
         1.0
     """
+    return _luminance(tone) ** (1 / 3)
+
+
+def contrast_ratio(one: str, other: str) -> float:
+    """How far apart two neutral values read, on the WCAG scale.
+
+    Measured in **relative luminance**, not in the OKLab lightness `lightness` returns,
+    and the two sitting in one file is deliberate rather than an oversight. The ladder
+    is *spaced* in OKLab because that predicts even perceived steps, which is what makes
+    four planes recede evenly. Legibility is *checked* here because WCAG is where the
+    published threshold comes from, and a floor is only worth stating if it is the
+    number the standard states.
+
+    Args:
+        one: A `#rrggbb` neutral grey.
+        other: The value to compare it against.
+
+    Returns:
+        A ratio in `1.0 .. 21.0`, symmetric in its arguments.
+
+    Example:
+        >>> from scenet.solve.backdrop import contrast_ratio
+        >>> round(contrast_ratio("#000000", "#ffffff"), 1)
+        21.0
+    """
+    first, second = _luminance(one), _luminance(other)
+    lighter, darker = max(first, second), min(first, second)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def _luminance(tone: str) -> float:
+    """WCAG relative luminance of a neutral grey.
+
+    The three coefficients sum to one, so for a neutral the weighted sum collapses to
+    the linearised channel itself. Spelling that out rather than multiplying by
+    0.2126 + 0.7152 + 0.0722 keeps the shortcut visible: it holds *because* the ladder
+    is neutral, and would be wrong the moment a tone had a hue.
+    """
     channel = int(tone[1:3], 16) / 255.0
-    linear = channel / 12.92 if channel <= 0.04045 else ((channel + 0.055) / 1.055) ** 2.4
-    return linear ** (1 / 3)
+    return channel / 12.92 if channel <= 0.04045 else ((channel + 0.055) / 1.055) ** 2.4
 
 
 def tone_for(kind: MassKind, plane: Plane, time: TimeOfDay) -> str:

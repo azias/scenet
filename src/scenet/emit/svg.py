@@ -358,7 +358,7 @@ def _render_caption(caption: CoreCaption, metrics: FontMetrics, *, live_text: bo
     lines = [f"    <g id={attr('caption-' + caption.id)}>"]
     lines.append(
         f'      <rect x="{fmt(box.x)}" y="{fmt(box.y)}" width="{fmt(box.width)}" '
-        f'height="{fmt(box.height)}" fill="{FILL_BALLOON}" stroke="{STROKE}" '
+        f'height="{fmt(box.height)}" fill="{caption.fill}" stroke="{STROKE}" '
         f'stroke-width="{fmt(CAPTION_STROKE_WIDTH)}"/>'
     )
 
@@ -370,9 +370,18 @@ def _render_caption(caption: CoreCaption, metrics: FontMetrics, *, live_text: bo
     for index, text in enumerate(caption.lines):
         baseline = box.y + padding + index * caption.line_height + ascent
         lines.append(
-            _live_text(text, box.x + padding, baseline, caption.font_size, italic=caption.italic)
+            _live_text(
+                text,
+                box.x + padding,
+                baseline,
+                caption.font_size,
+                italic=caption.italic,
+                ink=caption.ink,
+            )
             if live_text
-            else _outlined_text(text, box.x + padding, baseline, caption.font_size, metrics)
+            else _outlined_text(
+                text, box.x + padding, baseline, caption.font_size, metrics, ink=caption.ink
+            )
         )
 
     lines.append("    </g>")
@@ -469,12 +478,22 @@ def _tail_shape(balloon: CoreBalloon) -> str:
 
 
 def _outlined_text(
-    text: str, x: float, baseline: float, font_size: float, metrics: FontMetrics
+    text: str,
+    x: float,
+    baseline: float,
+    font_size: float,
+    metrics: FontMetrics,
+    *,
+    ink: str = STROKE,
 ) -> str:
     """Lettering as glyph outlines.
 
     Glyph coordinates are y-up in font units, so each is scaled by size/unitsPerEm and
     flipped. The result depends on no font being installed anywhere.
+
+    `ink` defaults to the stroke colour, which is what every balloon uses. A caption
+    passes the value its tone resolved to, so a dark box gets reversed type -- and the
+    choice was still the solver's, not this function's.
     """
     scale = font_size / metrics.units_per_em
     cursor = x
@@ -482,7 +501,7 @@ def _outlined_text(
     for path, advance in metrics.glyph_outlines(text):
         if path:
             glyphs.append(
-                f'      <path d="{path}" fill="{STROKE}" stroke="none" '
+                f'      <path d="{path}" fill="{ink}" stroke="none" '
                 f'transform="translate({fmt(cursor)} {fmt(baseline)}) '
                 f'scale({fmt(scale)} {fmt(-scale)})"/>'
             )
@@ -491,7 +510,13 @@ def _outlined_text(
 
 
 def _live_text(
-    text: str, x: float, baseline: float, font_size: float, *, italic: bool = False
+    text: str,
+    x: float,
+    baseline: float,
+    font_size: float,
+    *,
+    italic: bool = False,
+    ink: str = STROKE,
 ) -> str:
     """Lettering as a real `<text>` element.
 
@@ -501,6 +526,6 @@ def _live_text(
     style = ' font-style="italic"' if italic else ""
     return (
         f'      <text x="{fmt(x)}" y="{fmt(baseline)}" font-size="{fmt(font_size)}" '
-        f'font-family="Source Sans Pro, sans-serif"{style} fill="{STROKE}" '
+        f'font-family="Source Sans Pro, sans-serif"{style} fill="{ink}" '
         f'stroke="none">{escape(text)}</text>'
     )

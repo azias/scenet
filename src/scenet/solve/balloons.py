@@ -36,12 +36,14 @@ from scenet.ir import (
     BalloonKind,
     CaptionEvent,
     CaptionKind,
+    CaptionTone,
     PlacementZone,
     Plane,
     SayEvent,
     ScriptEvent,
+    TimeOfDay,
 )
-from scenet.solve.backdrop import ResolvedBackdrop
+from scenet.solve.backdrop import LADDER, ResolvedBackdrop, contrast_ratio
 from scenet.solve.text import (
     ITALIC_FONT_PATH,
     FontMetrics,
@@ -105,6 +107,42 @@ W_CAPTION_EDGE = 1.1
 OPENING_QUOTE = "“"
 CLOSING_QUOTE = "”"
 
+# -- caption tones ------------------------------------------------------------------
+#
+# What each tone fills its box with. Two of the three are rungs of the backdrop's own
+# value ladder, taken by index rather than restated as literals: one hardcoded ladder
+# feeds both palettes, which is what stops lettering and backdrop drifting apart as
+# either is tuned. `day` is the row they come from because it is the ladder at its
+# widest, so three tones taken from it span the most ground.
+#
+# `paper` is not on the ladder and should not be: it is the paper the panel is printed
+# on, the same white the panel ground and every balloon already use.
+CAPTION_TONES: dict[CaptionTone, str] = {
+    CaptionTone.PAPER: "#ffffff",
+    CaptionTone.PALE: LADDER[TimeOfDay.DAY][3],
+    CaptionTone.INK: LADDER[TimeOfDay.DAY][0],
+}
+
+#: What lettering is drawn in, and its opposite. `CAPTION_INK` is the emitter's stroke
+#: colour, restated here because the choice between the two is made in the solver.
+CAPTION_INK = "#111111"
+CAPTION_PAPER = "#ffffff"
+
+#: The floor a caption's own lettering must clear against its fill: WCAG AA for body
+#: text. This is the contrast a reader actually gets, because the box is opaque and the
+#: text sits on the fill whatever is behind it. `letter_tone` is what holds it, and
+#: `tests/test_setting.py` is what proves every tone in the palette does.
+LETTERING_FLOOR = 4.5
+
+#: The floor at which a box separates from the plane behind it: WCAG AA for large text,
+#: which is the right comparison for a filled rectangle rather than for type.
+#:
+#: **Not every tone clears this on every rung, and none is required to.** White on a
+#: noon sky is 1.16:1, which is the whole reason `tone` exists. What the palette owes
+#: the author is an escape from every background the compiler can produce -- at least
+#: one tone above this floor for every rung of every row -- and that is what is tested.
+SEPARATION_FLOOR = 3.0
+
 
 @dataclass(frozen=True, slots=True)
 class TailRoute:
@@ -164,6 +202,9 @@ class PlacedCaption:
         box: Where it ended up.
         block: The text, already quoted where the kind calls for it, broken into lines
             and measured against the face it will be drawn in.
+        fill: The value the box is filled with, resolved from the declared tone.
+        ink: The value its lettering is drawn in, chosen against `fill` so the text
+            reads on the box it sits in.
         speaker: Who is talking, for a `spoken` caption. They are off panel, so this
             is not an actor id and resolves to nobody in the cast.
 
@@ -175,6 +216,8 @@ class PlacedCaption:
     kind: CaptionKind
     box: BBox
     block: TextBlock
+    fill: str = CAPTION_TONES[CaptionTone.PAPER]
+    ink: str = CAPTION_INK
     speaker: str | None = None
 
 
@@ -552,6 +595,34 @@ def _rim_point(balloon: BBox, toward: Point) -> Point:
     return centre.translated(dx * scale, dy * scale)
 
 
+def letter_tone(fill: str) -> str:
+    """What a caption filled with this value is lettered in.
+
+    Ink over a pale box, paper over a dark one, chosen by contrast rather than by a
+    threshold on the tone -- the same rule and the same reason as falling rain in
+    `solve/backdrop.py`, where a white streak is invisible against noon and a black one
+    against midnight. Inkers flip the same way.
+
+    Resolved here rather than in the emitter because which mark reads is a fact about
+    the panel, not a rendering preference: the emitter must not be able to draw a box in
+    a value the solver did not choose.
+
+    Args:
+        fill: The `#rrggbb` the box is filled with.
+
+    Returns:
+        The value the lettering is drawn in.
+
+    Example:
+        >>> from scenet.solve.balloons import letter_tone
+        >>> letter_tone("#ffffff"), letter_tone("#090909")
+        ('#111111', '#ffffff')
+    """
+    if contrast_ratio(CAPTION_INK, fill) >= contrast_ratio(CAPTION_PAPER, fill):
+        return CAPTION_INK
+    return CAPTION_PAPER
+
+
 def caption_text(events: Sequence[ScriptEvent], index: int) -> str:
     """The text of a caption, with quotation marks where the kind calls for them.
 
@@ -761,7 +832,9 @@ def _place_caption(
     """Choose a position for one caption.
 
     The face it is measured against is the face it will be drawn in, which is the
-    whole reason the italic kinds use a real italic file rather than a skew.
+    whole reason the italic kinds use a real italic file rather than a skew. The values
+    are resolved on the same principle: the emitter is handed a fill and an ink, never
+    a tone to interpret.
     """
     if event.kind.is_italic:
         face = italic_metrics or load_metrics(str(ITALIC_FONT_PATH))
@@ -794,6 +867,14 @@ def _place_caption(
             "face, left the panel, overlapped another box, or broke reading order"
         )
 
+    fill = CAPTION_TONES[event.tone]
     return PlacedCaption(
-        id=identifier, order=order, kind=event.kind, box=best, block=block, speaker=event.by
+        id=identifier,
+        order=order,
+        kind=event.kind,
+        box=best,
+        block=block,
+        fill=fill,
+        ink=letter_tone(fill),
+        speaker=event.by,
     )

@@ -19,6 +19,7 @@ from scenet import (
     BalloonKind,
     CameraAngle,
     CaptionKind,
+    CaptionTone,
     Horizon,
     MassKind,
     Place,
@@ -120,6 +121,12 @@ class TestTheGalleryCoversTheLanguage:
     def test_every_caption_kind_appears(self):
         text = self._all_text()
         missing = [kind.value for kind in CaptionKind if kind.value not in text]
+        assert missing == []
+
+    def test_every_caption_tone_appears(self):
+        """A tone nobody has looked at is a tone nobody has checked reads."""
+        text = self._all_text()
+        missing = [tone.value for tone in CaptionTone if f"tone: {tone.value}" not in text]
         assert missing == []
 
     def test_every_expression_appears(self):

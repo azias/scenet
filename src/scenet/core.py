@@ -433,11 +433,21 @@ class CoreCaption(CoreModel):
         italic: Whether the lettering is set in the italic face. Recorded rather than
             re-derived from `kind` so the emitter cannot draw the box in a face the
             solver did not measure it in.
+        fill: The value the box is filled with, resolved from the declared tone.
+        ink: The value the lettering is drawn in. Chosen against `fill` by contrast, so
+            a dark box is lettered in paper -- reversed type. Resolved rather than left
+            to the emitter for the same reason `italic` is, and the same reason
+            :attr:`CoreAtmosphere.fall_tone <scenet.core.CoreAtmosphere>` is: which
+            mark reads is a fact about the panel.
         speaker: Who is talking, for a `spoken` caption. **Not an actor id**: the
             speaker is off panel, so this resolves to nobody in `actors`.
 
     There is no tail. That is the difference that makes this its own type rather than
     a fifth :class:`BalloonKind <scenet.ir.BalloonKind>`.
+
+    `fill` and `ink` are defaulted to the white and the near-black every caption has
+    had since captions shipped, so a Core document written before tones existed is
+    still a valid one -- which is why adding them needed no `format_version` bump.
     """
 
     id: str
@@ -448,6 +458,8 @@ class CoreCaption(CoreModel):
     font_size: float
     line_height: float
     italic: bool
+    fill: str = "#ffffff"
+    ink: str = "#111111"
     speaker: str | None = None
 
 

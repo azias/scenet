@@ -51,7 +51,7 @@
     },
     "CaptionEvent": {
       "additionalProperties": false,
-      "description": "One caption box: the panel speaking in its own voice.\n\nA caption is what lets a panel say where and when it happens without a character\nhaving to explain it out loud. `MIDNIGHT. THE DOCKS.` in the corner does the work\nof an establishing shot with no artwork at all, which is how comics established\nplace long before they had reliable backgrounds.\n\nAttributes:\n    verb: Always `caption`, written as `- caption: {...}`.\n    text: What the box says. As with dialogue, line breaking is computed.\n    kind: What the box is doing, which decides how it is set.\n    prefer: Where it would like to sit. Defaults to `top_left`, which is where a\n        `locale` caption conventionally goes.\n    by: Who is speaking, for a `spoken` caption only.\n\n**A caption is not a fifth balloon kind.** It has no speaker to point at and no\ntail, and :attr:`CoreBalloon.tail <scenet.core.CoreBalloon.tail>` is required -- a\nfifth kind would mean inventing a speaker and leaving a field dead.\n\n`by` is the one place where the rule that every actor id resolves does not hold,\nand deliberately: an off-panel speaker is not in the panel, so requiring them to be\nin the cast would defeat the point of saying they are off panel.\n\nExample:\n    >>> from scenet.ir import CaptionEvent\n    >>> CaptionEvent(text=\"Midnight. The docks.\").kind.value\n    'locale'",
+      "description": "One caption box: the panel speaking in its own voice.\n\nA caption is what lets a panel say where and when it happens without a character\nhaving to explain it out loud. `MIDNIGHT. THE DOCKS.` in the corner does the work\nof an establishing shot with no artwork at all, which is how comics established\nplace long before they had reliable backgrounds.\n\nAttributes:\n    verb: Always `caption`, written as `- caption: {...}`.\n    text: What the box says. As with dialogue, line breaking is computed.\n    kind: What the box is doing, which decides how it is set.\n    tone: What the box is filled with. Defaults to `paper`, the white every caption\n        has been since captions shipped, so no existing panel moves.\n    prefer: Where it would like to sit. Defaults to `top_left`, which is where a\n        `locale` caption conventionally goes.\n    by: Who is speaking, for a `spoken` caption only.\n\n**A caption is not a fifth balloon kind.** It has no speaker to point at and no\ntail, and :attr:`CoreBalloon.tail <scenet.core.CoreBalloon.tail>` is required -- a\nfifth kind would mean inventing a speaker and leaving a field dead.\n\n`by` is the one place where the rule that every actor id resolves does not hold,\nand deliberately: an off-panel speaker is not in the panel, so requiring them to be\nin the cast would defeat the point of saying they are off panel.\n\nExample:\n    >>> from scenet.ir import CaptionEvent\n    >>> CaptionEvent(text=\"Midnight. The docks.\").kind.value\n    'locale'",
       "properties": {
         "by": {
           "anyOf": [
@@ -78,6 +78,10 @@
           "title": "Text",
           "type": "string"
         },
+        "tone": {
+          "$ref": "#/$defs/CaptionTone",
+          "default": "paper"
+        },
         "verb": {
           "const": "caption",
           "default": "caption",
@@ -100,6 +104,16 @@
         "editorial"
       ],
       "title": "CaptionKind",
+      "type": "string"
+    },
+    "CaptionTone": {
+      "description": "The value a caption box is filled with.\n\nA caption box is opaque, so its lettering is never at risk: the text sits on the\nfill whatever is behind it. What a tone changes is whether the *box* reads. On a\nclear day the atmosphere is `#eeeeee` and a white box on it is 1.16:1 -- legible,\nand invisible. The failing case is the pale end, not the dark one.\n\n| Tone | Fill | Where it comes from | Lettered in |\n|---|---|---|---|\n| `paper` | `#ffffff` | the paper the panel is printed on | ink |\n| `pale` | `#adadad` | the `day` row of the value ladder, far plane | ink |\n| `ink` | `#090909` | the `day` row of the value ladder, foreground | paper |\n\n**Drawn from the ladder in `solve/backdrop.py`, not from a second palette.** Two of\nthe three are rungs of it, taken by index rather than restated, which is what keeps\nlettering and backdrop from drifting apart as either is tuned. The `day` row is the\nladder at its widest, so tones taken from it span the most ground.\n\n**A tone is fixed, not a function of the panel's hour.** A caption's value is a\nproperty of the caption; letting it drift with `time` would make the contrast table\na function of the panel and the legibility floor unenforceable.\n\n`ink` produces what letterers call reversed type: the lettering inverts to paper,\nbecause black type on a near-black box is not lettering, it is a filled rectangle.\nWhich mark reads is resolved by the solver -- see\n:attr:`CoreCaption.ink <scenet.core.CoreCaption>` -- exactly as falling rain's is.\n\nThere is no free-form colour here, and no yellow. A `fill:` taking any string would\nbe the language's one open vocabulary and would let an author produce an unreadable\nbox; the classic yellow `locale` caption would be the first non-neutral value in the\ncodebase, and the language has no colour policy yet to put it under.",
+      "enum": [
+        "paper",
+        "pale",
+        "ink"
+      ],
+      "title": "CaptionTone",
       "type": "string"
     },
     "CastMember": {

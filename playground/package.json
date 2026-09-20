@@ -15,14 +15,14 @@
   "dependencies": {
     "monaco-editor": "0.54.0",
     "monaco-yaml": "^5.5.1",
-    "pyodide": "^314.0.5"
+    "pyodide": "^314.0.7"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
-    "tsx": "^4.20.0",
+    "@types/node": "^26.6.1",
+    "tsx": "^4.23.13",
     "typescript": "^7.0.2",
-    "vite": "^8.2.2",
-    "yaml": "^2.9.0"
+    "vite": "^8.3.0",
+    "yaml": "^2.9.1"
   },
   "allowScripts": {
     "esbuild@0.28.2": true

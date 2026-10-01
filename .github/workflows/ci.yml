@@ -211,12 +211,17 @@ jobs:
         with:
           enable-cache: true
 
+      # Built as well as typechecked. The worker imports are `?worker` deep paths, which
+      # `vite/client` types with a wildcard, so `tsc` passes on a monaco-editor that no
+      # longer exports them -- only bundling resolves them. monaco-editor 0.57 reached
+      # `main` that way, and the first thing to fail was the Pages deploy.
       - name: Playground
         working-directory: playground
         run: |
           npm ci
           npm run typecheck
           npm run test
+          npx vite build
 
       # The step that actually assembles the playground, run here so that breaking it
       # fails a pull request rather than the Pages deploy after merge.

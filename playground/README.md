@@ -69,14 +69,19 @@ exports map, so `monaco-editor/esm/vs/...` no longer resolves, and 0.56 changed 
 — still uses the old path and the old contract, so on 0.55 or later the YAML worker never
 registers a handler.
 
-The symptom is quiet, which is what makes it worth pinning: the page loads and the editor
-appears, but schema validation, completion and hover are gone, and the console fills with
-`Missing requestHandler or method: doValidation` on every keystroke.
+The two breaks fail differently. The exports map is loud: the worker imports stop
+resolving and the build fails. CI builds the playground for exactly that reason — 0.57
+was merged while every check passed, and only the Pages deploy noticed. The `initialize`
+contract is quiet: the page loads and the editor appears, but schema validation,
+completion and hover are gone, and the console fills with
+`Missing requestHandler or method: doValidation` on every keystroke. No check catches
+that one, so before merging a monaco-editor update, open the playground and type a key
+the schema does not allow.
 
 `monaco-yaml` declares `monaco-editor: >=0.36`, a range written before any of this. The
 fix has to come from `monaco-yaml` shipping an updated worker manager, so that is the
-dependency to watch. Dependabot is told to ignore monaco-editor 0.55.x and 0.56.x
-specifically — 0.57 and later will still be proposed.
+dependency to watch. Dependabot is told to ignore monaco-editor 0.55.x, 0.56.x and 0.57.x
+specifically — 0.58 and later will still be proposed.
 
 **`dompurify` is overridden forward to ^3.4.14.** monaco-editor pins 3.4.8 exactly, and
 four advisories affect everything up to 3.4.12. npm's own `audit fix --force` suggests

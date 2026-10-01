@@ -46,10 +46,15 @@ updates:
       # registers a handler and schema validation, completion and hover silently stop
       # working. The page still loads, which is what makes it worth pinning.
       #
-      # Narrow on purpose: a future 0.57 will still be proposed, and monaco-yaml updates
-      # are unaffected -- and monaco-yaml is where the fix has to come from.
+      # Narrow on purpose: each new minor is still proposed, and monaco-yaml updates are
+      # unaffected -- and monaco-yaml is where the fix has to come from. 0.57 was
+      # proposed and merged with every check green, because CI typechecked the
+      # playground but never built it, and the first thing to fail was the Pages deploy.
+      # CI builds it now, so a release that breaks the import path fails its own pull
+      # request. One that only breaks the worker contract still passes; see
+      # playground/README.md.
       - dependency-name: monaco-editor
-        versions: ["0.55.x", "0.56.x"]
+        versions: ["0.55.x", "0.56.x", "0.57.x"]
 
   - package-ecosystem: npm
     directory: /editor

@@ -36,6 +36,8 @@ SURFACES = {
     "playground/index.html": "the browser playground",
     "editor/README.md": "the VS Code extension description, shown before installing",
     "playground/README.md": "anyone reading the playground source",
+    "skills/scenet/SKILL.md": "the Agent Skill, loaded into a coding agent's context",
+    "src/scenet/scenet-spec.md": "the spec pack, handed to chat models and served over MCP",
 }
 
 

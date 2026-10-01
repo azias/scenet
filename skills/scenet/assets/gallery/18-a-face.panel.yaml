@@ -1,0 +1,18 @@
+# A big close-up, which is the framing that pays for the face rig: the head fills the
+# panel, and until expressions existed it was a circle.
+#
+# One character on purpose. A big close-up of two is not a big close-up for long -- the
+# camera retreats to fit them both across the panel, and the note it prints says so.
+
+panel:
+  size: [900, 900]
+
+camera:
+  shot: big_close_up
+
+cast:
+  alice: {reference: alice, expression: angry}
+
+# No lettering. At this framing the head fills the panel and there is nowhere a balloon
+# could sit without covering the face, which the compiler refuses to do -- and a silent
+# reaction panel is what a letterer would have drawn here anyway.

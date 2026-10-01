@@ -68,6 +68,17 @@ class TestBuild:
         assert not panel_file.with_name("scene.panel.svg").exists()
         assert panel_file.with_name("scene.svg").exists()
 
+    @pytest.mark.parametrize(
+        "name", ["scene.panel.yml", "scene.yml", "scene.scene.yml", "scene.panel.yaml"]
+    )
+    def test_both_yaml_extensions_name_the_output_alike(self, panel_file: Path, name: str, capsys):
+        """`.yml` is read exactly as `.yaml` is, so it has to be named alike -- it used to
+        come out as `scene.panel.yml.svg`."""
+        source = panel_file.with_name(name)
+        panel_file.rename(source)
+        assert main(["build", str(source)]) == 0
+        assert source.with_name("scene.svg").exists()
+
     def test_explicit_output_path_is_honoured(self, panel_file: Path, tmp_path: Path, capsys):
         target = tmp_path / "nested" / "out.svg"
         assert main(["build", str(panel_file), "-o", str(target)]) == 0
@@ -113,6 +124,19 @@ class TestErrors:
     def test_missing_file_reports_cleanly(self, tmp_path: Path, capsys):
         assert main(["build", str(tmp_path / "nope.panel.yaml")]) == 2
         assert "no such file" in capsys.readouterr().err
+
+    def test_an_unsupported_extension_is_a_usage_error_not_a_traceback(
+        self, tmp_path: Path, capsys
+    ):
+        """It used to escape as a ValueError traceback, which this command promises never
+        to print for anything that is the input's fault."""
+        notes = tmp_path / "duel.txt"
+        notes.write_text("cast: {a: {reference: alice}}\n", encoding="utf-8")
+        assert main(["build", str(notes)]) == 2
+        err = capsys.readouterr().err
+        assert err.startswith("scenet: ")
+        assert "unsupported extension '.txt'" in err
+        assert not (tmp_path / "duel.txt.svg").exists()
 
     def test_invalid_panel_reports_without_a_traceback(self, tmp_path: Path, capsys):
         bad = tmp_path / "bad.panel.yaml"

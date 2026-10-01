@@ -17,6 +17,10 @@ uv version --bump minor
 `major`, `minor` or `patch`. This edits `project.version` in `pyproject.toml` and nothing
 else. Check what it will do first with `--dry-run`.
 
+Set the same version in [`server.json`](https://github.com/creatoan/scenet/blob/main/server.json),
+in both places it appears — the MCP registry manifest has to name the release it points at, and
+a test fails until it does.
+
 Then write the changelog section. `CHANGELOG.md` follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); rename the `## [Unreleased]`
 heading to `## [0.2.0] - 2026-08-23` and start a fresh `Unreleased` above it.
@@ -97,6 +101,21 @@ tags are protected against deletion.
 It is a real trade. Releases stop being synchronous, which matters when the person who
 tagged is not around to approve; and the gate protects against a mistake that cannot be
 undone. Decide once, deliberately, rather than discovering it mid-release.
+
+## Publishing to the MCP registry
+
+Optional, and after PyPI has the release. The
+[official MCP registry](https://github.com/modelcontextprotocol/registry) stores metadata only:
+`server.json` describes how to launch `scenet mcp` from the PyPI package, and the registry checks
+that the package's description — the README — carries the `mcp-name` marker for the
+`io.github.creatoan/scenet` namespace. Ownership of that namespace is proved by signing in as the
+GitHub organisation that owns the repository:
+
+```bash
+mcp-publisher login github
+mcp-publisher publish --dry-run   # validate first
+mcp-publisher publish
+```
 
 ## PyPI is opt-in
 

@@ -23,6 +23,7 @@ from scenet.diagnostics import (
     _rule_for_scenet_error,
     _uri_for,
     diagnose_file,
+    diagnose_script,
     diagnose_source,
     to_sarif,
 )
@@ -627,3 +628,95 @@ class TestDeepChecking:
         shallow = diagnose_source(source)
         deep = diagnose_source(source, deep=True)
         assert deep == shallow
+
+
+class TestScriptCastFindings:
+    """A comic script declares its cast once, in the front matter, for every panel.
+
+    A bad name there is one fault in one place. It used to be reported once per panel,
+    and every copy at line 1 -- the opening `---` -- because the positions were looked
+    up in the whole script, which is not a YAML document.
+    """
+
+    SCRIPT = (
+        "---\n"
+        "panel:\n"
+        "  size: [600, 400]\n"
+        "cast:\n"
+        "  ALICE: {reference: alice, pose: smirking}\n"
+        "  BOB:   {reference: bobby}\n"
+        "---\n"
+        "\n"
+        "PANEL 1\nALICE\nHello.\n\n"
+        "PANEL 2\nBOB\nHi.\n"
+    )
+
+    def test_each_fault_is_reported_once(self):
+        found = diagnose_script(self.SCRIPT)
+        assert [(item.rule, item.path) for item in found] == [
+            ("unknown-pose", ("cast", "ALICE", "pose")),
+            ("unknown-puppet", ("cast", "BOB", "reference")),
+        ]
+
+    def test_each_fault_is_located_in_the_front_matter(self):
+        pose, puppet = diagnose_script(self.SCRIPT)
+        assert pose.region is not None
+        assert puppet.region is not None
+        assert (pose.region.start.line, pose.region.start.column) == (5, 35)
+        assert (puppet.region.start.line, puppet.region.start.column) == (6, 22)
+
+    def test_lines_before_the_fence_are_counted(self):
+        (pose, _) = diagnose_script("\n\n" + self.SCRIPT)
+        assert pose.region is not None
+        assert pose.region.start.line == 7
+
+    def test_windows_line_endings_do_not_move_anything(self):
+        (pose, _) = diagnose_script(self.SCRIPT.replace("\n", "\r\n"))
+        assert pose.region is not None
+        assert pose.region.start.line == 5
+
+
+class TestSceneDefaultFindings:
+    """Keys alongside `panels:` are defaults every panel inherits. A fault in one is one
+    fault, written once: it used to be reported once per panel, each copy pointing at
+    the panel rather than at the line that was wrong."""
+
+    SCENE = (
+        "panel: {size: [420, 560]}\n"
+        "cast:\n"
+        "  alice: {reference: alice, pose: smirking}\n"
+        "panels:\n"
+        "  first:\n"
+        "    script:\n"
+        "      - say: {by: alice, text: One.}\n"
+        "  second:\n"
+        "    over: first\n"
+        "    camera: {shot: close_up}\n"
+    )
+
+    def test_an_inherited_fault_is_reported_once_where_it_is_written(self):
+        (found,) = diagnose_source(self.SCENE)
+        assert found.rule == "unknown-pose"
+        assert found.path == ("cast", "alice", "pose")
+        assert found.region is not None
+        assert found.region.start.line == 3
+
+    def test_a_fault_a_panel_writes_itself_stays_with_the_panel(self):
+        scene = self.SCENE.replace(
+            "    camera: {shot: close_up}\n",
+            "    camera: {shot: close_up}\n    cast:\n      alice: {expression: smug}\n",
+        )
+        found = diagnose_source(scene)
+        assert [(item.rule, item.path) for item in found] == [
+            ("unknown-pose", ("cast", "alice", "pose")),
+            ("unknown-expression", ("panels", "second", "cast", "alice", "expression")),
+        ]
+
+    def test_an_inherited_validation_fault_is_reported_once(self):
+        scene = self.SCENE.replace("pose: smirking", "pose: pointing").replace(
+            "panel: {size: [420, 560]}\n", "panel: {size: [420, 560]}\ncamera: {shot: closeup}\n"
+        )
+        (found,) = diagnose_source(scene)
+        assert found.path == ("camera", "shot")
+        assert found.region is not None
+        assert found.region.start.line == 2

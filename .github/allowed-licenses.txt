@@ -10,6 +10,8 @@
 MIT
 MIT License
 MIT-CMU
+# MIT with the attribution clause removed -- cffi, via the optional `mcp` extra.
+MIT-0
 BSD
 BSD License
 BSD-2-Clause
@@ -33,4 +35,6 @@ CC0-1.0
 CC0 1.0 Universal (CC0 1.0) Public Domain Dedication
 # Compound expressions, verbatim:
 Apache-2.0 OR BSD-2-Clause
+# cryptography, reached through the optional `mcp` extra (pyjwt[crypto]).
+Apache-2.0 OR BSD-3-Clause
 BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0

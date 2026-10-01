@@ -48,4 +48,5 @@ solve
 emit
 errors
 cli
+mcp
 ```

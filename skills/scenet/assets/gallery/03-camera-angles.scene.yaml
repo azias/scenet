@@ -1,0 +1,19 @@
+# The three camera heights, at one shot type.
+#
+# This compiler is orthographic, so an angle cannot foreshorten anything. What it
+# changes is HEADROOM -- the air above the head -- which is the cue readers actually
+# take from an angle, and one that survives being drawn flat.
+#
+# A low camera looks up and the subject looms, so headroom tightens. A high camera
+# looks down and it opens out.
+
+panel: {size: [500, 620]}
+camera: {shot: medium_close_up}
+
+cast:
+  bob: {reference: bob, pose: hands_on_hips}
+
+panels:
+  low:       {camera: {angle: low}}
+  eye_level: {camera: {angle: eye_level}}
+  high:      {camera: {angle: high}}

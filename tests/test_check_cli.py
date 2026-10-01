@@ -59,6 +59,18 @@ class TestExitStatus:
         """Distinct from 'the panel is wrong': the invocation is wrong."""
         assert main(["check", str(tmp_path / "nope.panel.yaml")]) == 2
 
+    def test_a_file_build_would_refuse_is_not_called_ok(
+        self, tmp_path: Path, good: Path, capsys: pytest.CaptureFixture[str]
+    ):
+        """`build` refuses an extension it has no frontend for, so `check` passing the same
+        file would be a confident false clean. Both call it a usage error."""
+        notes = tmp_path / "notes.txt"
+        notes.write_text(good.read_text(encoding="utf-8"), encoding="utf-8")
+        assert main(["check", str(notes)]) == 2
+        captured = capsys.readouterr()
+        assert "unsupported extension '.txt'" in captured.err
+        assert "ok" not in captured.out
+
     def test_one_bad_file_among_several_still_fails(self, good: Path, bad: Path):
         assert main(["check", str(good), str(bad)]) == 1
 

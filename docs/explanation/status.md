@@ -25,6 +25,7 @@ attribution. A notation is only worth having if it is not owned.
 | 6 | Browser playground (Pyodide); VS Code extension | **Done** |
 | 7 | Machine-readable diagnostics: `scenet check`, in SARIF | **Done** |
 | 8 | Captions, faces, and the setting layer — places, masses, planes, atmosphere | **Done** |
+| 9 | The agent-facing surface: spec pack and `llms.txt`, Agent Skill, MCP server | **Done** |
 
 Single panels compile end to end. Constructs described in `language.md` are the specification,
 not a report of what is implemented — the table above is authoritative on what actually runs.

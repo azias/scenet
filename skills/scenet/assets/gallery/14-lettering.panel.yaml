@@ -1,0 +1,26 @@
+# Never break lines yourself. Where text breaks is decided during compilation,
+# measured against the real metrics of the real font, and scored on how close the
+# resulting block comes to the shape a letterer would choose.
+#
+# Two rules the scoring exists to enforce: a phrase that fits on one line is not
+# split, even where splitting scores marginally better on aspect ratio; and no line is
+# left stranded far shorter than its neighbours.
+
+panel:
+  size: [1100, 850]
+
+camera:
+  shot: medium_shot
+
+cast:
+  alice: {reference: alice, at: left_third}
+  bob:   {reference: bob,   at: right_third, facing: left}
+
+staging:
+  - alice left_of bob
+  - alice ground_shared_with bob
+
+script:
+  - say: {by: alice, text: "You forgot your umbrella!", prefer: top_left}
+  - say: {by: bob,   text: "I know."}
+  - say: {by: alice, text: "It has been raining since six this morning and you knew that."}

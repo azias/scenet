@@ -6,6 +6,8 @@ schemas share an origin:
     site/                     documentation (Sphinx)
     site/playground/          the browser playground (Vite)
     site/schemas/*.json       the JSON Schemas, at stable URLs
+    site/scenet-spec.md       the spec pack: the whole language, in one file for a model
+    site/llms.txt             an index for retrieval systems, per llmstxt.org
 
 The schemas are served from a stable URL on purpose. Any editor with a YAML language
 server can validate a panel document against them with a one-line comment and no
@@ -22,6 +24,8 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+import build_spec
 
 ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
@@ -93,6 +97,10 @@ def assemble() -> None:
     schemas.mkdir(parents=True, exist_ok=True)
     for name in ("panel.schema.json", "scene.schema.json"):
         shutil.copyfile(SCHEMAS / name, schemas / name)
+
+    # Generated fresh from the sources rather than copied from the committed spec pack,
+    # so the published one is current even on a branch that forgot to regenerate.
+    build_spec.write_site_files(SITE)
 
     # Sphinx writes .nojekyll itself for _static/, but Pages also needs it at the root
     # or every directory beginning with an underscore is silently dropped.

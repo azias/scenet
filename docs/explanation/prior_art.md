@@ -33,6 +33,33 @@ exactly the framing the literature demands — see Barrett below.
 **Nothing is vendored** — not code, not artwork. See
 [THIRD_PARTY_NOTICES](https://github.com/creatoan/scenet/blob/main/THIRD_PARTY_NOTICES.md) for why.
 
+### WordsEye — Coyne & Sproat, SIGGRAPH 2001
+
+[Paper](http://www.cs.columbia.edu/~coyne/papers/wordseye_siggraph.pdf)
+
+Automatic text-to-scene conversion, and the direct ancestor of the whole idea. WordsEye turned
+English into a 3D scene in stages: the text is tagged and parsed into a dependency structure, that
+structure is interpreted into a *semantic representation* of entities and the relations between
+them, and only then do depiction rules turn it into low-level *depictors* — object placement, pose,
+spatial relation, colour. Its object library carried more than geometry: skeletons for posing
+characters, shape displacements for faces ("smiling, eyes closed, frowning"), and *spatial tags*
+marking the regions of an object a relation can use, such as the top surface of a table or the
+inside of a bowl.
+
+Taken: the shape of the pipeline, and the principle that a depictable object must declare where
+relations attach to it. Scenet's IR is a semantic representation in WordsEye's sense and Panel
+Core is its set of depictors; a puppet's poses, expressions and named anchors are the same three
+kinds of asset metadata as skeletons, shape displacements and spatial tags.
+
+Not taken: the front end. WordsEye's hard problem was natural language — parsing, word sense,
+coreference — and its authors said plainly what that costs: "since linguistic descriptions tend to
+be at a high level of abstraction, there will be a certain amount of unpredictability in the
+graphical result." Scenet starts one stage later, at the semantic representation, and never
+interprets prose. With a language model in the loop that division of labour is cleaner than it
+was in 2001: the model does the step WordsEye found hardest, language to semantics, and the
+compiler does the step that ought to be deterministic. That is the whole argument for the
+[agent-facing surface](../howto/drive_from_a_model.md).
+
 ### Vega-Lite
 
 [Paper](https://idl.cs.washington.edu/files/2017-VegaLite-InfoVis.pdf) ·
@@ -266,3 +293,40 @@ drawn rather than massed.
 | **A-star pathfinding for balloon tails** | Frequently suggested, and wrong. A tail is a short tapered stroke from balloon rim to mouth; grid-based A-star produces jagged paths that look nothing like drawn tails. A straight tail with a collision test, bending to a single-control-point Bézier only when obstructed, is both simpler and better. |
 | **Physically based sky models — [Preetham](https://dl.acm.org/doi/10.1145/311535.311545) and [Hosek-Wilkie](https://cgg.mff.cuni.cz/projects/SkylightModelling/)** | The obvious neighbours for `time`, and the wrong tool. They solve a *radiometric* problem — spectral radiance over a hemisphere, parameterised by turbidity and solar elevation — which this compiler does not have. Scenet produces a small number of flat tonal values for a drawn comic panel; it is not simulating scattering. The parametric rule it actually needs is aerial perspective, which is two numbers per hour and is recorded above as load-bearing. Adopting a sky model would import a physical simulation to answer a question about ink. |
 | **`coloraide` / `colour-science` at runtime** | Genuinely good libraries, and the OKLab ladder was worth computing with one — *during development*. Shipping it would put a package through `.github/allowed-licenses.txt` to recompute a handful of neutral greys that never change. The values are hardcoded with the lightnesses they came from written beside them. |
+
+### Imperative scene programs — Gumin et al. 2025
+
+[*Imperative vs. Declarative Programming Paradigms for Open-Universe Scene
+Generation*](https://arxiv.org/abs/2504.05482) — Gumin, Han, Yoo, Ganeshan, Jones, Aguina-Kang,
+Morris & Ritchie, arXiv 2504.05482
+
+Recorded because it is the strongest published argument *against* the shape Scenet has, and
+because it was first proposed for this file — in
+[#11](https://github.com/creatoan/scenet/issues/11) — as evidence for the opposite of what it
+found. The paper does not show that models do better emitting declarative constraints. It
+challenges that consensus: instead of a model stating constraints for a separate solver, the model
+writes a step-by-step program that places each object relative to those already placed, and an
+LLM-free pass then repairs collisions by adjusting the program's parameters. In forced-choice
+studies, participants preferred its layouts to those of two declarative systems 82% and 94% of
+the time.
+
+Scenet stays declarative for reasons specific to its domain, not as a rebuttal of the paper:
+
+- **Even the imperative programs contain no absolute coordinates.** Every placement is relative
+  to something already placed. Whatever the paper argues, it is not that a model should emit
+  coordinates — which is the proposal this entry exists to answer.
+- **A panel's hard requirements bind the whole cast at once.** No balloon over any face, figures
+  ordered left to right, a shot framed in head-heights for everyone in it: placed one figure at a
+  time, the third cannot move the first two to make room. The staging solver resolves them
+  together, by priority.
+- **The problems differ in size.** The paper targets complex, varied, highly structured 3D
+  arrangements of many objects — exactly what it says is hard to express declaratively. A panel
+  holds a handful of figures and boxes.
+- **Determinism is a requirement here**, and a solver over a stated system gives the same answer
+  every time.
+
+What does transfer is the repair loop. The paper corrects the generated program mechanically,
+without asking the model again; Scenet's counterpart is
+[structured diagnostics](../reference/cli.md#scenet-check) — a finding with a rule, a location and
+a fix, applied by the model or a person. Both start from the same observation: generated output is
+easy to get nearly right and hard to get exactly right, so the checking has to be mechanical.

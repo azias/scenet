@@ -1,0 +1,52 @@
+# Ten expressions, which is every face the shipped puppets can make.
+#
+# An expression is to features what a pose is to joints: the puppet declares feature
+# points that ride the head, declares named expressions as a state per feature, and the
+# panel selects one by name. Nothing here touches the solver -- a face is still one disc
+# that balloons may not cover, exactly as it was.
+#
+# The vocabulary is Comic Chat's emotion wheel plus `surprise`, which is to say it is a
+# **drawing convention**: the small closed set of faces comics actually draw. It is not
+# a claim that a person feeling anger produces this face.
+#
+# Watch the pupils. `looking_at` has always turned a figure toward its target and made
+# the space in front of them expensive for a balloon; now it aims their eyes as well.
+
+camera:
+  shot: medium_shot
+
+cast:
+  alice: {reference: alice, pose: arms_crossed, at: left_third}
+  bob:   {reference: bob,   pose: hands_on_hips, at: right_third, facing: left}
+
+staging:
+  - alice left_of bob
+  - alice ground_shared_with bob
+  - alice looking_at bob
+  - bob looking_at alice
+
+panels:
+  confrontation:
+    cast:
+      alice: {expression: angry}
+      bob:   {expression: shouting}
+
+  surprised:
+    cast:
+      alice: {expression: neutral}
+      bob:   {expression: surprise}
+
+  delighted:
+    cast:
+      alice: {expression: happy}
+      bob:   {expression: laughing}
+
+  unimpressed:
+    cast:
+      alice: {expression: coy}
+      bob:   {expression: bored}
+
+  afraid:
+    cast:
+      alice: {expression: sad}
+      bob:   {expression: scared}

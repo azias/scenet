@@ -1,0 +1,22 @@
+# `prefer:` names one of nine zones -- top/middle/bottom crossed with
+# left/center/right.
+#
+# It is the WEAKEST term in the whole system. Covering a face is illegal, overlapping
+# another balloon is illegal, and breaking reading order is illegal; only after all of
+# that does a preference get a vote. Change these and watch how often the compiler
+# quietly overrules you.
+
+panel:
+  size: [1200, 900]
+
+camera:
+  shot: full_shot
+
+cast:
+  alice: {reference: alice, at: center}
+
+script:
+  - say: {by: alice, text: "Top left.",     prefer: top_left}
+  - say: {by: alice, text: "Top right.",    prefer: top_right}
+  - say: {by: alice, text: "Bottom left.",  prefer: bottom_left}
+  - say: {by: alice, text: "Bottom right.", prefer: bottom_right}

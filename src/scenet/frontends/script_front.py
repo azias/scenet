@@ -93,6 +93,9 @@ class _PanelDraft:
     until the end makes it obvious that prose never reaches the compiler.
     """
 
+    #: The file line of the PANEL heading, which is where a fault found only once the
+    #: whole panel is assembled -- a bad `@shot:` value, say -- gets reported.
+    line: int
     settings: dict[str, Any] = field(default_factory=dict)
     camera: dict[str, Any] = field(default_factory=dict)
     events: list[dict[str, Any]] = field(default_factory=list)
@@ -130,29 +133,42 @@ def _looks_like_a_cue(line: str) -> bool:
     return bool(letters) and all(character.isupper() for character in letters)
 
 
-def _split_front_matter(text: str, source: Path | None) -> tuple[dict[str, Any], str]:
-    """Peel off the YAML front-matter block, if there is one."""
+def _split_front_matter(text: str, source: Path | None) -> tuple[dict[str, Any], str, int]:
+    """Peel off the YAML front-matter block, if there is one.
+
+    Returns:
+        The front matter, the body after it, and how many lines of the file the front
+        matter occupied -- so a fault in the body can be reported against the line a
+        person sees in their editor, not against the line within the body.
+    """
     match = FRONT_MATTER.match(text)
     if not match:
-        return {}, text
+        return {}, text, 0
+    consumed = text.count("\n", 0, match.end())
     try:
         loaded = yaml.safe_load(match.group(1))
     except yaml.YAMLError as exc:
         raise ScriptSyntaxError(f"invalid front matter: {exc}", source=source) from exc
     if loaded is None:
-        return {}, text[match.end() :]
+        return {}, text[match.end() :], consumed
     if not isinstance(loaded, dict):
         raise ScriptSyntaxError("front matter must be a mapping", source=source)
-    return loaded, text[match.end() :]
+    return loaded, text[match.end() :], consumed
 
 
-def _read_panels(body: str, source: Path | None) -> dict[str, _PanelDraft]:
-    """Walk the script body, accumulating one draft per PANEL heading."""
+def _read_panels(body: str, source: Path | None, *, offset: int = 0) -> dict[str, _PanelDraft]:
+    """Walk the script body, accumulating one draft per PANEL heading.
+
+    Args:
+        body: The script after its front matter.
+        source: The file, for error messages.
+        offset: Lines of the file before the body, added to every reported line number.
+    """
     panels: dict[str, _PanelDraft] = {}
     current: _PanelDraft | None = None
     pending_cue: tuple[str, BalloonKind] | None = None
 
-    for number, raw in enumerate(body.splitlines(), start=1):
+    for number, raw in enumerate(body.splitlines(), start=offset + 1):
         line = raw.strip()
 
         if not line:
@@ -168,7 +184,7 @@ def _read_panels(body: str, source: Path | None) -> dict[str, _PanelDraft]:
 
         panel_match = PANEL_HEADING.match(line)
         if panel_match:
-            current = _PanelDraft()
+            current = _PanelDraft(line=number)
             panels[panel_match.group(1)] = current
             pending_cue = None
             continue
@@ -273,8 +289,8 @@ def parse_script(text: str, *, source: Path | None = None) -> dict[str, PanelIR]
     # first PANEL heading. Anything that reaches here as a string gets the same treatment
     # a file would have had.
     text = text.replace("\r\n", "\n").replace("\r", "\n")
-    front_matter, body = _split_front_matter(text, source)
-    panels = _read_panels(body, source)
+    front_matter, body, offset = _split_front_matter(text, source)
+    panels = _read_panels(body, source, offset=offset)
 
     if not panels:
         raise ScriptSyntaxError("no PANEL headings found", source=source)
@@ -285,9 +301,13 @@ def parse_script(text: str, *, source: Path | None = None) -> dict[str, PanelIR]
         try:
             result[name] = PanelIR.model_validate(normalise(combined))
         except PanelSyntaxError as exc:
-            raise ScriptSyntaxError(f"in PANEL {name}: {exc}", source=source) from exc
+            raise ScriptSyntaxError(
+                f"in PANEL {name}: {exc}", source=source, line=draft.line
+            ) from exc
         except ValidationError as exc:
-            raise ScriptSyntaxError(f"in PANEL {name}: {summarise(exc)}", source=source) from exc
+            raise ScriptSyntaxError(
+                f"in PANEL {name}: {summarise(exc)}", source=source, line=draft.line
+            ) from exc
     return result
 
 

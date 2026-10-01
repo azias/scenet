@@ -1,0 +1,31 @@
+# Four kinds of caption: locale, monologue, spoken and editorial.
+#
+# A caption is the panel speaking in its own voice, which is how a comic says where and
+# when it happens without a character having to explain it out loud. The vocabulary is
+# the letterers' own: three of the four are set in italic, and `spoken` -- somebody
+# talking from off panel -- takes quotation marks instead.
+#
+# Captions are placed by the same machinery as balloons, so they never cover a face and
+# they take their turn in reading order. What differs is the pull: a balloon mildly
+# dislikes the panel edge, and a caption is looking for exactly that corner.
+
+panel:
+  size: [1400, 950]
+
+camera:
+  shot: medium_full
+
+cast:
+  alice: {reference: alice, pose: arms_crossed, at: left_third}
+  bob:   {reference: bob,   pose: pointing,     at: right_third, facing: left}
+
+staging:
+  - alice left_of bob
+  - alice ground_shared_with bob
+
+script:
+  - caption: {text: "Midnight. The docks.", kind: locale, prefer: top_left}
+  - say: {by: alice, text: "You said he would be here."}
+  - caption: {text: "He had said a great many things.", kind: monologue, prefer: middle_right}
+  - caption: {text: "Put that down!", kind: spoken, by: harbourmaster, prefer: bottom_left}
+  - caption: {text: "Continued next issue.", kind: editorial, prefer: bottom_right}

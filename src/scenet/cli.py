@@ -1,6 +1,7 @@
 """Command-line entry point."""
 
 import argparse
+import importlib
 import json
 import sys
 from collections.abc import Sequence
@@ -12,7 +13,7 @@ from scenet.emit.debug_svg import render_debug
 from scenet.emit.strip import render_strip
 from scenet.emit.svg import render
 from scenet.errors import ScenetError
-from scenet.pipeline import compile_document
+from scenet.pipeline import FRONTENDS, compile_document
 from scenet.schema import panel_schema, scene_schema
 
 DESCRIPTION = "Compile a semantic comic-panel description into SVG."
@@ -32,7 +33,7 @@ def build_parser() -> argparse.ArgumentParser:
     generators and documentation tooling can inspect the interface without running it.
 
     Returns:
-        A parser with the `build`, `check` and `schema` subcommands defined.
+        A parser with the `build`, `check`, `schema` and `mcp` subcommands defined.
     """
     parser = argparse.ArgumentParser(
         prog="scenet",
@@ -141,7 +142,49 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="emit the multi-panel scene schema instead of the single-panel one",
     )
+
+    mcp = subcommands.add_parser(
+        "mcp",
+        help="serve the compiler to a model over the Model Context Protocol",
+        description=(
+            "Run an MCP server whose tools read the specification, list the characters, "
+            "validate, compile and render -- so a model can check its own panel and fix "
+            "what it got wrong, with nobody relaying error text. Needs the optional "
+            "extra: pip install 'scenet[mcp]'.\n\n"
+            "stdio is for a client that launches the server itself; streamable-http "
+            "listens for remote clients, and has no authentication, so it binds to "
+            "localhost unless told otherwise."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    mcp.add_argument(
+        "--transport",
+        choices=("stdio", "streamable-http"),
+        default="stdio",
+        help="stdio (default) or streamable-http",
+    )
+    mcp.add_argument(
+        "--host", default="127.0.0.1", help="address to listen on, for streamable-http"
+    )
+    mcp.add_argument("--port", type=int, default=8000, help="port, for streamable-http")
     return parser
+
+
+def _refuse_unsupported(paths: Sequence[Path]) -> bool:
+    """Report every path no frontend reads, and say whether there were any.
+
+    `build` dispatches on the extension, so a file it has no frontend for is a mistake in
+    the invocation rather than in a panel -- the same class as a missing file, and
+    reported the same way rather than escaping as a traceback.
+    """
+    expected = ", ".join(sorted(FRONTENDS))
+    refused = [path for path in paths if path.suffix.lower() not in FRONTENDS]
+    for path in refused:
+        print(
+            f"scenet: {path}: unsupported extension '{path.suffix}'; expected one of {expected}",
+            file=sys.stderr,
+        )
+    return bool(refused)
 
 
 def run_build(args: argparse.Namespace) -> int:
@@ -152,7 +195,8 @@ def run_build(args: argparse.Namespace) -> int:
 
     Returns:
         A process exit status: `0` on success, `1` when the document could not be
-        compiled, `2` when the source file does not exist.
+        compiled, `2` when the source file does not exist or has an extension no
+        frontend reads.
 
     Every error the compiler can raise inherits `ScenetError`, and all of them mean
     "your panel cannot be compiled" rather than "scenet broke" -- so they are reported
@@ -161,6 +205,8 @@ def run_build(args: argparse.Namespace) -> int:
     source: Path = args.source
     if not source.exists():
         print(f"scenet: no such file: {source}", file=sys.stderr)
+        return 2
+    if _refuse_unsupported([source]):
         return 2
 
     try:
@@ -179,6 +225,7 @@ def run_build(args: argparse.Namespace) -> int:
     # `foo.panel.yaml` becomes `foo.svg`, not `foo.panel.svg`.
     stem = (
         source.name.removesuffix(".yaml")
+        .removesuffix(".yml")
         .removesuffix(".script")
         .removesuffix(".panel")
         .removesuffix(".scene")
@@ -234,7 +281,7 @@ def run_check(args: argparse.Namespace) -> int:
 
     Returns:
         A process exit status: `0` when every document is valid, `1` when any has a
-        finding, `2` when a file does not exist.
+        finding, `2` when a file does not exist or has an extension no frontend reads.
 
     Unlike `build`, this never stops at the first fault. pydantic reports every field
     error at once and a run over several files reports all of them, because a caller
@@ -246,6 +293,10 @@ def run_check(args: argparse.Namespace) -> int:
     for path in missing:
         print(f"scenet: no such file: {path}", file=sys.stderr)
     if missing:
+        return 2
+    # Checked as `build` would read it, or not at all: calling a file `build` refuses
+    # "ok" would be a confident false clean.
+    if _refuse_unsupported(sources):
         return 2
 
     found: list[Diagnostic] = []
@@ -301,6 +352,40 @@ def run_schema(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_mcp(args: argparse.Namespace) -> int:
+    """Run the `mcp` subcommand: serve the tools until the client disconnects.
+
+    Args:
+        args: Parsed arguments from :func:`build_parser <scenet.cli.build_parser>`.
+
+    Returns:
+        A process exit status: `0` once the client has gone, `2` when the optional `mcp`
+        dependency is not installed.
+
+    Nothing is printed to stdout, before or after: on the stdio transport stdout is the
+    protocol stream. The server module is imported here rather than at the top of the
+    file, so every other command works without the extra installed.
+    """
+    try:
+        server = importlib.import_module("scenet.mcp")
+    except ImportError as exc:
+        # Only a missing `mcp` package means a missing extra. Anything else is a real
+        # fault inside Scenet, and dressing it up as an installation hint would hide it.
+        if not (exc.name or "").partition(".")[0] == "mcp":
+            raise
+        print(
+            "scenet: the MCP server needs the optional 'mcp' dependency: pip install 'scenet[mcp]'",
+            file=sys.stderr,
+        )
+        return 2
+
+    if args.transport == "stdio":
+        server.serve("stdio")
+    else:
+        server.serve("streamable-http", host=args.host, port=args.port)
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Entry point for the `scenet` command.
 
@@ -327,6 +412,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_check(args)
     if args.command == "schema":
         return run_schema(args)
+    if args.command == "mcp":
+        return run_mcp(args)
     # No subcommand. Help goes to stderr and the status is 2, matching the convention
     # argparse itself uses for a usage error -- a bare `scenet` did not do anything,
     # and a script that runs it should not read that as success.

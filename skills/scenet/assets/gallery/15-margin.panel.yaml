@@ -1,0 +1,25 @@
+# `margin` insets the usable area. Balloons are kept inside it; actors may bleed
+# past it, which is ordinary comics practice.
+#
+# That asymmetry is deliberate. Panel bounds are a STRONG constraint on actors rather
+# than a required one, so a crowded panel lets a figure run off the edge instead of
+# refusing to compile. Lettering has no such licence: text that leaves the panel is
+# text nobody can read.
+
+panel:
+  size: [900, 700]
+  margin: 60
+
+camera:
+  shot: medium_close_up
+
+cast:
+  alice: {reference: alice, at: left_edge}
+  bob:   {reference: bob,   at: right_edge, facing: left}
+
+staging:
+  - alice left_of bob
+
+script:
+  - say: {by: alice, text: "Room enough?"}
+  - say: {by: bob,   text: "Only just."}

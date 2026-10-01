@@ -166,33 +166,49 @@ def normalise(data: dict[str, Any]) -> dict[str, Any]:
     if "setting" in result:
         result["setting"] = expand_place(result["setting"])
 
+    # Every fault below carries `loc`, the entry it is about. Pydantic has not seen the
+    # document yet, so there is no other path to report -- and without one an editor
+    # can only underline the whole document.
     if "staging" in result:
         raw = result["staging"]
         if not isinstance(raw, list):
-            raise PanelSyntaxError("'staging' must be a list of relation sentences")
-        result["staging"] = [
-            parse_relation(entry) if isinstance(entry, str) else entry for entry in raw
-        ]
+            raise PanelSyntaxError(
+                "'staging' must be a list of relation sentences", loc=("staging",)
+            )
+        relations: list[Any] = []
+        for index, entry in enumerate(raw):
+            if not isinstance(entry, str):
+                relations.append(entry)
+                continue
+            try:
+                relations.append(parse_relation(entry))
+            except PanelSyntaxError as exc:
+                raise PanelSyntaxError(str(exc), rule=exc.rule, loc=("staging", index)) from exc
+        result["staging"] = relations
 
     if "script" in result:
         raw = result["script"]
         if not isinstance(raw, list):
-            raise PanelSyntaxError("'script' must be a list of narrative events")
+            raise PanelSyntaxError("'script' must be a list of narrative events", loc=("script",))
         events: list[Any] = []
         for index, entry in enumerate(raw):
             if not isinstance(entry, dict) or len(entry) != 1:
                 raise PanelSyntaxError(
                     f"script entry {index} must be a single-key mapping such as "
-                    f"'- say: {{by: alice, text: ...}}'"
+                    f"'- say: {{by: alice, text: ...}}'",
+                    loc=("script", index),
                 )
             verb, payload = next(iter(entry.items()))
             if verb not in KNOWN_VERBS:
                 known = ", ".join(sorted(KNOWN_VERBS))
                 raise PanelSyntaxError(
-                    f"script entry {index}: unknown verb {verb!r}; known verbs are {known}"
+                    f"script entry {index}: unknown verb {verb!r}; known verbs are {known}",
+                    loc=("script", index),
                 )
             if not isinstance(payload, dict):
-                raise PanelSyntaxError(f"script entry {index}: {verb!r} expects a mapping")
+                raise PanelSyntaxError(
+                    f"script entry {index}: {verb!r} expects a mapping", loc=("script", index)
+                )
             # The tag is injected rather than dropped. Now that a script holds more than
             # one sort of event, discarding it would leave the union to be resolved by
             # which model happens to accept the keys -- guesswork, on documents whose

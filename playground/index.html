@@ -65,35 +65,97 @@
       </p>
     </header>
 
-    <main>
+    <main id="workspace">
       <section class="pane" id="editor-pane">
         <div class="pane-head">
           <label for="examples">Example</label>
           <select id="examples" aria-label="Load an example"></select>
           <span class="spacer"></span>
           <span class="hint" id="kind" aria-live="polite"></span>
+          <button type="button" class="tool" id="share" title="Copy a link that opens this document">
+            Share
+          </button>
         </div>
         <div id="editor" role="application" aria-label="Panel source"></div>
-        <p class="blurb" id="blurb"></p>
+        <p class="blurb">
+          <span id="blurb"></span>
+          <button type="button" class="link" id="reset" hidden>Reset to example</button>
+        </p>
       </section>
 
+      <div
+        class="splitter"
+        id="splitter"
+        role="separator"
+        aria-orientation="vertical"
+        aria-controls="editor-pane output-pane"
+        aria-label="Resize editor and output"
+        tabindex="0"
+      ></div>
+
       <section class="pane" id="output-pane">
-        <div class="pane-head" role="tablist" aria-label="Output view">
-          <button id="tab-panel" role="tab" aria-selected="true" aria-controls="output">
-            Panel
-          </button>
-          <button id="tab-debug" role="tab" aria-selected="false" aria-controls="output">
-            Overlay
-          </button>
-          <button id="tab-core" role="tab" aria-selected="false" aria-controls="output">
-            Panel Core
-          </button>
+        <div class="pane-head">
+          <div class="tabs" role="tablist" aria-label="Output view">
+            <button type="button" id="tab-panel" role="tab" aria-selected="true" aria-controls="output">
+              Panel
+            </button>
+            <button type="button" id="tab-debug" role="tab" aria-selected="false" aria-controls="output">
+              Overlay
+            </button>
+            <button type="button" id="tab-core" role="tab" aria-selected="false" aria-controls="core">
+              Panel Core
+            </button>
+          </div>
           <span class="spacer"></span>
-          <span class="hint" id="notes" aria-live="polite"></span>
+          <!--
+            Zoom: scroll or pinch over the picture, drag to pan, double-click for Fit or
+            100%. With the picture focused, + - 0 1 and the arrow keys do the same.
+          -->
+          <div class="group" id="zoom-controls" aria-label="Zoom">
+            <button type="button" class="tool" id="zoom-out" title="Zoom out (−)" aria-label="Zoom out">−</button>
+            <button type="button" class="tool level" id="zoom-level" title="Actual size (1)">100%</button>
+            <button type="button" class="tool" id="zoom-in" title="Zoom in (+)" aria-label="Zoom in">+</button>
+            <button type="button" class="tool" id="zoom-fit" title="Fit to view (0)">Fit</button>
+          </div>
+          <details class="menu" id="download-menu">
+            <summary class="tool" title="Download (Ctrl+S saves the source)">Download</summary>
+            <div class="menu-items">
+              <button type="button" data-download="svg">Panel <span>SVG</span></button>
+              <button type="button" data-download="png">Panel <span>PNG, 2×</span></button>
+              <button type="button" data-download="debug">Overlay <span>SVG</span></button>
+              <button type="button" data-download="core">Panel Core <span>JSON</span></button>
+              <button type="button" data-download="source">Source <span>Ctrl+S</span></button>
+            </div>
+          </details>
+          <button
+            type="button"
+            class="tool icon"
+            id="fullscreen"
+            aria-pressed="false"
+            aria-label="Full screen"
+            title="Full screen"
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <path
+                d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+              />
+            </svg>
+          </button>
         </div>
-        <div id="output" role="tabpanel" aria-label="Compiled output"></div>
-        <pre id="core" hidden></pre>
-        <pre id="error" hidden role="alert"></pre>
+        <p class="hint notes" id="notes" aria-live="polite" hidden></p>
+        <div
+          id="output"
+          role="tabpanel"
+          tabindex="0"
+          aria-label="Compiled output. Scroll to zoom, drag to pan."
+        >
+          <div id="stage"></div>
+        </div>
+        <div id="core" role="tabpanel" aria-label="Panel Core" hidden></div>
+        <div id="error" role="alert" hidden></div>
         <p id="status" role="status">Loading the compiler…</p>
       </section>
     </main>

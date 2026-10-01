@@ -11,7 +11,11 @@
  * - **Panel and scene documents**: completion, hover documentation and inline validation,
  *   driven by JSON Schemas that the compiler generates from its own models. What the
  *   editor suggests therefore cannot drift from what compiles.
+ * - **Scenet-aware colouring** of panel and scene documents, on top of YAML's: actors,
+ *   staging relations and script verbs, as semantic tokens (`./semantic.ts`).
  * - **Comic scripts**: syntax highlighting via a Monarch tokenizer.
+ * - **Compiler findings as markers**: {@link toMarkers} turns the diagnostics `scenet
+ *   check` produces into squiggles on the right line, with the rule id as the code.
  *
  * Usage:
  *
@@ -35,6 +39,7 @@ import {
   scriptMonarchTokens,
   scriptThemeRules,
 } from "./script-language";
+import { SEMANTIC_TOKEN_TYPES, encodeTokens, scenetTokens } from "./semantic";
 
 export { SCRIPT_LANGUAGE_ID } from "./script-language";
 
@@ -75,14 +80,25 @@ export function registerScenetLanguages(
   monaco.editor.defineTheme(SCENET_THEME_LIGHT, {
     base: "vs",
     inherit: true,
-    rules: scriptThemeRules,
+    rules: [...scriptThemeRules, ...documentThemeRules(false)],
     colors: {},
   });
   monaco.editor.defineTheme(SCENET_THEME_DARK, {
     base: "vs-dark",
     inherit: true,
-    rules: scriptThemeRules,
+    rules: [...scriptThemeRules, ...documentThemeRules(true)],
     colors: {},
+  });
+
+  // Only on Scenet documents: a page embedding this next to some other YAML should not
+  // find actors highlighted in its CI config.
+  monaco.languages.registerDocumentSemanticTokensProvider("yaml", {
+    getLegend: () => ({ tokenTypes: [...SEMANTIC_TOKEN_TYPES], tokenModifiers: [] }),
+    provideDocumentSemanticTokens: (model) =>
+      isScenetDocument(model.uri.path)
+        ? { data: encodeTokens(scenetTokens(model.getValue())) }
+        : null,
+    releaseDocumentSemanticTokens: () => undefined,
   });
 
   configureMonacoYaml(monaco, {
@@ -100,6 +116,94 @@ export function registerScenetLanguages(
       { uri: options.panelSchemaUrl, fileMatch: ["*.panel.yaml"] },
       { uri: options.sceneSchemaUrl, fileMatch: ["*.scene.yaml"] },
     ],
+  });
+}
+
+/**
+ * Editor option that turns the semantic colouring on. Standalone Monaco leaves it to the
+ * theme, and its themes cannot opt in, so it has to be asked for per editor.
+ */
+export const SEMANTIC_HIGHLIGHTING = { "semanticHighlighting.enabled": true } as const;
+
+/**
+ * Colours for YAML and for the semantic tokens.
+ *
+ * Monaco's own YAML palette is pale enough that the editor reads as plain text at a
+ * glance. Keys are made distinct from values, and the three Scenet token types get
+ * colours of their own -- the same hue in both themes, adjusted for the background.
+ */
+function documentThemeRules(dark: boolean): Monaco.editor.ITokenThemeRule[] {
+  const palette = dark
+    ? {
+        key: "9cdcfe",
+        value: "ce9178",
+        number: "b5cea8",
+        comment: "6a9955",
+        actor: "c792ea",
+        relation: "f0b45a",
+        verb: "4fc1d6",
+      }
+    : {
+        key: "0b4f8a",
+        value: "a3410f",
+        number: "0b7a4b",
+        comment: "6a737d",
+        actor: "7b2fbf",
+        relation: "b45309",
+        verb: "0e7490",
+      };
+  return [
+    { token: "type.yaml", foreground: palette.key },
+    { token: "string.yaml", foreground: palette.value },
+    { token: "number.yaml", foreground: palette.number },
+    { token: "keyword.yaml", foreground: palette.number },
+    { token: "comment.yaml", foreground: palette.comment, fontStyle: "italic" },
+    { token: "actor", foreground: palette.actor, fontStyle: "bold" },
+    { token: "relation", foreground: palette.relation, fontStyle: "italic" },
+    { token: "verb", foreground: palette.verb, fontStyle: "bold" },
+  ];
+}
+
+function isScenetDocument(path: string): boolean {
+  return path.endsWith(".panel.yaml") || path.endsWith(".scene.yaml");
+}
+
+/**
+ * One finding from the compiler's checker, as `scenet.diagnostics` reports it.
+ *
+ * Lines and columns are one-based and the end column is exclusive -- SARIF's convention,
+ * which is also Monaco's, so they need no adjustment.
+ */
+export interface ScenetFinding {
+  readonly rule: string;
+  readonly message: string;
+  readonly line: number;
+  readonly column: number;
+  readonly endLine: number;
+  readonly endColumn: number;
+}
+
+/** Owner name for markers set from compiler findings, distinct from the schema's. */
+export const SCENET_MARKER_OWNER = "scenet";
+
+/** Turn compiler findings into editor markers. */
+export function toMarkers(
+  monaco: typeof Monaco,
+  findings: readonly ScenetFinding[],
+): Monaco.editor.IMarkerData[] {
+  return findings.map((finding) => {
+    const sameLine = finding.endLine <= finding.line;
+    return {
+      severity: monaco.MarkerSeverity.Error,
+      message: finding.message,
+      code: finding.rule,
+      source: "scenet",
+      startLineNumber: finding.line,
+      startColumn: finding.column,
+      endLineNumber: Math.max(finding.line, finding.endLine),
+      // A zero-width marker is invisible; one character at least.
+      endColumn: sameLine ? Math.max(finding.endColumn, finding.column + 1) : finding.endColumn,
+    };
   });
 }
 

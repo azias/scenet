@@ -11,6 +11,8 @@
   --warn: #8a5a12;
   --error-bg: #fdf0ee;
   --error-ink: #8c2f22;
+  --stage: #eceef1;
+  --shadow: rgb(16 24 40 / 14%);
   color-scheme: light dark;
 }
 
@@ -25,11 +27,17 @@
     --warn: #d8b073;
     --error-bg: #35211f;
     --error-ink: #f0a79a;
+    --stage: #121418;
+    --shadow: rgb(0 0 0 / 45%);
   }
 }
 
 * {
   box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
 }
 
 html,
@@ -82,19 +90,39 @@ footer a {
   font-size: 0.85rem;
 }
 
+/* `--split` is set by the divider (src/splitter.ts), as a share of the width. */
 main {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 1px;
+  grid-template-columns: minmax(0, var(--split, 50%)) 6px minmax(0, 1fr);
   background: var(--line);
   min-height: 0;
 }
 
+.splitter {
+  cursor: col-resize;
+  background: var(--line);
+  touch-action: none;
+}
+
+.splitter:hover,
+.splitter:focus-visible,
+.splitter.active {
+  background: var(--accent);
+  outline: none;
+}
+
 @media (max-width: 900px) {
+  /* The output row is taller: its head, notes and status line all come out of it, and
+     what is left is the picture. */
   main {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(320px, 1fr) minmax(320px, 1fr);
+    grid-template-rows: minmax(320px, 1fr) minmax(460px, 1fr);
+    gap: 1px;
+  }
+
+  .splitter {
+    display: none;
   }
 }
 
@@ -135,6 +163,11 @@ select {
   max-width: 22ch;
 }
 
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+}
+
 [role="tab"] {
   font: inherit;
   padding: 0.25rem 0.6rem;
@@ -152,6 +185,135 @@ select {
   font-weight: 600;
 }
 
+/* Toolbar buttons: quiet until hovered, so the picture stays the thing you look at. */
+.tool {
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-width: 1.9rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.tool:hover {
+  background: var(--page);
+}
+
+.tool[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+button:focus-visible,
+summary:focus-visible,
+select:focus-visible,
+#output:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Zoom out, level, zoom in, fit: one segmented control. */
+.group {
+  display: inline-flex;
+}
+
+.group .tool {
+  border-radius: 0;
+  margin-left: -1px;
+}
+
+.group .tool:first-child {
+  border-radius: 4px 0 0 4px;
+  margin-left: 0;
+}
+
+.group .tool:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.group .level {
+  min-width: 3.6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The download menu: a <details>, so it opens and closes with no state of its own. */
+.menu {
+  position: relative;
+}
+
+.menu > summary {
+  list-style: none;
+}
+
+.menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.menu > summary::after {
+  content: "▾";
+  font-size: 0.7em;
+}
+
+.menu-items {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 13rem;
+  padding: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  box-shadow: 0 6px 20px var(--shadow);
+}
+
+.menu-items button {
+  font: inherit;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0.6rem;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-items button:hover:not(:disabled) {
+  background: var(--page);
+}
+
+.menu-items button span {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.link {
+  font: inherit;
+  padding: 0;
+  margin-left: 0.5rem;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 #editor {
   flex: 1;
   min-height: 0;
@@ -166,39 +328,46 @@ select {
   color: var(--muted);
 }
 
+/* The viewer. The stage holds the SVG at its own size and is moved by one transform
+   (src/viewport.ts); nothing here scales the picture. */
 #output {
+  position: relative;
   flex: 1;
-  display: grid;
-  place-items: center;
-  padding: 1rem;
-  overflow: auto;
   min-height: 0;
+  overflow: hidden;
+  background: var(--stage);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 
-#output svg {
-  max-width: 100%;
-  max-height: 100%;
-  height: auto;
-  /* A white panel on a white card has no edge. This gives it one without pretending to
-     be part of the drawing. */
-  box-shadow: 0 1px 3px rgb(0 0 0 / 18%);
+#output.dragging {
+  cursor: grabbing;
+}
+
+#stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+#stage svg {
+  display: block;
+  /* A white panel on a pale stage has a weak edge. This gives it one without pretending
+     to be part of the drawing. */
+  box-shadow: 0 1px 4px var(--shadow);
 }
 
 #core {
   flex: 1;
-  margin: 0;
-  padding: 0.75rem 1rem;
-  overflow: auto;
   min-height: 0;
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-  font-size: 0.75rem;
-  line-height: 1.45;
-  color: var(--ink);
 }
 
 #error {
-  margin: 0;
-  padding: 0.7rem 1rem;
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem 0.4rem;
   border-top: 1px solid var(--line);
   background: var(--error-bg);
   color: var(--error-ink);
@@ -207,6 +376,48 @@ select {
   white-space: pre-wrap;
   max-height: 30%;
   overflow: auto;
+}
+
+/* One finding per line; clicking it puts the cursor on it in the editor. */
+.finding {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.finding:hover {
+  background: color-mix(in srgb, var(--error-ink) 10%, transparent);
+}
+
+.finding .where {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+.finding .rule {
+  font-weight: 600;
+}
+
+/* Full screen for the output pane. `:fullscreen` comes from the Fullscreen API; the
+   class is the fallback where that is refused, and fills the window instead. */
+#output-pane:fullscreen,
+#output-pane.maximized {
+  background: var(--card);
+}
+
+#output-pane.maximized {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
 }
 
 #status {
@@ -245,7 +456,10 @@ select {
 
 /* A note means the compiler did something you did not ask for -- retreated the camera,
    bent a tail. Worth noticing, not worth alarming anyone. */
-.hint.has-notes {
+.notes {
+  margin: 0;
+  padding: 0.35rem 0.75rem;
+  border-bottom: 1px solid var(--line);
   color: var(--warn);
   font-weight: 600;
 }

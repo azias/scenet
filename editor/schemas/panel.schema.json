@@ -81,12 +81,6 @@
         "tone": {
           "$ref": "#/$defs/CaptionTone",
           "default": "paper"
-        },
-        "verb": {
-          "const": "caption",
-          "default": "caption",
-          "title": "Verb",
-          "type": "string"
         }
       },
       "required": [
@@ -241,6 +235,23 @@
       "title": "PanelSpec",
       "type": "object"
     },
+    "Place": {
+      "description": "A named setting, expanded into masses by the frontend.\n\nTen to start with, chosen to span the distinctions that change how a backdrop is\nbuilt rather than to be a catalogue: exterior and interior, built and natural, open\nand enclosed. `alley` is the one with a foreground mass, which is what makes it\nread as a place you are standing *in* rather than looking at.\n\nExample:\n    >>> from scenet.places import PLACES, Place\n    >>> [mass.kind.value for mass in PLACES[Place.SHORE]]\n    ['sky', 'water', 'ground']",
+      "enum": [
+        "alley",
+        "desert",
+        "docks",
+        "field",
+        "forest",
+        "mountain",
+        "office",
+        "room",
+        "shore",
+        "street"
+      ],
+      "title": "Place",
+      "type": "string"
+    },
     "PlacementZone": {
       "description": "Where in the panel a balloon would prefer to sit.\n\nTwo-dimensional, unlike `AnchorX`: an actor is placed along the ground line and\nso only needs a horizontal anchor, whereas a balloon floats and needs both axes.\nThese are hints of the weakest priority -- occlusion and reading order override\nthem freely.",
       "enum": [
@@ -282,28 +293,38 @@
       "type": "string"
     },
     "Relation": {
-      "additionalProperties": false,
-      "description": "One staging fact, written as a sentence.\n\nAttributes:\n    subject: Actor id the sentence is about.\n    predicate: What relation holds.\n    object: The other actor id.\n\nAuthored as `alice left_of bob` rather than a three-key mapping because staging is\nread far more often than it is written, and a sentence is legible at a glance.\n\nRaises:\n    pydantic.ValidationError: The subject and object are the same actor. No\n        predicate here is meaningful reflexively.",
-      "properties": {
-        "object": {
-          "title": "Object",
+      "anyOf": [
+        {
+          "description": "A staging sentence, `subject predicate object` -- for example `alice left_of bob`. Predicates: left_of, right_of, in_front_of, behind, looking_at, ground_shared_with.",
+          "pattern": "^\\s*\\S+\\s+(left_of|right_of|in_front_of|behind|looking_at|ground_shared_with)\\s+\\S+\\s*$",
+          "patternErrorMessage": "Write 'subject predicate object', where the predicate is one of: left_of, right_of, in_front_of, behind, looking_at, ground_shared_with",
           "type": "string"
         },
-        "predicate": {
-          "$ref": "#/$defs/Predicate"
-        },
-        "subject": {
-          "title": "Subject",
-          "type": "string"
+        {
+          "additionalProperties": false,
+          "properties": {
+            "object": {
+              "title": "Object",
+              "type": "string"
+            },
+            "predicate": {
+              "$ref": "#/$defs/Predicate"
+            },
+            "subject": {
+              "title": "Subject",
+              "type": "string"
+            }
+          },
+          "required": [
+            "subject",
+            "predicate",
+            "object"
+          ],
+          "type": "object"
         }
-      },
-      "required": [
-        "subject",
-        "predicate",
-        "object"
       ],
-      "title": "Relation",
-      "type": "object"
+      "description": "One staging fact, written as a sentence.\n\nAttributes:\n    subject: Actor id the sentence is about.\n    predicate: What relation holds.\n    object: The other actor id.\n\nAuthored as `alice left_of bob` rather than a three-key mapping because staging is\nread far more often than it is written, and a sentence is legible at a glance.\n\nRaises:\n    pydantic.ValidationError: The subject and object are the same actor. No\n        predicate here is meaningful reflexively.",
+      "title": "Relation"
     },
     "SayEvent": {
       "additionalProperties": false,
@@ -332,12 +353,6 @@
           "minLength": 1,
           "title": "Text",
           "type": "string"
-        },
-        "verb": {
-          "const": "say",
-          "default": "say",
-          "title": "Verb",
-          "type": "string"
         }
       },
       "required": [
@@ -350,6 +365,12 @@
     "SettingSpec": {
       "additionalProperties": false,
       "description": "Where and when the panel happens, as tonal masses rather than drawn geometry.\n\nAttributes:\n    horizon: Where the ground meets what is behind it.\n    masses: The backdrop, back to front. Written directly, or produced by naming a\n        place in the surface syntax.\n    time: When it happens, which shifts the value ladder.\n    weather: What the air is doing.\n\n**There is no `place` field here, deliberately.** `place: docks` is surface syntax\nthat the frontend expands into exactly the mass list an author could have written\nthemselves -- the same treatment `alice left_of bob` gets, which reaches the IR as a\n:class:`Relation <scenet.ir.Relation>` and never as text. That is what keeps a\npreset a library for convenience rather than a second, opaque format: by the time\nanything downstream sees a backdrop, there is one representation of it.\n\nA panel with no masses and clear weather has no backdrop at all, which is what every\npanel written before this block existed still gets.\n\nExample:\n    >>> from scenet import parse_panel\n    >>> panel = parse_panel(\"setting: {place: docks, time: night}\")\n    >>> panel.setting.time.value, len(panel.setting.masses) > 0\n    ('night', True)",
+      "not": {
+        "required": [
+          "place",
+          "masses"
+        ]
+      },
       "properties": {
         "horizon": {
           "$ref": "#/$defs/Horizon",
@@ -362,6 +383,10 @@
           },
           "title": "Masses",
           "type": "array"
+        },
+        "place": {
+          "$ref": "#/$defs/Place",
+          "description": "A named place, which stands for the list of masses it expands into. Write this or `masses`, not both."
         },
         "time": {
           "$ref": "#/$defs/TimeOfDay",
@@ -426,6 +451,7 @@
       "type": "string"
     }
   },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "A complete, validated panel: the language's real definition.\n\nEvery frontend produces one of these and nothing else, which is what lets the YAML\nsyntax and the comic-script syntax coexist without the solver knowing either exists.\n**Nothing here carries a coordinate** -- computing those is the solver's job, and\nkeeping them out is what makes a panel reusable at any size.\n\nAttributes:\n    panel: Dimensions and margin.\n    camera: Framing and angle.\n    cast: Actor id to character. Declaration order is not significant; `staging`\n        decides left-to-right order.\n    staging: Spatial and attentional relations between actors.\n    script: Dialogue and captions, in reading order.\n\nValidation is strict and total: unknown keys are rejected, every actor id mentioned\nin `staging` or `script` must exist in `cast`, and the ordering relations must not\ncontain a cycle. A misspelled key that was silently ignored would produce a panel\nthat is subtly wrong with no indication of why, which for a language meant to be\nprecise is the worst possible failure.\n\nExample:\n    >>> from scenet import parse_panel\n    >>> panel = parse_panel(\"panel: {size: [800.0, 600.0]}\")\n    >>> panel.panel.width, panel.camera.shot.value\n    (800.0, 'medium_shot')\n\nSee Also:\n    :func:`compile_ir <scenet.pipeline.compile_ir>`, to turn one of these into geometry.",
   "properties": {
@@ -458,10 +484,28 @@
       "items": {
         "anyOf": [
           {
-            "$ref": "#/$defs/SayEvent"
+            "additionalProperties": false,
+            "properties": {
+              "say": {
+                "$ref": "#/$defs/SayEvent"
+              }
+            },
+            "required": [
+              "say"
+            ],
+            "type": "object"
           },
           {
-            "$ref": "#/$defs/CaptionEvent"
+            "additionalProperties": false,
+            "properties": {
+              "caption": {
+                "$ref": "#/$defs/CaptionEvent"
+              }
+            },
+            "required": [
+              "caption"
+            ],
+            "type": "object"
           }
         ]
       },
@@ -486,6 +530,6 @@
       "type": "array"
     }
   },
-  "title": "PanelIR",
+  "title": "Scenet panel",
   "type": "object"
 }

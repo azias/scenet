@@ -80,17 +80,17 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
-    "@types/vscode": "^1.100.0",
+    "@types/node": "^26.4.1",
+    "@types/vscode": "^1.136.0",
     "@vscode/vsce": "^3.9.2",
     "typescript": "^7.0.2"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/azias/scenet.git"
+    "url": "https://github.com/creatoan/scenet.git"
   },
   "bugs": {
-    "url": "https://github.com/azias/scenet/issues"
+    "url": "https://github.com/creatoan/scenet/issues"
   },
-  "homepage": "https://azias.github.io/scenet/"
+  "homepage": "https://creatoan.github.io/scenet/"
 }

@@ -2,16 +2,22 @@
 
 The schema is generated from the pydantic models rather than hand-written, so what an
 editor suggests is derived from the compiler's own definition of the language. These
-tests guard the property that makes that worth doing: that the two cannot disagree.
+tests guard the property that makes that worth doing: that the two cannot disagree --
+and, since the models describe the language *after* the frontend has normalised it,
+that the schema describes what people actually write.
 """
 
 import json
 from enum import StrEnum
 from pathlib import Path
+from typing import Any
 
 import pytest
+import yaml
+from jsonschema import Draft202012Validator
 
-from scenet.cli import main, scene_schema
+from scenet.cli import main
+from scenet.frontends.common import KNOWN_VERBS
 from scenet.ir import (
     AnchorX,
     BalloonKind,
@@ -27,6 +33,8 @@ from scenet.ir import (
     TimeOfDay,
     Weather,
 )
+from scenet.places import Place
+from scenet.schema import panel_schema, scene_schema
 
 REPO = Path(__file__).resolve().parents[1]
 SHIPPED = {
@@ -34,16 +42,35 @@ SHIPPED = {
     "scene": REPO / "editor" / "schemas" / "scene.schema.json",
 }
 
+EXAMPLES = sorted(
+    path
+    for path in (REPO / "examples").rglob("*.yaml")
+    if path.name.endswith((".panel.yaml", ".scene.yaml"))
+)
+
 
 def generated(kind: str) -> str:
-    schema = scene_schema() if kind == "scene" else PanelIR.model_json_schema()
+    schema = scene_schema() if kind == "scene" else panel_schema()
     return json.dumps(schema, indent=2, sort_keys=True) + "\n"
+
+
+def problems(schema: dict[str, Any], source: str) -> list[str]:
+    """Every validation error for a YAML document, as `path: message` lines."""
+    document = yaml.safe_load(source)
+    return [
+        f"{'/'.join(str(part) for part in error.absolute_path)}: {error.message}"
+        for error in Draft202012Validator(schema).iter_errors(document)
+    ]
 
 
 class TestPanelSchema:
     def test_top_level_keys_match_the_language(self):
-        properties = PanelIR.model_json_schema()["properties"]
+        properties = panel_schema()["properties"]
         assert set(properties) == {"panel", "camera", "setting", "cast", "staging", "script"}
+
+    def test_it_is_a_valid_schema(self):
+        Draft202012Validator.check_schema(panel_schema())
+        Draft202012Validator.check_schema(scene_schema())
 
     @pytest.mark.parametrize(
         "enum",
@@ -64,9 +91,95 @@ class TestPanelSchema:
     )
     def test_every_enum_member_reaches_the_schema(self, enum: type[StrEnum]):
         """Completion is only useful if it offers everything the compiler accepts."""
-        document = json.dumps(PanelIR.model_json_schema())
+        document = json.dumps(panel_schema())
         for member in enum:
             assert f'"{member.value}"' in document, f"{enum.__name__}.{member.name} is missing"
+
+    def test_every_place_is_offered(self):
+        assert set(panel_schema()["$defs"]["Place"]["enum"]) == {place.value for place in Place}
+
+    def test_every_script_verb_is_offered(self):
+        """One wrapper per verb the frontend accepts, so neither side can add one alone."""
+        branches = panel_schema()["properties"]["script"]["items"]["anyOf"]
+        assert {verb for branch in branches for verb in branch["required"]} == KNOWN_VERBS
+
+    def test_the_ir_schema_is_not_what_is_published(self):
+        """`PanelIR.model_json_schema()` describes the language after normalisation.
+
+        Publishing it flagged every staging sentence and every `- say:` in the gallery.
+        """
+        assert panel_schema() != PanelIR.model_json_schema()
+
+
+class TestTheSchemaDescribesWhatIsWritten:
+    """Every document the project ships must pass the schema the editor ships.
+
+    Until this existed, the only check was that the shipped schema equalled the generated
+    one -- which held perfectly while the schema rejected 21 of the 22 gallery documents,
+    because it described the IR rather than the surface syntax. Each case below is one
+    convenience `normalise()` removes, and the schema has to know about.
+    """
+
+    def test_examples_were_found(self):
+        """Guards the glob: an empty parametrisation would pass vacuously."""
+        assert len(EXAMPLES) >= 20
+
+    @pytest.mark.parametrize("path", EXAMPLES, ids=lambda path: path.name)
+    def test_every_example_passes_the_shipped_schema(self, path: Path):
+        kind = "scene" if path.name.endswith(".scene.yaml") else "panel"
+        shipped = json.loads(SHIPPED[kind].read_text(encoding="utf-8"))
+        assert problems(shipped, path.read_text(encoding="utf-8")) == []
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "staging: [alice left_of bob]",
+            "staging: ['  alice   in_front_of   bob  ']",
+            # The mapping form is still accepted by the frontend, so it must be here too.
+            "staging: [{subject: alice, predicate: left_of, object: bob}]",
+            "script: [{say: {by: alice, text: Hi}}, {caption: {text: Later.}}]",
+            "setting: {place: docks, time: night}",
+        ],
+    )
+    def test_panel_conveniences_are_accepted(self, source: str):
+        assert problems(panel_schema(), source) == []
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "colour: red",
+            "staging: [alice beside bob]",
+            "staging: [alice left_of]",
+            "script: [{shout: {by: alice, text: Hi}}]",
+            "script: [{say: {by: alice, text: Hi}, caption: {text: Two verbs.}}]",
+            "script: [{say: {by: alice}}]",
+            "setting: {place: nowhere}",
+            "setting: {place: docks, masses: []}",
+        ],
+    )
+    def test_panel_mistakes_are_still_rejected(self, source: str):
+        assert problems(panel_schema(), source) != []
+
+    def test_a_scene_panel_may_override_part_of_an_inherited_actor(self):
+        source = (
+            "cast: {alice: {reference: alice}}\n"
+            "panels:\n"
+            "  one: {}\n"
+            "  two: {over: one, cast: {alice: {pose: pointing}}}\n"
+        )
+        assert problems(scene_schema(), source) == []
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "panels:\n  one: {colour: red}\n",
+            "panels:\n  one: {cast: {alice: {reference: alice, mood: sad}}}\n",
+            # Lists replace rather than merge, so a script entry is always whole.
+            "panels:\n  one: {script: [{say: {by: alice}}]}\n",
+        ],
+    )
+    def test_scene_mistakes_are_still_rejected(self, source: str):
+        assert problems(scene_schema(), source) != []
 
 
 class TestSceneSchema:
@@ -88,7 +201,7 @@ class TestSceneSchema:
         assert "ShotType" in schema["$defs"]
 
     def test_both_schemas_describe_the_same_language(self):
-        panel = PanelIR.model_json_schema()["properties"]
+        panel = panel_schema()["properties"]
         scene = scene_schema()["properties"]
         assert set(panel) <= set(scene)
 

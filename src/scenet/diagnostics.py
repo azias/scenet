@@ -85,7 +85,7 @@ __all__ = [
 ]
 
 #: Where the tool describes itself, for the SARIF driver block.
-INFORMATION_URI = "https://github.com/azias/scenet"
+INFORMATION_URI = "https://github.com/creatoan/scenet"
 
 #: Prefix on every emitted `ruleId`. Namespacing keeps Scenet's rules distinct from
 #: those of every other tool whose results land in the same code-scanning database.

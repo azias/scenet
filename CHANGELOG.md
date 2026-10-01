@@ -10,6 +10,51 @@ below 1.0 means.
 
 ## [Unreleased]
 
+### Added
+
+- **The playground became a place to work, not just a demo.** The output zooms and pans —
+  scroll or pinch about the pointer, drag, double-click for Fit or 100%, `+ - 0 1` and
+  the arrows — and keeps the zoom while you edit. **Download** saves the panel as SVG or a
+  2× PNG, the overlay, the Panel Core and the source, named as `scenet build` names them;
+  `Ctrl+S` saves the source. Edits survive a reload, and **Share** copies a link that
+  carries the whole document in its fragment, so no server is involved. A failed compile
+  is reported by the same checker `scenet check` runs: each finding is a squiggle on its
+  own line, and the list under the output jumps to it. Actors, staging relations and
+  script verbs are coloured; Panel Core opens in a read-only editor with folding; the
+  split between the panes can be dragged; the output can go full screen. The editor also
+  shows the example at once instead of sitting empty while Python boots. (#45)
+- `render_strip(..., debug=True)` lays out each panel's overlay where the strip puts the
+  panel, so a scene has an overlay too. (#44)
+
+### Changed
+
+- **The project moved to [`creatoan/scenet`](https://github.com/creatoan/scenet).**
+  GitHub redirects the repository, its issues and pull requests, and `git` remotes. The
+  documentation and playground are now at
+  [creatoan.github.io/scenet](https://creatoan.github.io/scenet/); **the old
+  `azias.github.io/scenet` addresses do not redirect**, because GitHub Pages never does.
+  If a YAML document names the schema, update its first line to:
+
+  ```yaml
+  # yaml-language-server: $schema=https://creatoan.github.io/scenet/schemas/panel.schema.json
+  ```
+
+### Fixed
+
+- **The published JSON Schema rejected the syntax people write.** It described the IR,
+  after the frontend has rewritten staging sentences, `- say:` wrappers, `place:` and
+  partial scene overrides away — so 21 of the 22 gallery documents failed it, and the
+  playground and the VS Code extension underlined lines that compiled. The new
+  `scenet.schema` module puts each of those back; a test now validates every shipped
+  example against the shipped schema. (#44)
+- **The overlay wrote actor ids into SVG unescaped**, in an `id` attribute and in text
+  labels. The playground puts that SVG into the page, so an actor id could close its
+  attribute and add markup. Identifiers are now escaped as they already were in the
+  panel itself. (#44)
+- **`scenet check` reported a bad staging sentence or script entry against the whole
+  document.** It now points at the entry — an unknown predicate, a malformed sentence,
+  an unknown verb. (#44)
+
 ## [0.6.0] - 2026-08-27
 
 Setting: a panel can now show where and when it happens — and a caption box can be
@@ -526,10 +571,10 @@ or has drifted out of step with the code fails the build.
 - `long_shot` and `full_shot` crop at the same landmark, so with no environment to show
   they can differ only by headroom.
 
-[Unreleased]: https://github.com/azias/scenet/compare/v0.6.0...HEAD
-[0.6.0]: https://github.com/azias/scenet/compare/v0.5.0...v0.6.0
-[0.5.0]: https://github.com/azias/scenet/compare/v0.4.0...v0.5.0
-[0.4.0]: https://github.com/azias/scenet/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/azias/scenet/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/azias/scenet/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/azias/scenet/releases/tag/v0.1.0
+[Unreleased]: https://github.com/creatoan/scenet/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/creatoan/scenet/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/creatoan/scenet/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/creatoan/scenet/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/creatoan/scenet/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/creatoan/scenet/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/creatoan/scenet/releases/tag/v0.1.0

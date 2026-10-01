@@ -178,7 +178,7 @@ import scenet.solve.balloons  # noqa: F401
 ```
 
 If you find yourself needing something that is not exported, that is worth
-[raising as an issue](https://github.com/azias/scenet/issues) — it usually means the
+[raising as an issue](https://github.com/creatoan/scenet/issues) — it usually means the
 public surface has a gap.
 
 ## Determinism, and what it buys you

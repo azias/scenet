@@ -21,7 +21,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           enable-cache: true
 
@@ -56,7 +56,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           enable-cache: true
 
@@ -223,8 +223,8 @@ jobs:
             echo "The VS Code extension is the attached scenet.vsix:"
             echo "**Extensions** -> **...** -> **Install from VSIX...**"
             echo
-            echo "[Documentation](https://azias.github.io/scenet/) |"
-            echo "[Playground](https://azias.github.io/scenet/playground/)"
+            echo "[Documentation](https://creatoan.github.io/scenet/) |"
+            echo "[Playground](https://creatoan.github.io/scenet/playground/)"
           } >> release-notes.md
 
       # Idempotent, because a release workflow gets re-run. The first v0.1.0 run

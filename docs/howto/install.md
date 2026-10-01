@@ -86,6 +86,6 @@ whose notice must travel with redistribution; see `THIRD_PARTY_NOTICES.md`.
 
 ## Without installing anything
 
-The [playground](https://azias.github.io/scenet/playground/) runs the same compiler in
+The [playground](https://creatoan.github.io/scenet/playground/) runs the same compiler in
 your browser under WebAssembly. It installs the real wheel, so it is not a
 reimplementation and cannot drift from what the command line does.

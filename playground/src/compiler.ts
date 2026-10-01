@@ -15,17 +15,40 @@
 
 import { loadPyodide, type PyodideInterface } from "pyodide";
 
+/**
+ * One problem with the source, located. The same shape `scenet check` reports, so a
+ * squiggle in the editor and a line of `scenet check` output always agree.
+ */
+export interface Finding {
+  readonly rule: string;
+  readonly message: string;
+  /** One-based. */
+  readonly line: number;
+  /** One-based. */
+  readonly column: number;
+  readonly endLine: number;
+  /** One-based and exclusive. */
+  readonly endColumn: number;
+}
+
+export interface CompileSuccess {
+  readonly ok: true;
+  readonly svg: string;
+  readonly debug: string;
+  readonly core: string;
+  readonly notes: readonly string[];
+  readonly panels: readonly string[];
+}
+
+export interface CompileFailure {
+  readonly ok: false;
+  readonly error: string;
+  /** Never empty: a failure the checker cannot place is reported on line 1. */
+  readonly findings: readonly Finding[];
+}
+
 /** How the compiler reports back. Errors are data, not exceptions. */
-export type CompileResult =
-  | {
-      readonly ok: true;
-      readonly svg: string;
-      readonly debug: string;
-      readonly core: string;
-      readonly notes: readonly string[];
-      readonly panels: readonly string[];
-    }
-  | { readonly ok: false; readonly error: string };
+export type CompileResult = CompileSuccess | CompileFailure;
 
 /** Progress messages, so a twenty-second boot does not look like a hang. */
 export type ProgressReporter = (message: string) => void;
@@ -48,6 +71,44 @@ interface WheelManifest {
  */
 const BRIDGE = `
 import json
+
+
+def _scenet_findings(source, kind, exc):
+    """Locate what is wrong, with the checker \`scenet check\` runs.
+
+    The cheap pass first, which is what places a bad key or an unknown actor on its
+    line. Layout failures only surface in a real compile, so if the cheap pass finds
+    nothing it is run again with deep=True. Anything still unplaced goes on line 1.
+    """
+    try:
+        from scenet.diagnostics import diagnose_script, diagnose_source
+
+        diagnose = diagnose_script if kind == "script" else diagnose_source
+        found = diagnose(source) or diagnose(source, deep=True)
+    except Exception:
+        found = []
+
+    findings = []
+    for item in found:
+        region = item.region
+        findings.append({
+            "rule": item.rule,
+            "message": item.message,
+            "line": region.start.line if region else 1,
+            "column": region.start.column if region else 1,
+            "endLine": region.end.line if region else 1,
+            "endColumn": region.end.column if region else 2,
+        })
+    if not findings:
+        findings.append({
+            "rule": getattr(exc, "rule", None) or type(exc).__name__,
+            "message": str(exc),
+            "line": 1,
+            "column": 1,
+            "endLine": 1,
+            "endColumn": 2,
+        })
+    return findings
 
 
 def _scenet_compile(source, kind):
@@ -75,7 +136,7 @@ def _scenet_compile(source, kind):
         else:
             pairs = [(name, result.core) for name, result in results.items()]
             svg = render_strip(pairs)
-            debug = render_strip(pairs)
+            debug = render_strip(pairs, debug=True)
             core = json.dumps(
                 {name: json.loads(result.core.to_json()) for name, result in results.items()},
                 indent=2,
@@ -96,7 +157,11 @@ def _scenet_compile(source, kind):
             "panels": names,
         })
     except Exception as exc:
-        return json.dumps({"ok": False, "error": f"{type(exc).__name__}: {exc}"})
+        return json.dumps({
+            "ok": False,
+            "error": f"{type(exc).__name__}: {exc}",
+            "findings": _scenet_findings(source, kind, exc),
+        })
 `;
 
 /** A booted compiler, ready to be handed source. */

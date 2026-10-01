@@ -31,7 +31,7 @@ faces for live conversations rather than from a psychology of emotion, and it sh
 exactly the framing the literature demands — see Barrett below.
 
 **Nothing is vendored** — not code, not artwork. See
-[THIRD_PARTY_NOTICES](https://github.com/azias/scenet/blob/main/THIRD_PARTY_NOTICES.md) for why.
+[THIRD_PARTY_NOTICES](https://github.com/creatoan/scenet/blob/main/THIRD_PARTY_NOTICES.md) for why.
 
 ### Vega-Lite
 

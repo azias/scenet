@@ -13,7 +13,7 @@ stale.
 Put this on the first line of a panel document:
 
 ```yaml
-# yaml-language-server: $schema=https://azias.github.io/scenet/schemas/panel.schema.json
+# yaml-language-server: $schema=https://creatoan.github.io/scenet/schemas/panel.schema.json
 panel:
   size: [1000, 800]
 cast:
@@ -37,7 +37,7 @@ Emacs (lsp-mode), IntelliJ and Zed, among others. You get:
 A small extension bundles the same schemas plus a side-by-side preview:
 
 1. Download `scenet.vsix` from the
-   [latest release](https://github.com/azias/scenet/releases/latest).
+   [latest release](https://github.com/creatoan/scenet/releases/latest).
 2. In VS Code: **Extensions** → **⋯** → **Install from VSIX…**
 
 It contributes:
@@ -69,9 +69,9 @@ From Python:
 ```python
 import json
 
-from scenet import PanelIR
+from scenet.schema import panel_schema, scene_schema
 
-schema = PanelIR.model_json_schema()
+schema = panel_schema()
 
 assert schema["$defs"]["ShotType"]["enum"][0] == "long_shot"
 
@@ -80,6 +80,11 @@ assert "upper bound" in schema["$defs"]["ShotType"]["description"]
 
 document = json.dumps(schema, indent=2, sort_keys=True)
 ```
+
+Not `PanelIR.model_json_schema()`. That describes the IR, which is the language *after*
+the frontend has rewritten its conveniences away, and it rejects nearly every document
+anyone actually writes: to the IR, `alice left_of bob` should have been an object, and
+`- say:` is a wrapper it has never heard of.
 
 ## Why it is generated and not written
 
@@ -91,3 +96,10 @@ Here there is one definition — the pydantic models — and the schema is a pro
 The prose in the models is the prose in your editor's hover. The enum in the models is the
 enum in your completion list. Adding a construct to the language updates both by
 construction.
+
+The one thing a projection of the models cannot know is the surface syntax: staging
+sentences, verb-tagged script entries, `place:`, and scene panels that state only what
+they change. Those are put back by `scenet.schema`, each beside a note of the frontend
+code it mirrors, and a test validates every document in `examples/` against the shipped
+copy. Checking the schema against itself was not enough: it agreed with itself
+perfectly while rejecting 21 of the 22 gallery documents.

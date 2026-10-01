@@ -234,8 +234,13 @@ jobs:
           uv build --wheel
           cd playground && npm run assets
 
+      # Packaged exactly as `release.yml` packages it. Typechecking alone passed while
+      # `vsce package` refused the manifest -- `@types/vscode` had been bumped past
+      # `engines.vscode` -- and the first place that would have shown up was a release.
       - name: Editor extension
         working-directory: editor
         run: |
           npm ci
           npm run typecheck
+          npm run build
+          npx --yes @vscode/vsce package --no-dependencies --out "$RUNNER_TEMP/scenet.vsix"

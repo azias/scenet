@@ -13,7 +13,7 @@ stale.
 Put this on the first line of a panel document:
 
 ```yaml
-# yaml-language-server: $schema=https://azias.github.io/scenet/schemas/panel.schema.json
+# yaml-language-server: $schema=https://creatoan.github.io/scenet/schemas/panel.schema.json
 panel:
   size: [1000, 800]
 cast:
@@ -37,7 +37,7 @@ Emacs (lsp-mode), IntelliJ and Zed, among others. You get:
 A small extension bundles the same schemas plus a side-by-side preview:
 
 1. Download `scenet.vsix` from the
-   [latest release](https://github.com/azias/scenet/releases/latest).
+   [latest release](https://github.com/creatoan/scenet/releases/latest).
 2. In VS Code: **Extensions** → **⋯** → **Install from VSIX…**
 
 It contributes:

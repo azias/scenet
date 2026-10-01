@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # `main` merges through a merge queue, which tests each pull request on top of the
+  # ones queued ahead of it. The queue waits for the required checks on that combined
+  # commit, and only this event produces them -- without it every entry waits forever.
+  merge_group:
   workflow_dispatch:
 
 # Least privilege by default. A job that needs more says so itself; nothing here does.

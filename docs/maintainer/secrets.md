@@ -13,7 +13,7 @@ write access to the repository can read through a workflow.
 
 Scenet uses **Trusted Publishing** instead. PyPI is told, once, through its web interface:
 
-> The workflow `release.yml`, in the repository `azias/scenet`, running in the environment
+> The workflow `release.yml`, in the repository `creatoan/scenet`, running in the environment
 > `pypi`, may publish the project `scenet`.
 
 At publish time GitHub mints a short-lived OpenID Connect token asserting exactly that

@@ -82,7 +82,7 @@ The approval is a **required reviewer** on the `pypi` GitHub Environment, not an
 the workflow file. It can be removed, and the release then runs unattended from the tag:
 
 ```bash
-gh api -X PUT repos/azias/scenet/environments/pypi   --input - <<'JSON'
+gh api -X PUT repos/creatoan/scenet/environments/pypi   --input - <<'JSON'
 {"wait_timer": 0, "reviewers": null, "deployment_branch_policy": null}
 JSON
 ```

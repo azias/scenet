@@ -50,7 +50,7 @@ solving and computational geometry. The same input always produces byte-identica
 
 ## Try it without installing anything
 
-The [playground](https://azias.github.io/scenet/playground/) runs this compiler — the
+The [playground](https://creatoan.github.io/scenet/playground/) runs this compiler — the
 same Python, unmodified — in your browser under WebAssembly via Pyodide. It is not a
 reimplementation: the page installs the exact wheel `uv build` produces, so there is no
 second copy of the geometry to drift out of step.

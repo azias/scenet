@@ -13,6 +13,24 @@ Treat it accordingly: an experiment first, a usable tool second.
 
 The Scenet compiler running in a browser, published to GitHub Pages.
 
+## What it does
+
+- **Live compile** as you type, with the compiler's own findings underlined at the
+  line they are about. The list under the output jumps to each one.
+- **Zoom and pan** the output: scroll or pinch to zoom about the pointer, drag to pan,
+  double-click for Fit or 100%. With the picture focused, `+` `-` `0` `1` and the arrow
+  keys do the same. Editing keeps the zoom; opening another document fits it.
+- **Overlay** shows the solver's working geometry, for a single panel or a whole scene.
+- **Panel Core** is shown read-only in a second editor, with folding.
+- **Download** the panel as SVG or a 2× PNG, the overlay, the Panel Core, or the source.
+  `Ctrl+S` saves the source. Names follow `scenet build`: `foo.svg`, `foo.debug.svg`,
+  `foo.core.json`.
+- **Share** copies a link with the whole document compressed into the URL fragment. The
+  fragment never reaches a server, so there is no backend.
+- **Your edits survive a reload**, saved in the browser. *Reset to example* discards them.
+- The divider between editor and output can be dragged, or moved with the arrow keys;
+  the output can go full screen.
+
 ## Why there is no compiler in here
 
 The obvious way to build a browser playground for a DSL is to reimplement the compiler

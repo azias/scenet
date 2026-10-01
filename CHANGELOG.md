@@ -10,6 +10,11 @@ below 1.0 means.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-02
+
+The playground became a place to work, the editor schema stopped rejecting valid
+documents, and the project moved to the `creatoan` organisation.
+
 ### Added
 
 - **The playground became a place to work, not just a demo.** The output zooms and pans —
@@ -571,7 +576,8 @@ or has drifted out of step with the code fails the build.
 - `long_shot` and `full_shot` crop at the same landmark, so with no environment to show
   they can differ only by headroom.
 
-[Unreleased]: https://github.com/creatoan/scenet/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/creatoan/scenet/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/creatoan/scenet/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/creatoan/scenet/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/creatoan/scenet/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/creatoan/scenet/compare/v0.3.0...v0.4.0

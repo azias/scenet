@@ -212,6 +212,50 @@ class TestEmitters:
         assert 'viewBox="0 0 640 480"' in rendered
 
 
+class TestDebugStrip:
+    """A scene's overlay: each panel's working geometry, laid out exactly as the strip is.
+
+    Without it a scene has no overlay at all, and the playground's Overlay tab used to
+    show the plain strip a second time.
+    """
+
+    SOURCE = (
+        "panels:\n  one: {cast: {a: {reference: alice}}}\n  two: {cast: {b: {reference: bob}}}\n"
+    )
+    G = "{http://www.w3.org/2000/svg}g"
+
+    @pytest.fixture
+    def pairs(self) -> list[tuple[str, PanelCore]]:
+        return [(name, result.core) for name, result in compile_scene(self.SOURCE).items()]
+
+    def test_each_panel_carries_its_own_overlay(self, pairs: list[tuple[str, PanelCore]]):
+        root = ElementTree.fromstring(render_strip(pairs, debug=True))
+        panels = {
+            g.get("id"): g for g in root.iter(self.G) if (g.get("id") or "").startswith("panel-")
+        }
+        assert set(panels) == {"panel-one", "panel-two"}
+        assert any(g.get("id") == "debug-a" for g in panels["panel-one"].iter(self.G))
+        assert any(g.get("id") == "debug-b" for g in panels["panel-two"].iter(self.G))
+
+    def test_it_has_the_geometry_of_the_plain_strip(self, pairs: list[tuple[str, PanelCore]]):
+        """Toggling between the two views must not move anything."""
+        plain = ElementTree.fromstring(render_strip(pairs))
+        debug = ElementTree.fromstring(render_strip(pairs, debug=True))
+        assert debug.get("viewBox") == plain.get("viewBox")
+
+        def placements(root: ElementTree.Element) -> list[str | None]:
+            return [
+                g.get("transform")
+                for g in root.iter(self.G)
+                if (g.get("id") or "").startswith("panel-")
+            ]
+
+        assert placements(debug) == placements(plain)
+
+    def test_the_plain_strip_is_unchanged(self, pairs: list[tuple[str, PanelCore]]):
+        assert "debug-" not in render_strip(pairs)
+
+
 class TestExample:
     def test_shipped_example_compiles(self):
         result = compile_file(EXAMPLES / "duel.panel.yaml")
@@ -258,6 +302,29 @@ class TestIdentifiersCannotInjectMarkup:
         assert any(g.get("id") == f"actor-{self.HOSTILE}" for g in groups)
         # No element anywhere gained an attribute called `onload`.
         assert all("onload" not in element.attrib for element in root.iter())
+
+    def test_actor_id_stays_inside_its_attribute_in_the_overlay(self):
+        """The overlay goes through `innerHTML` too, from the playground's Overlay tab."""
+        source = f"cast:\n  '{self.HOSTILE}': {{reference: alice}}\n"
+        svg = render_debug(compile_source(source).core)
+
+        root = ElementTree.fromstring(svg)
+        groups = root.iter("{http://www.w3.org/2000/svg}g")
+        assert any(g.get("id") == f"debug-{self.HOSTILE}" for g in groups)
+        assert all("onload" not in element.attrib for element in root.iter())
+
+    def test_actor_id_stays_inside_its_label_in_the_overlay(self):
+        """The overlay labels actors and speakers in text, which needs escaping too."""
+        hostile = "</text><script/>"
+        source = (
+            f"cast:\n  '{hostile}': {{reference: alice}}\n"
+            f"script:\n  - say: {{by: '{hostile}', text: Hi}}\n"
+        )
+        root = ElementTree.fromstring(render_debug(compile_source(source).core))
+
+        assert not list(root.iter("{http://www.w3.org/2000/svg}script"))
+        texts = "".join(t.text or "" for t in root.iter("{http://www.w3.org/2000/svg}text"))
+        assert hostile in texts
 
     def test_panel_name_stays_inside_its_attribute(self):
         source = f"panels:\n  '{self.HOSTILE}': {{cast: {{a: {{reference: alice}}}}}}\n"

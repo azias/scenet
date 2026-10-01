@@ -56,6 +56,9 @@ dev = [
     "basedpyright>=1.31",
     "pip-licenses>=5.0",
     "types-pyyaml>=6.0",
+    # Validates every example against the shipped JSON Schema. Comparing the schema to
+    # itself cannot catch it describing the wrong syntax, which it once did.
+    "jsonschema>=4.23",
 ]
 docs = [
     "sphinx>=9.1",

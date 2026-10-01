@@ -160,6 +160,50 @@ class TestDiagnosingADocument:
                 assert found.rule in RULES
 
 
+class TestSurfaceFaultsAreLocated:
+    """A fault in the surface syntax points at the entry, not at the whole document.
+
+    These are caught while the frontend rewrites conveniences away, before pydantic sees
+    anything, so pydantic's paths are not there to help. Without a `loc` the region was
+    the entire document -- which an editor draws as every line underlined at once.
+    """
+
+    CAST = "cast: {a: {reference: alice}, b: {reference: bob}}\n"
+
+    @pytest.mark.parametrize(
+        ("body", "path", "line"),
+        [
+            ("staging:\n  - a left_of b\n  - a beside b\n", ("staging", 1), 4),
+            ("staging:\n  - a left_of\n", ("staging", 0), 3),
+            ("script:\n  - shout: {by: a, text: Hi}\n", ("script", 0), 3),
+            ("script:\n  - {say: {by: a, text: Hi}, caption: {text: Two.}}\n", ("script", 0), 3),
+            ("script:\n  - say: Hi\n", ("script", 0), 3),
+        ],
+    )
+    def test_the_entry_is_located(self, body: str, path: tuple[str | int, ...], line: int):
+        (found,) = diagnose_source(self.CAST + body, source=Path("x.panel.yaml"))
+        assert found.path == path
+        assert found.region is not None
+        assert found.region.start.line == line
+        # A block mapping's end mark is the start of the following line, which covers
+        # nothing on it; either way only the entry itself is underlined.
+        end = found.region.end
+        assert end.line == line or (end.line == line + 1 and end.column == 1)
+
+    @pytest.mark.parametrize(
+        ("body", "path"),
+        [
+            ("staging: a left_of b\n", ("staging",)),
+            ("script: {say: {by: a, text: Hi}}\n", ("script",)),
+        ],
+    )
+    def test_a_block_of_the_wrong_shape_is_located(self, body: str, path: tuple[str, ...]):
+        (found,) = diagnose_source(self.CAST + body, source=Path("x.panel.yaml"))
+        assert found.path == path
+        assert found.region is not None
+        assert found.region.start.line == 2
+
+
 class TestSourcePositions:
     """`yaml.compose` keeps the marks `safe_load` throws away."""
 

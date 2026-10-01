@@ -11,6 +11,7 @@ element that distinguishes comics from a series of illustrations.
 """
 
 from scenet.core import PanelCore
+from scenet.emit.debug_svg import render_debug
 from scenet.emit.svg import attr, fmt, render
 
 # Space between panels, as a fraction of the tallest panel.
@@ -19,12 +20,24 @@ GUTTER_FRACTION = 0.04
 MARGIN_FRACTION = 0.03
 
 
-def render_strip(panels: list[tuple[str, PanelCore]], *, live_text: bool = False) -> str:
+def render_strip(
+    panels: list[tuple[str, PanelCore]], *, live_text: bool = False, debug: bool = False
+) -> str:
     """Lay panels left to right in reading order.
 
     Each panel is rendered independently and then placed, rather than being
     re-solved: a panel's composition must not depend on what sits beside it, or the
     same source would compile differently in isolation.
+
+    Args:
+        panels: Panel name and compiled core, in reading order.
+        live_text: Emit lettering as `<text>` rather than glyph outlines.
+        debug: Place each panel's diagnostic overlay instead of the panel itself, in
+            exactly the same positions, so a sequence can be debugged as a sequence.
+            `live_text` does not apply: the overlay labels in plain text already.
+
+    Returns:
+        One SVG document holding every panel.
     """
     if not panels:
         raise ValueError("a strip needs at least one panel")
@@ -48,7 +61,7 @@ def render_strip(panels: list[tuple[str, PanelCore]], *, live_text: bool = False
     for name, core in panels:
         # Panels of differing height sit on a common top edge, which is how a tier of
         # unequal panels is conventionally aligned.
-        inner = render(core, live_text=live_text)
+        inner = render_debug(core) if debug else render(core, live_text=live_text)
         body = inner.split("\n", 2)[2].rsplit("</svg>", 1)[0]
         parts.append(
             f'  <g id={attr("panel-" + name)} transform="translate({fmt(cursor)} {fmt(margin)})">'

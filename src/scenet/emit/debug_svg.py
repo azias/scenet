@@ -6,8 +6,10 @@ answer is invisible in the finished panel. This draws the hidden geometry: silho
 hulls, face exclusion circles, anchors, gaze vectors and tail routes.
 """
 
+from xml.sax.saxutils import escape
+
 from scenet.core import FaceDisc, PanelCore
-from scenet.emit.svg import fmt
+from scenet.emit.svg import attr, fmt
 
 HULL = "#2f7fd0"
 FACE = "#d94f4f"
@@ -35,7 +37,7 @@ def render_debug(core: PanelCore) -> str:
     ]
 
     for actor in sorted(core.actors, key=lambda a: a.id):
-        parts.append(f'  <g id="debug-{actor.id}">')
+        parts.append(f"  <g id={attr('debug-' + actor.id)}>")
         parts.append(
             f'    <polygon points="{_hull_points(actor.hull)}" fill="{HULL}" '
             f'fill-opacity="0.10" stroke="{HULL}" stroke-width="2"/>'
@@ -77,12 +79,12 @@ def render_debug(core: PanelCore) -> str:
             parts.append(
                 f'    <circle cx="{fmt(x)}" cy="{fmt(y)}" r="5" fill="{ANCHOR}"/>'
                 f'<text x="{fmt(x + 9)}" y="{fmt(y - 6)}" font-size="15" '
-                f'font-family="monospace" fill="{ANCHOR}">{name}</text>'
+                f'font-family="monospace" fill="{ANCHOR}">{escape(name)}</text>'
             )
         parts.append(
             f'    <text x="{fmt(actor.bounds.x)}" y="{fmt(actor.bounds.y - 8)}" '
             f'font-size="18" font-family="monospace" fill="{HULL}">'
-            f"{actor.id} depth={actor.depth} scale={fmt(actor.transform.scale)}</text>"
+            f"{escape(actor.id)} depth={actor.depth} scale={fmt(actor.transform.scale)}</text>"
         )
         parts.append("  </g>")
 
@@ -106,7 +108,7 @@ def render_debug(core: PanelCore) -> str:
         parts.append(
             f'  <text x="{fmt(box.x + 4)}" y="{fmt(box.y - 8)}" font-size="18" '
             f'font-family="monospace" fill="{BALLOON}">'
-            f"{balloon.id} #{balloon.order} -&gt; {balloon.speaker}"
+            f"{escape(balloon.id)} #{balloon.order} -&gt; {escape(balloon.speaker)}"
             f"{' curved' if tail.control else ''}</text>"
         )
 
@@ -122,7 +124,7 @@ def render_debug(core: PanelCore) -> str:
         parts.append(
             f'  <text x="{fmt(box.x + 4)}" y="{fmt(box.y - 8)}" font-size="18" '
             f'font-family="monospace" fill="{CAPTION}">'
-            f"{caption.id} #{caption.order} {caption.kind.value}</text>"
+            f"{escape(caption.id)} #{caption.order} {caption.kind.value}</text>"
         )
 
     parts.append(
@@ -161,7 +163,7 @@ def _backdrop(core: PanelCore) -> str:
         lines.append(
             f'  <text x="{fmt(left + 6)}" y="{fmt(top + 18)}" font-size="15" '
             f'font-family="monospace" fill="{MASS}">'
-            f"{mass.id} {mass.kind.value} {mass.plane.value} depth={mass.depth}</text>"
+            f"{escape(mass.id)} {mass.kind.value} {mass.plane.value} depth={mass.depth}</text>"
         )
     return "\n".join(lines)
 

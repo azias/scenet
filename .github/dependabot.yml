@@ -61,3 +61,11 @@ updates:
         update-types: [minor, patch]
     commit-message:
       prefix: "deps"
+    ignore:
+      # `@types/vscode` is the API the extension compiles against, so it has to stay at
+      # the oldest VS Code `engines.vscode` admits -- `vsce package` refuses otherwise,
+      # and the extension could call API those versions lack. Dependabot raised it to
+      # ^1.136.0 against an engine of ^1.100.0, which broke packaging while every check
+      # stayed green. Raise the two together, on purpose, never one alone.
+      - dependency-name: "@types/vscode"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]

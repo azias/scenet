@@ -1,0 +1,68 @@
+# Emanata: what a comic draws around a character, rather than on them.
+#
+# Mort Walker named them in The Lexicon of Comicana, and four of his names are the
+# vocabulary: `plewds` fly off a sweating head, `squeans` circle a dizzy one,
+# `grawlixes` stand in for an oath, and `briffits` are the dust somebody leaves behind.
+#
+# They are a list, not a second `expression:`, because they compose -- Alice is scared
+# *and* sweating, angry *and* swearing.
+#
+# Unlike a face, they are drawn outside the head, in the space balloons go, so they
+# matter to the layout. How much is the decision this example shows: a balloon pays to
+# cover them, so in `oath` Alice's line settles beside her grawlixes rather than on
+# them. But they never move anybody. Strip every mark from this file and both
+# characters stand exactly where they stand now.
+#
+# That cuts both ways. The camera frames by the body and makes no room for marks, so
+# over the taller character's head, at this framing, they would run off the top of the
+# panel -- which is why they are on Alice. Try them on Bob: `scenet build` says so.
+
+panel:
+  size: [1000, 700]
+
+camera:
+  shot: medium_shot
+
+cast:
+  alice: {reference: alice, at: left_third}
+  bob:   {reference: bob,   pose: arms_crossed, at: right_third, facing: left}
+
+staging:
+  - alice left_of bob
+  - alice ground_shared_with bob
+  - alice looking_at bob
+  - bob looking_at alice
+
+panels:
+  heat:
+    cast:
+      alice: {expression: scared, marks: [plewds]}
+      bob:   {expression: angry}
+    script:
+      - say: {by: bob, text: "Where is my umbrella?"}
+
+  oath:
+    over: heat
+    cast:
+      alice: {expression: angry, marks: [grawlixes]}
+    script:
+      - say: {by: alice, text: "It was hideous!", prefer: top_left}
+
+  dizzy:
+    over: heat
+    cast:
+      alice: {expression: sad, marks: [squeans]}
+      bob:   {expression: bored}
+    script:
+      - say: {by: alice, text: "I spun it round. Very fast. Then it was gone."}
+
+  gone:
+    camera: {shot: full_shot}
+    cast:
+      alice: {expression: surprise}
+      bob:   {pose: pointing, expression: shouting, marks: [briffits], facing: right}
+    staging:
+      - alice left_of bob
+      - alice ground_shared_with bob
+    script:
+      - say: {by: alice, text: "Bob?"}

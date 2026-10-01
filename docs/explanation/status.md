@@ -25,6 +25,7 @@ attribution. A notation is only worth having if it is not owned.
 | 6 | Browser playground (Pyodide); VS Code extension | **Done** |
 | 7 | Machine-readable diagnostics: `scenet check`, in SARIF | **Done** |
 | 8 | Captions, faces, and the setting layer — places, masses, planes, atmosphere | **Done** |
+| 9 | Emanata — plewds, squeans, grawlixes, briffits — as a soft placement cost | **Done** |
 
 Single panels compile end to end. Constructs described in `language.md` are the specification,
 not a report of what is implemented — the table above is authoritative on what actually runs.
@@ -36,7 +37,6 @@ dependency between them is stated in the tickets rather than implied by this tab
 
 | Scope | Ticket |
 |---|---|
-| Emanata — the marks that are not on the face | [#21](https://github.com/creatoan/scenet/issues/21) |
 | Tinted caption boxes | [#28](https://github.com/creatoan/scenet/issues/28) |
 | The agent-facing surface — spec pack, skill, MCP server | [#11](https://github.com/creatoan/scenet/issues/11) |
 

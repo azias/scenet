@@ -12,7 +12,7 @@ wrong picture.
 from enum import StrEnum
 from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from scenet.errors import RuleViolationError
 
@@ -27,6 +27,7 @@ __all__ = [
     "CastMember",
     "Facing",
     "Horizon",
+    "Mark",
     "Mass",
     "MassKind",
     "PanelIR",
@@ -169,6 +170,41 @@ class Facing(StrEnum):
 
     LEFT = "left"
     RIGHT = "right"
+
+
+class Mark(StrEnum):
+    """Something drawn around a character, rather than on them, to say how they are.
+
+    The vocabulary is Mort Walker's, from *The Lexicon of Comicana* (1980), which grew
+    out of his 1964 National Cartoonists Society piece "Let's Get Down to Grawlixes".
+    The book is tongue-in-cheek, but the terms entered real use, and they are comics'
+    own names for comics' own conventions. So the set is closed and citable, and nothing
+    in it is invented here.
+
+    | Mark | What it is | What it says |
+    |---|---|---|
+    | `plewds` | Droplets flying off the head | sweating: effort, heat, nerves |
+    | `squeans` | Little starbursts and circles over the head | dizzy, drunk, or sick |
+    | `grawlixes` | Symbols over the head standing in for words | swearing |
+    | `briffits` | A dust cloud left at the feet | gone, fast |
+
+    "Emanata" is Walker's general term for these, which is why it names the module that
+    draws them and the Core field that holds them.
+
+    A mark is not an expression. A character can be angry *and* sweating, so marks are
+    a list that composes with `expression:` rather than a second one. Grawlixes are
+    drawn as symbols -- a jarn (spiral), a nittle (bursting star), a bolt and a hash --
+    rather than typed: an oath written as `@#$%!` already works, as dialogue.
+
+    All four are drawn **outside** the head circle, in the space balloons are placed
+    in. They never move a character. A balloon prefers not to cover them, and covers
+    them anyway rather than fail when a panel is too crowded to oblige.
+    """
+
+    PLEWDS = "plewds"
+    SQUEANS = "squeans"
+    GRAWLIXES = "grawlixes"
+    BRIFFITS = "briffits"
 
 
 class Predicate(StrEnum):
@@ -588,6 +624,10 @@ class CastMember(Strict):
         expression: Named expression from that puppet's declared set. Selected by name
             exactly as a pose is, because a face is the same kind of thing as a body:
             a small closed set of arrangements the character can be in.
+        marks: Emanata drawn around the character -- sweat, dizziness, swearing, a
+            hasty exit. A list, because they compose with each other and with the
+            expression. Kept sorted, so the order they were written in never
+            changes the output.
         at: Preferred horizontal anchor.
         facing: Which way the figure is turned.
 
@@ -602,8 +642,26 @@ class CastMember(Strict):
     reference: str
     pose: str = "standing_neutral"
     expression: str = "neutral"
+    marks: tuple[Mark, ...] = ()
     at: AnchorX = AnchorX.CENTRE
     facing: Facing = Facing.RIGHT
+
+    @field_validator("marks")
+    @classmethod
+    def check_marks(cls, marks: tuple[Mark, ...]) -> tuple[Mark, ...]:
+        """Reject a mark listed twice, and put the rest in a fixed order.
+
+        Returns:
+            The marks, sorted.
+
+        Raises:
+            ValueError: A mark appears more than once. Harmless to draw, but almost
+                certainly a slip, and this language reports slips.
+        """
+        repeated = sorted({mark.value for mark in marks if marks.count(mark) > 1})
+        if repeated:
+            raise ValueError(f"mark listed more than once: {', '.join(repeated)}")
+        return tuple(sorted(marks))
 
 
 class Relation(Strict):

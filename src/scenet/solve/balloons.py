@@ -24,10 +24,12 @@ it.
 """
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from shapely.geometry import Polygon, box
+from shapely.geometry.base import BaseGeometry
+from shapely.ops import unary_union
 
 from scenet.assets.kinematics import ResolvedPuppet
 from scenet.errors import BalloonPlacementError
@@ -78,6 +80,14 @@ PLANE_OCCLUSION_WEIGHT: dict[Plane, float] = {
     Plane.MID: 0.3,
     Plane.FAR: 0.12,
 }
+
+# Emanata -- plewds, grawlixes and the rest -- are drawn outside the head, where balloons
+# go. Covering one is a soft cost rather than an exclusion, so a crowded panel still
+# compiles; but it is weighted above covering a body. A balloon over a shoulder hides a
+# shoulder, while one over a plewd deletes what the panel was saying about the
+# character. There is no forgiveness for the speaker either: a balloon resting on its
+# own speaker's sweat hides the sweat just the same.
+W_EMANATA_OCCLUSION = 1.5
 
 # Tolerance when comparing balloon positions for reading order, in panel units.
 READING_EPSILON = 2.0
@@ -416,6 +426,41 @@ def _mass_cost(candidate: BBox, masses: Sequence[tuple[Polygon, float]]) -> floa
     return cost
 
 
+def _emanata_shapes(zones: Mapping[str, Sequence[Sequence[Point]]]) -> list[BaseGeometry]:
+    """Each actor's emanata as one shape, built once per panel rather than per candidate.
+
+    The zones of one actor are merged first, so a box over the place where an actor's
+    plewds and squeans overlap pays for that ground once rather than twice. Sorted by
+    actor id, because summing in a different order can change the last bit of a float.
+    """
+    shapes: list[BaseGeometry] = []
+    for actor_id in sorted(zones):
+        polygons = [Polygon([(point.x, point.y) for point in zone]) for zone in zones[actor_id]]
+        if polygons:
+            shapes.append(unary_union(polygons))
+    return shapes
+
+
+def _emanata_cost(candidate: BBox, shapes: Sequence[BaseGeometry]) -> float:
+    """How much of anyone's emanata this box covers, normalised by its own area.
+
+    Normalised exactly as `_occlusion_cost` is, so the two weights mean the same kind
+    of thing. With no marks in the panel there are no shapes and the cost is exactly
+    zero, which is what keeps every panel without marks laid out as it was before they
+    existed.
+    """
+    if not shapes:
+        return 0.0
+    area = max(candidate.area, 1.0)
+    shape = box(candidate.x, candidate.y, candidate.right, candidate.bottom)
+    cost = 0.0
+    for zone in shapes:
+        overlap = shape.intersection(zone).area
+        if overlap:
+            cost += W_EMANATA_OCCLUSION * overlap / area
+    return cost
+
+
 def _edge_slack(candidate: BBox, panel: BBox) -> float:
     """Distance from the box to the nearest panel edge."""
     return min(
@@ -436,12 +481,14 @@ def _score(
     prefer: PlacementZone | None,
     placed: list[BBox],
     masses: Sequence[tuple[Polygon, float]],
+    emanata: Sequence[BaseGeometry] = (),
 ) -> float:
     """Cost of putting a balloon here. Lower is better; infinity means illegal."""
     if not _is_legal(candidate, actors, panel, placed):
         return math.inf
 
     cost = _occlusion_cost(candidate, hulls, speaker.name) + _mass_cost(candidate, masses)
+    cost += _emanata_cost(candidate, emanata)
 
     diagonal = math.hypot(panel.width, panel.height)
     mouth = speaker.anchors.get("mouth", speaker.face.centre)
@@ -471,6 +518,7 @@ def _score_caption(
     prefer: PlacementZone,
     placed: list[BBox],
     masses: Sequence[tuple[Polygon, float]],
+    emanata: Sequence[BaseGeometry] = (),
 ) -> float:
     """Cost of putting a caption here. Lower is better; infinity means illegal.
 
@@ -483,6 +531,7 @@ def _score_caption(
         return math.inf
 
     cost = _occlusion_cost(candidate, hulls, None) + _mass_cost(candidate, masses)
+    cost += _emanata_cost(candidate, emanata)
 
     diagonal = math.hypot(panel.width, panel.height)
     across, down = prefer.fractions
@@ -672,6 +721,7 @@ def place_script(
     italic_metrics: FontMetrics | None = None,
     font_size: float | None = None,
     backdrop: ResolvedBackdrop | None = None,
+    emanata: Mapping[str, Sequence[Sequence[Point]]] | None = None,
 ) -> ScriptLayout:
     """Place every balloon and caption, in script order.
 
@@ -694,6 +744,8 @@ def place_script(
         font_size: Override for dialogue size, in panel units.
         backdrop: The resolved setting, if the panel has one. Its masses are a soft
             cost, never an exclusion: a balloon over a sky is the ordinary case.
+        emanata: Actor id to the zones of the marks drawn around them. Also a soft
+            cost, and a heavier one than a body, but never an exclusion.
 
     Returns:
         Everything that carries words, placed.
@@ -709,6 +761,7 @@ def place_script(
     hulls = {actor_id: _hull_polygon(actor) for actor_id, actor in actors.items()}
     faces = [actor.face for actor in actors.values()]
     masses = _mass_polygons(backdrop)
+    marks = _emanata_shapes(emanata or {})
 
     placed: list[BBox] = []
     captions: list[PlacedCaption] = []
@@ -730,6 +783,7 @@ def place_script(
                     metrics=metrics,
                     italic_metrics=italic_metrics,
                     masses=masses,
+                    emanata=marks,
                 )
             )
             placed.append(captions[-1].box)
@@ -748,6 +802,7 @@ def place_script(
                 font_size=size,
                 metrics=metrics,
                 masses=masses,
+                emanata=marks,
             )
         )
         placed.append(balloons[-1].box)
@@ -768,6 +823,7 @@ def _place_balloon(
     font_size: float,
     metrics: FontMetrics | None,
     masses: Sequence[tuple[Polygon, float]],
+    emanata: Sequence[BaseGeometry],
 ) -> PlacedBalloon:
     """Choose a position for one balloon and route its tail."""
     speaker = actors[event.by]
@@ -788,6 +844,7 @@ def _place_balloon(
             prefer=event.prefer,
             placed=placed,
             masses=masses,
+            emanata=emanata,
         )
         if cost < best_cost:
             best, best_cost = candidate, cost
@@ -828,6 +885,7 @@ def _place_caption(
     metrics: FontMetrics | None,
     italic_metrics: FontMetrics | None,
     masses: Sequence[tuple[Polygon, float]],
+    emanata: Sequence[BaseGeometry],
 ) -> PlacedCaption:
     """Choose a position for one caption.
 
@@ -857,6 +915,7 @@ def _place_caption(
             prefer=event.prefer,
             placed=placed,
             masses=masses,
+            emanata=emanata,
         )
         if cost < best_cost:
             best, best_cost = candidate, cost

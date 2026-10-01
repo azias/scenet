@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from scenet.assets.contract import PuppetLibrary, default_library
+from scenet.assets.emanata import SINGULAR, build_emanata
 from scenet.assets.face import ResolvedDisc, ResolvedStroke, build_face
 from scenet.assets.kinematics import ResolvedPuppet, resolve
 from scenet.core import (
@@ -37,7 +38,7 @@ from scenet.core import (
 from scenet.frontends.script_front import load_script
 from scenet.frontends.yaml_front import load_panel, load_scene, parse_panel, parse_scene
 from scenet.geom import BBox, Vector, rounded
-from scenet.ir import PanelIR
+from scenet.ir import Mark, PanelIR
 from scenet.solve.backdrop import ResolvedBackdrop, solve_backdrop
 from scenet.solve.balloons import place_script
 from scenet.solve.camera import CameraSolution
@@ -65,7 +66,8 @@ class CompileResult:
         Returns:
             Zero or more sentences describing decisions the compiler had to make that
             were not literally what the source asked for -- a camera that retreated to
-            fit the cast, a balloon tail that had to bend around a face.
+            fit the cast, a balloon tail that had to bend around a face, a mark drawn
+            partly outside the panel.
 
         These are returned rather than logged so that tooling can put them in front of
         the person who wrote the panel. A camera that silently retreats leaves you with
@@ -91,7 +93,34 @@ class CompileResult:
         for balloon in self.core.balloons:
             if balloon.tail.is_curved:
                 notes.append(f"balloon {balloon.id} needed a curved tail to clear a face")
+        # The camera frames by body landmarks and makes no room for emanata, which is
+        # what keeps them from ever moving anybody. The cost is that a tight shot can
+        # crop them, so say so: a mark that silently vanished is the same complaint as
+        # a camera that silently retreated.
+        for actor in self.core.actors:
+            for mark in actor.marks:
+                if _cropped(self.core, actor, mark):
+                    notes.append(
+                        f"{actor.id}'s {mark.value} run off the panel at this framing; "
+                        "the camera makes no room for marks, so a looser shot shows more"
+                    )
         return tuple(notes)
+
+
+def _cropped(core: PanelCore, actor: CoreActor, mark: Mark) -> bool:
+    """Whether any part of one of an actor's marks is drawn outside the panel."""
+    prefix = f"{SINGULAR[mark]}_"
+    for drawn in actor.emanata:
+        if not drawn.id.startswith(prefix):
+            continue
+        if isinstance(drawn, FaceDisc):
+            (cx, cy), r = drawn.centre, drawn.radius
+            extent = [(cx - r, cy - r), (cx + r, cy + r)]
+        else:
+            extent = list(drawn.points)
+        if any(not (0 <= x <= core.width and 0 <= y <= core.height) for x, y in extent):
+            return True
+    return False
 
 
 def _gaze_aims(
@@ -126,7 +155,7 @@ def _gaze_aims(
 
 
 def _core_mark(mark: ResolvedStroke | ResolvedDisc) -> FaceMark:
-    """Reduce one resolved face mark to its serialisable Core twin."""
+    """Reduce one resolved mark, of a face or of its emanata, to its Core twin."""
     if isinstance(mark, ResolvedDisc):
         return FaceDisc(
             id=mark.id,
@@ -229,6 +258,10 @@ def compile_ir(
         else ()
         for actor, spec in specs.items()
     }
+    # Emanata are drawn outside the head, so unlike the face they matter to placement:
+    # each one's zone is a soft cost for every balloon and caption. They are still
+    # resolved here, after staging, and never reach the hull -- marks move nobody.
+    emanata = {actor: build_emanata(posed[actor], panel.cast[actor].marks) for actor in posed}
 
     # The backdrop is resolved against the whole panel, not the margined frame: artwork
     # bleeds to the edge and only lettering is kept inside a margin. It runs after
@@ -246,7 +279,14 @@ def compile_ir(
         panel.panel.width - 2 * panel.panel.margin,
         panel.panel.height - 2 * panel.panel.margin,
     )
-    layout = place_script(panel.script, posed, frame, metrics=metrics, backdrop=backdrop)
+    layout = place_script(
+        panel.script,
+        posed,
+        frame,
+        metrics=metrics,
+        backdrop=backdrop,
+        emanata={actor: drawn.zones for actor, drawn in emanata.items() if drawn.zones},
+    )
 
     core = PanelCore(
         width=rounded(panel.panel.width),
@@ -273,6 +313,11 @@ def compile_ir(
                     vector_pair(aims[placement.actor_id]) if placement.actor_id in aims else None
                 ),
                 face_marks=tuple(_core_mark(mark) for mark in faces[placement.actor_id]),
+                marks=panel.cast[placement.actor_id].marks,
+                emanata=tuple(_core_mark(mark) for mark in emanata[placement.actor_id].marks),
+                emanata_zones=tuple(
+                    round_pairs(zone) for zone in emanata[placement.actor_id].zones
+                ),
                 hull=round_pairs(posed[placement.actor_id].hull),
                 capsules=tuple(
                     Capsule(

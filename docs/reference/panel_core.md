@@ -120,6 +120,19 @@ discipline as `capsules`, `blobs` and `face_marks`: the emitter is left with no 
 a backdrop can be read, diffed and hand-adjusted like everything else in this tier. `depth` is the
 same painter's order the actors use, so masses and figures sort into one sequence.
 
+An actor with `marks` carries three more fields. `marks` names what was asked for; `emanata` is the
+drawing, in the same `stroke` and `disc` primitives as `face_marks`, with ids numbered per mark
+(`plewd_0`, `plewd_1`, ...); and `emanata_zones` holds one polygon per mark, which is what balloon and
+caption placement paid to avoid. The zones are recorded so a Core document says why a balloon is
+where it is. All three default to empty, so an actor without marks serialises with `[]` in each and
+nothing else changes — which is why they needed no `format_version` bump either.
+
+```json
+"marks": ["plewds"],
+"emanata": [{ "mark": "stroke", "id": "plewd_0", "points": [[171.2, 98.6], "..."], "width": 5.9, "closed": true }],
+"emanata_zones": [[[150.3, 61.0], [205.8, 70.4], "..."]]
+```
+
 `seed` is kept so that a Core document explains itself: two panels with the same masses and
 different skylines differ here, and here is where to look.
 

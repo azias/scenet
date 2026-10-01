@@ -115,7 +115,7 @@ html_copy_source = False
 html_show_sourcelink = False
 
 html_theme_options = {
-    "github_url": "https://github.com/azias/scenet",
+    "github_url": "https://github.com/creatoan/scenet",
     "use_edit_page_button": False,
     "show_prev_next": True,
     "navigation_with_keys": True,
@@ -129,7 +129,7 @@ html_theme_options = {
         },
         {
             "name": "Playground",
-            "url": "https://azias.github.io/scenet/playground/",
+            "url": "https://creatoan.github.io/scenet/playground/",
             "icon": "fa-solid fa-play",
         },
     ],
@@ -138,7 +138,7 @@ html_theme_options = {
 }
 
 html_context = {
-    "github_user": "azias",
+    "github_user": "creatoan",
     "github_repo": "scenet",
     "github_version": "main",
     "default_mode": "auto",

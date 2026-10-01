@@ -87,10 +87,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/azias/scenet.git"
+    "url": "https://github.com/creatoan/scenet.git"
   },
   "bugs": {
-    "url": "https://github.com/azias/scenet/issues"
+    "url": "https://github.com/creatoan/scenet/issues"
   },
-  "homepage": "https://azias.github.io/scenet/"
+  "homepage": "https://creatoan.github.io/scenet/"
 }

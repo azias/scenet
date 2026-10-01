@@ -20,7 +20,7 @@ publishing later is mechanical: move this directory, add a `package.json` with
 `monaco-editor` and `monaco-yaml` as peer dependencies, and point the playground at the
 package instead of the path. Nothing else changes.
 
-If you want it as a package, [say so in an issue](https://github.com/azias/scenet/issues)
+If you want it as a package, [say so in an issue](https://github.com/creatoan/scenet/issues)
 — one real consumer is the whole argument.
 
 ## What it does

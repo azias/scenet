@@ -12,15 +12,15 @@ Treat it accordingly: an experiment first, a usable tool second.
 
 ---
 
-[![CI](https://github.com/azias/scenet/actions/workflows/ci.yml/badge.svg)](https://github.com/azias/scenet/actions/workflows/ci.yml)
+[![CI](https://github.com/creatoan/scenet/actions/workflows/ci.yml/badge.svg)](https://github.com/creatoan/scenet/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/scenet.svg)](https://pypi.org/project/scenet/)
 [![Python](https://img.shields.io/pypi/pyversions/scenet.svg)](https://pypi.org/project/scenet/)
 [![License: 0BSD](https://img.shields.io/badge/License-0BSD-brightgreen.svg)](LICENSE)
 ![Status: alpha](https://img.shields.io/badge/status-alpha-orange.svg)
 
-**[Playground](https://azias.github.io/scenet/playground/)** ·
-**[Documentation](https://azias.github.io/scenet/)** ·
-**[Tutorial](https://azias.github.io/scenet/tutorial/first_panel.html)** ·
+**[Playground](https://creatoan.github.io/scenet/playground/)** ·
+**[Documentation](https://creatoan.github.io/scenet/)** ·
+**[Tutorial](https://creatoan.github.io/scenet/tutorial/first_panel.html)** ·
 **[Changelog](CHANGELOG.md)**
 
 ## What this is
@@ -126,7 +126,7 @@ SVG.
 
 ## Try it in the browser
 
-The **[playground](https://azias.github.io/scenet/playground/)** runs this compiler — the
+The **[playground](https://creatoan.github.io/scenet/playground/)** runs this compiler — the
 same Python, unmodified — in your browser under WebAssembly via
 [Pyodide](https://pyodide.org/). It is not a reimplementation: the page installs the exact
 wheel `uv build` produces, so there is no second copy of the geometry to drift out of step.
@@ -185,7 +185,7 @@ uv run pytest
 
 ## Documentation
 
-**[azias.github.io/scenet](https://azias.github.io/scenet/)** — or read the Markdown
+**[creatoan.github.io/scenet](https://creatoan.github.io/scenet/)** — or read the Markdown
 source under [`docs/`](docs/), which GitHub renders without a build step.
 
 | | |

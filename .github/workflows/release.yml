@@ -223,8 +223,8 @@ jobs:
             echo "The VS Code extension is the attached scenet.vsix:"
             echo "**Extensions** -> **...** -> **Install from VSIX...**"
             echo
-            echo "[Documentation](https://azias.github.io/scenet/) |"
-            echo "[Playground](https://azias.github.io/scenet/playground/)"
+            echo "[Documentation](https://creatoan.github.io/scenet/) |"
+            echo "[Playground](https://creatoan.github.io/scenet/playground/)"
           } >> release-notes.md
 
       # Idempotent, because a release workflow gets re-run. The first v0.1.0 run

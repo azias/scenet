@@ -33,12 +33,12 @@ dependencies = [
 # magnet, and the project has no need for one: bug reports and questions belong in the
 # issue tracker below, which PyPI renders as the contact route.
 [project.urls]
-Homepage = "https://github.com/azias/scenet"
-Documentation = "https://azias.github.io/scenet/"
-Repository = "https://github.com/azias/scenet"
-Issues = "https://github.com/azias/scenet/issues"
-Changelog = "https://github.com/azias/scenet/blob/main/CHANGELOG.md"
-Playground = "https://azias.github.io/scenet/playground/"
+Homepage = "https://github.com/creatoan/scenet"
+Documentation = "https://creatoan.github.io/scenet/"
+Repository = "https://github.com/creatoan/scenet"
+Issues = "https://github.com/creatoan/scenet/issues"
+Changelog = "https://github.com/creatoan/scenet/blob/main/CHANGELOG.md"
+Playground = "https://creatoan.github.io/scenet/playground/"
 
 [project.scripts]
 scenet = "scenet.cli:main"

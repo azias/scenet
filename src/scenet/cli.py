@@ -5,7 +5,6 @@ import json
 import sys
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
 
 from scenet import __version__
 from scenet.diagnostics import Diagnostic, diagnose_file, to_sarif
@@ -13,8 +12,8 @@ from scenet.emit.debug_svg import render_debug
 from scenet.emit.strip import render_strip
 from scenet.emit.svg import render
 from scenet.errors import ScenetError
-from scenet.ir import PanelIR
 from scenet.pipeline import compile_document
+from scenet.schema import panel_schema, scene_schema
 
 DESCRIPTION = "Compile a semantic comic-panel description into SVG."
 
@@ -283,57 +282,15 @@ def run_check(args: argparse.Namespace) -> int:
     return 1 if found else 0
 
 
-def scene_schema() -> dict[str, Any]:
-    """The schema for a multi-panel document.
-
-    Built from the panel schema rather than declared separately, so the two can never
-    describe different languages. A scene allows the same keys as a panel -- there they
-    act as defaults every panel inherits -- plus `panels`, whose members may
-    additionally carry `over`.
-    """
-    panel = PanelIR.model_json_schema()
-    definitions = panel.pop("$defs", {})
-    properties = panel.get("properties", {})
-
-    member = {key: value for key, value in panel.items() if key != "title"}
-    member["properties"] = {
-        **properties,
-        "over": {
-            "type": "string",
-            "description": (
-                "Name of a panel to inherit from. Only the differences need stating: "
-                "mappings merge recursively and lists replace."
-            ),
-        },
-    }
-
-    return {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "title": "Scenet scene",
-        "$defs": definitions,
-        "type": "object",
-        "properties": {
-            **properties,
-            "panels": {
-                "type": "object",
-                "description": (
-                    "Panels in reading order. Each may inherit from another with `over`."
-                ),
-                "additionalProperties": member,
-            },
-        },
-        "additionalProperties": False,
-    }
-
-
 def run_schema(args: argparse.Namespace) -> int:
     """Emit the panel JSON Schema.
 
     Generated from the pydantic models rather than hand-written, so editor completion
     is derived from the compiler's own definition of the language and the two cannot
-    disagree.
+    disagree. It describes the syntax as written, not the IR it normalises into; see
+    :mod:`scenet.schema <scenet.schema>`.
     """
-    schema = scene_schema() if args.scene else PanelIR.model_json_schema()
+    schema = scene_schema() if args.scene else panel_schema()
     document = json.dumps(schema, indent=2, sort_keys=True) + "\n"
     if args.output is None:
         print(document, end="")

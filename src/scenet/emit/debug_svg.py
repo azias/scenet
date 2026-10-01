@@ -17,6 +17,7 @@ ANCHOR = "#1f9c53"
 GAZE = "#b060d0"
 AIM = "#8a2be2"
 FEATURE = "#d98b1e"
+EMANATA = "#c03a8a"
 BALLOON = "#e08a1e"
 CAPTION = "#7a52c9"
 GRID = "#c9c9c9"
@@ -42,6 +43,14 @@ def render_debug(core: PanelCore) -> str:
             f'    <polygon points="{_hull_points(actor.hull)}" fill="{HULL}" '
             f'fill-opacity="0.10" stroke="{HULL}" stroke-width="2"/>'
         )
+        # Emanata zones dashed, beside the solid hull: both cost a balloon something,
+        # but only the hull moves anybody.
+        for zone in actor.emanata_zones:
+            parts.append(
+                f'    <polygon class="emanata-zone" points="{_hull_points(zone)}" '
+                f'fill="{EMANATA}" fill-opacity="0.10" stroke="{EMANATA}" stroke-width="2" '
+                'stroke-dasharray="6 4"/>'
+            )
         face = actor.face_exclusion
         parts.append(
             f'    <circle cx="{fmt(face.cx)}" cy="{fmt(face.cy)}" r="{fmt(face.r)}" '

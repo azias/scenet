@@ -288,19 +288,24 @@ def _render_actor(actor: CoreActor) -> str:
     # The face goes on last, over the head blob it sits inside. Every coordinate here
     # was decided during compilation, curves included -- there is nothing to draw but
     # the polylines and discs as given.
-    lines.extend(_render_mark(actor.id, mark) for mark in actor.face_marks)
+    lines.extend(_render_mark(f"face-{actor.id}", mark) for mark in actor.face_marks)
+
+    # Emanata last of all, inside the actor's group so that whoever stands in front of
+    # this character stands in front of their sweat too.
+    lines.extend(_render_mark(f"emanata-{actor.id}", mark) for mark in actor.emanata)
 
     lines.append("    </g>")
     return "\n".join(lines)
 
 
-def _render_mark(actor_id: str, mark: FaceMark) -> str:
-    """One mark of a drawn face.
+def _render_mark(prefix: str, mark: FaceMark) -> str:
+    """One mark of a drawn face, or of the emanata around it.
 
     Ids carry the actor, because two characters in one panel have the same features
-    and duplicate ids in one SVG document are malformed.
+    and duplicate ids in one SVG document are malformed. They carry what the mark
+    belongs to as well, so a face's marks and its emanata can never collide either.
     """
-    element_id = f"face-{actor_id}-{mark.id}"
+    element_id = f"{prefix}-{mark.id}"
     if isinstance(mark, FaceDisc):
         cx, cy = mark.centre
         fill = STROKE if mark.filled else FILL_BALLOON

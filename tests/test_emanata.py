@@ -22,6 +22,7 @@ import pytest
 from pydantic import ValidationError
 from shapely.geometry import Point as ShapelyPoint
 from shapely.geometry import Polygon, box
+from shapely.geometry.base import BaseGeometry
 from shapely.ops import unary_union
 
 from scenet.assets.contract import Landmark, PuppetLibrary, default_library
@@ -93,18 +94,18 @@ class TestTheVocabulary:
     def test_marks_default_to_none(self):
         assert CastMember(reference="alice").marks == ()
 
-    def test_an_unknown_mark_is_rejected(self):
-        with pytest.raises(PanelSyntaxError, match="sweat"):
+    def test_an_unknown_mark_is_rejected_with_the_vocabulary(self):
+        with pytest.raises(PanelSyntaxError, match=r"cast\.a\.marks\.0.*plewds"):
             compile_source(_source("[sweat]"))
 
     def test_an_unknown_mark_is_located(self):
         """The checker has to point at the offending entry, not at the document."""
-        (found,) = diagnose_source(
-            "cast: {a: {reference: alice, marks: [plewds, sweat]}}\n",
-            source=Path("x.panel.yaml"),
-        )
-        assert found.path[:3] == ("cast", "a", "marks")
-        assert "sweat" in found.message
+        text = "cast: {a: {reference: alice, marks: [plewds, sweat]}}\n"
+        (found,) = diagnose_source(text, source=Path("x.panel.yaml"))
+        assert found.path == ("cast", "a", "marks", 1)
+        assert found.region is not None
+        start, end = found.region.start.column, found.region.end.column
+        assert text[start - 1 : end - 1] == "sweat"
 
     def test_a_mark_listed_twice_is_rejected(self):
         """Harmless, but almost certainly a slip -- and the language rejects slips."""
@@ -306,10 +307,19 @@ class TestTheHullDecision:
 
 class TestBalloonsKeepOffThem:
     def test_a_balloon_moves_off_the_grawlixes(self):
-        """Without marks, the first place tried -- straight above the speaker -- wins.
-        That is exactly where grawlixes go, and a balloon over them erases the oath."""
-        bare = compile_source(_source("[]", script=SAYS)).core
-        marked = compile_source(_source("[grawlixes]", script=SAYS)).core
+        """Asked for the top-right corner, a balloon from a speaker standing on the
+        right third settles just above their head -- exactly where grawlixes go, and
+        a balloon over them erases the oath."""
+
+        def source(marks: str) -> str:
+            return (
+                "{camera: {shot: medium_shot}, "
+                f"cast: {{a: {{reference: alice, at: right_third, marks: {marks}}}}}, "
+                "script: [{say: {by: a, text: 'What the--', prefer: top_right}}]}"
+            )
+
+        bare = compile_source(source("[]")).core
+        marked = compile_source(source("[grawlixes]")).core
         zone = _union(marked.actor("a").emanata_zones)
 
         assert _covered(bare, zone) > 0, "the case only tests something if it collides"
@@ -333,6 +343,27 @@ class TestBalloonsKeepOffThem:
 
     def test_with_no_marks_the_term_is_exactly_zero(self):
         assert _emanata_cost(BBox(0, 0, 100, 100), []) == 0.0
+
+
+class TestCropping:
+    """The camera frames by body landmarks and makes no room for marks -- that is the
+    price of their never moving anybody. So when a mark runs off the panel, the author
+    is told rather than left to wonder where it went."""
+
+    def test_a_cropped_mark_is_reported(self):
+        result = compile_source(_source("[grawlixes]", shot="medium_close_up"))
+        assert any("a's grawlixes" in note and "panel" in note for note in result.notes)
+
+    def test_a_mark_that_fits_is_not(self):
+        result = compile_source(_source("[grawlixes]", shot="medium_shot"))
+        assert not any("grawlixes" in note for note in result.notes)
+
+    def test_each_cropped_mark_is_named(self):
+        """Briffits at a medium shot are below the frame entirely, which is worth
+        knowing when you asked for them -- and is a different fact from grawlixes."""
+        result = compile_source(_source("[briffits, grawlixes]", shot="medium_close_up"))
+        assert any("briffits" in note for note in result.notes)
+        assert any("grawlixes" in note for note in result.notes)
 
 
 class TestPanelCore:
@@ -389,13 +420,16 @@ def _with_marks(panel: PanelIR, marks: tuple[Mark, ...]) -> PanelIR:
     return panel.model_copy(update={"cast": cast})
 
 
-def _union(zones: Sequence[Sequence[Point]] | Sequence[Sequence[tuple[float, float]]]) -> Polygon:
+def _union(
+    zones: Sequence[Sequence[Point]] | Sequence[Sequence[tuple[float, float]]],
+) -> BaseGeometry:
+    """Every zone of one actor as one shape -- a union of polygons, not one polygon."""
     return unary_union(
         [Polygon([(p.x, p.y) if isinstance(p, Point) else p for p in zone]) for zone in zones]
     )
 
 
-def _covered(core: PanelCore, zone: Polygon) -> float:
+def _covered(core: PanelCore, zone: BaseGeometry) -> float:
     """How much of the zone the panel's balloons sit on."""
     return sum(
         box(item.box.x, item.box.y, item.box.x + item.box.width, item.box.y + item.box.height)

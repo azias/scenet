@@ -12,3 +12,8 @@ coordinates. The solver sees only this contract, never artwork.
 
 ```{automodule} scenet.assets.kinematics
 ```
+
+## `scenet.assets.emanata`
+
+```{automodule} scenet.assets.emanata
+```

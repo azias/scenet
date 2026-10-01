@@ -28,6 +28,30 @@ slower and worse. Balloons belong in a small number of sensible positions relati
 So candidates are generated map-labelling style — a ring of directions and radii around the
 speaker's head, plus the panel corners — and scored. Fewer evaluations, more natural results.
 
+## Emanata are a soft cost, not part of the hull
+
+Plewds, squeans, grawlixes and briffits are drawn outside the head circle, which is exactly where
+balloons go, so they had to mean something to the solver. There were three choices:
+
+- **Enter the hull.** The simplest, and wrong. The hull is also what staging spaces characters by
+  and what the camera fits, so a character who started sweating would stand further from everyone
+  else, and the framing could retreat. A mark would move people the author never asked to move.
+- **Forbid them outright, as a face is.** A face exclusion is affordable because a face is one small
+  disc that tails already route around. Emanata ring the head and sit on the ground behind it; making
+  all of that illegal turns a crowded panel into `BalloonPlacementError` over a drop of sweat.
+- **A cost of their own.** Each mark has a zone, and a balloon or caption pays for the fraction of
+  its box that covers one — the same normalisation as hull occlusion, weighted above it, because a
+  balloon over a shoulder hides a shoulder and a balloon over a plewd deletes what the panel was
+  saying. The speaker gets no discount: their balloon over their own sweat still hides it.
+
+The third is what shipped. Its proof is in `tests/test_emanata.py`: every example in the repository,
+recompiled with every mark on every cast member, puts every figure exactly where it was and still
+compiles; and a panel without marks is byte-identical to one compiled before marks existed.
+
+The cost of not moving anybody is that the camera makes no room either, so marks over the tallest
+head can be cropped at a tight shot. That is reported as a note rather than silently drawn off the
+page.
+
 ## Text metrics are a hard dependency, not a detail
 
 A balloon's size is a function of its text, wrapped at some measure, in a specific font. Nothing

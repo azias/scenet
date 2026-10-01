@@ -112,7 +112,7 @@
     },
     "CastMember": {
       "additionalProperties": false,
-      "description": "One character present in the panel.\n\nAttributes:\n    reference: Name of a puppet in the library. This is what gets drawn; the key\n        this member is filed under in `cast` is the actor id used everywhere else.\n    pose: Named pose from that puppet's declared set.\n    expression: Named expression from that puppet's declared set. Selected by name\n        exactly as a pose is, because a face is the same kind of thing as a body:\n        a small closed set of arrangements the character can be in.\n    at: Preferred horizontal anchor.\n    facing: Which way the figure is turned.\n\nThe split between actor id and `reference` is what lets one puppet appear twice in\na panel as two different people:\n\n    cast:\n      guard_left:  {reference: bob, pose: arms_crossed}\n      guard_right: {reference: bob, pose: standing_neutral, facing: left}",
+      "description": "One character present in the panel.\n\nAttributes:\n    reference: Name of a puppet in the library. This is what gets drawn; the key\n        this member is filed under in `cast` is the actor id used everywhere else.\n    pose: Named pose from that puppet's declared set.\n    expression: Named expression from that puppet's declared set. Selected by name\n        exactly as a pose is, because a face is the same kind of thing as a body:\n        a small closed set of arrangements the character can be in.\n    marks: Emanata drawn around the character -- sweat, dizziness, swearing, a\n        hasty exit. A list, because they compose with each other and with the\n        expression. Kept sorted, so the order they were written in never\n        changes the output.\n    at: Preferred horizontal anchor.\n    facing: Which way the figure is turned.\n\nThe split between actor id and `reference` is what lets one puppet appear twice in\na panel as two different people:\n\n    cast:\n      guard_left:  {reference: bob, pose: arms_crossed}\n      guard_right: {reference: bob, pose: standing_neutral, facing: left}",
       "properties": {
         "at": {
           "$ref": "#/$defs/AnchorX",
@@ -126,6 +126,14 @@
         "facing": {
           "$ref": "#/$defs/Facing",
           "default": "right"
+        },
+        "marks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Mark"
+          },
+          "title": "Marks",
+          "type": "array"
         },
         "pose": {
           "default": "standing_neutral",
@@ -160,6 +168,17 @@
         "low"
       ],
       "title": "Horizon",
+      "type": "string"
+    },
+    "Mark": {
+      "description": "Something drawn around a character, rather than on them, to say how they are.\n\nThe vocabulary is Mort Walker's, from *The Lexicon of Comicana* (1980), which grew\nout of his 1964 National Cartoonists Society piece \"Let's Get Down to Grawlixes\".\nThe book is tongue-in-cheek, but the terms entered real use, and they are comics'\nown names for comics' own conventions. So the set is closed and citable, and nothing\nin it is invented here.\n\n| Mark | What it is | What it says |\n|---|---|---|\n| `plewds` | Droplets flying off the head | sweating: effort, heat, nerves |\n| `squeans` | Little starbursts and circles over the head | dizzy, drunk, or sick |\n| `grawlixes` | Symbols over the head standing in for words | swearing |\n| `briffits` | A dust cloud left at the feet | gone, fast |\n\n\"Emanata\" is Walker's general term for these, which is why it names the module that\ndraws them and the Core field that holds them.\n\nA mark is not an expression. A character can be angry *and* sweating, so marks are\na list that composes with `expression:` rather than a second one. Grawlixes are\ndrawn as symbols -- a jarn (spiral), a nittle (bursting star), a bolt and a hash --\nrather than typed: an oath written as `@#$%!` already works, as dialogue.\n\nAll four are drawn **outside** the head circle, in the space balloons are placed\nin. They never move a character. A balloon prefers not to cover them, and covers\nthem anyway rather than fail when a panel is too crowded to oblige.",
+      "enum": [
+        "plewds",
+        "squeans",
+        "grawlixes",
+        "briffits"
+      ],
+      "title": "Mark",
       "type": "string"
     },
     "Mass": {
@@ -237,7 +256,7 @@
     },
     "PartialCastMember": {
       "additionalProperties": false,
-      "description": "One character present in the panel.\n\nAttributes:\n    reference: Name of a puppet in the library. This is what gets drawn; the key\n        this member is filed under in `cast` is the actor id used everywhere else.\n    pose: Named pose from that puppet's declared set.\n    expression: Named expression from that puppet's declared set. Selected by name\n        exactly as a pose is, because a face is the same kind of thing as a body:\n        a small closed set of arrangements the character can be in.\n    at: Preferred horizontal anchor.\n    facing: Which way the figure is turned.\n\nThe split between actor id and `reference` is what lets one puppet appear twice in\na panel as two different people:\n\n    cast:\n      guard_left:  {reference: bob, pose: arms_crossed}\n      guard_right: {reference: bob, pose: standing_neutral, facing: left}\n\nIn a scene any of these may be inherited, so none is required here.",
+      "description": "One character present in the panel.\n\nAttributes:\n    reference: Name of a puppet in the library. This is what gets drawn; the key\n        this member is filed under in `cast` is the actor id used everywhere else.\n    pose: Named pose from that puppet's declared set.\n    expression: Named expression from that puppet's declared set. Selected by name\n        exactly as a pose is, because a face is the same kind of thing as a body:\n        a small closed set of arrangements the character can be in.\n    marks: Emanata drawn around the character -- sweat, dizziness, swearing, a\n        hasty exit. A list, because they compose with each other and with the\n        expression. Kept sorted, so the order they were written in never\n        changes the output.\n    at: Preferred horizontal anchor.\n    facing: Which way the figure is turned.\n\nThe split between actor id and `reference` is what lets one puppet appear twice in\na panel as two different people:\n\n    cast:\n      guard_left:  {reference: bob, pose: arms_crossed}\n      guard_right: {reference: bob, pose: standing_neutral, facing: left}\n\nIn a scene any of these may be inherited, so none is required here.",
       "properties": {
         "at": {
           "$ref": "#/$defs/AnchorX",
@@ -251,6 +270,14 @@
         "facing": {
           "$ref": "#/$defs/Facing",
           "default": "right"
+        },
+        "marks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Mark"
+          },
+          "title": "Marks",
+          "type": "array"
         },
         "pose": {
           "default": "standing_neutral",

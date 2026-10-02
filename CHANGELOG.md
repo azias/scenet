@@ -46,6 +46,11 @@ below 1.0 means.
   a how-to for each kind of client, and two entries in prior art: WordsEye, the ancestor of
   text-to-scene, and Gumin et al. 2025, the strongest argument against a declarative
   language, recorded for what it actually found. (#11)
+- `scripts/cast_experiment.py` measures how Gemini's structured output copes with the panel
+  schema. It settled the question #11 left open: `cast` as a mapping works as well as a
+  flattened list under `responseJsonSchema`, so there is no `scenet schema --agent`. The
+  how-to now names that field rather than `responseSchema`, which cannot express a mapping
+  cast at all. (#11)
 
 ### Changed
 

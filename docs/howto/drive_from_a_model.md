@@ -156,9 +156,8 @@ before exposing it further.
 
 ## An API with structured output
 
-APIs that constrain a model's output to a JSON Schema — Gemini's `responseSchema`, for one —
-can take the panel schema directly, so the model emits a document with no formatting risk at
-all:
+APIs that constrain a model's output to a JSON Schema can take the panel schema directly, so the
+model emits a document with no formatting risk at all:
 
 ```bash
 scenet schema -o panel.schema.json
@@ -167,9 +166,21 @@ scenet schema -o panel.schema.json
 The schema describes the syntax people write, not an intermediate form, and JSON is valid YAML:
 save the output as `name.panel.yaml` and it compiles as it is.
 
-Two caveats. **Schema conformance is not validity**: no schema can say that every actor id in
-`staging` exists in `cast`, or that `left_of` does not loop, and those are exactly what a
-generator gets wrong. Always run `scenet check`, or the `validate` tool, on the result. And
-whether this schema suits a given provider's constrained decoding is untested here — providers
-document that very large or deeply nested schemas may be rejected, and say little more. Measuring
-that is tracked in [#11](https://github.com/creatoan/scenet/issues/11).
+**With Gemini, send it as `responseJsonSchema`, not `responseSchema`.** The two fields take
+different schema languages. `responseJsonSchema` takes JSON Schema, and the panel schema goes in
+unchanged. `responseSchema` takes an older OpenAPI subset that refuses `$defs`, `$ref` and
+`additionalProperties` outright, and without `additionalProperties` it has no way to say what the
+values of `cast` are: a model constrained by it writes `cast: {}` every time.
+
+This was measured, not assumed: 26 panel descriptions drawn from the gallery, each answered under
+every variant, carried through validation and a full compile
+([#11](https://github.com/creatoan/scenet/issues/11), `scripts/cast_experiment.py`). Under
+`responseJsonSchema` every answer conformed to the schema and validated, `cast` written as a
+mapping did as well as a list of members with an `id`, and `additionalProperties: false` changed
+nothing. The answers that failed to compile named a pose or an expression the character does not
+have.
+
+**Schema conformance is not validity**: no schema can say that every actor id in `staging`
+exists in `cast`, that `left_of` does not loop, or that a pose belongs to the character wearing
+it, and those are exactly what a generator gets wrong. Always run `scenet check`, or the
+`validate` tool, on the result.

@@ -10,6 +10,12 @@ below 1.0 means.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-02
+
+Models can now be told how to write Scenet, and can check what they wrote: a spec pack, an
+Agent Skill and an MCP server. A comic's marks — sweat, dizziness, oaths, dust — join the
+language, and diagnostics in comic scripts and shared casts now point at the right line.
+
 ### Added
 
 - **Emanata: what a comic draws around a character.** A cast member takes `marks:`, a list

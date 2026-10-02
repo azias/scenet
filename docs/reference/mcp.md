@@ -126,5 +126,5 @@ connect in process or mount it inside a server of its own.
 describes the server for the [official MCP registry](https://github.com/modelcontextprotocol/registry),
 which holds metadata only and points at the package on PyPI. Ownership of the
 `io.github.creatoan/scenet` namespace is proved by the `mcp-name` marker in the README, which
-becomes the PyPI project description. Publishing is a maintainer step; see
-[releasing](../maintainer/releasing.md).
+becomes the PyPI project description. Listing a release is done by a workflow; see
+[releasing](../maintainer/releasing.md#listing-in-the-mcp-registry).

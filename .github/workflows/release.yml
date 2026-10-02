@@ -243,3 +243,23 @@ jobs:
           else
             gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file release-notes.md dist/*
           fi
+
+  # Last, and nothing waits on it: a listing that fails leaves a complete release behind,
+  # and can be re-run from the Actions tab (MCP Registry -> Run workflow) without touching
+  # the tag. Skipped until the repository variable MCP_REGISTRY_PUBLISH is "true"; see
+  # registry.yml for why this is a workflow identity and not a person's login.
+  #
+  #     gh variable set MCP_REGISTRY_PUBLISH --body true
+  registry:
+    name: List in the MCP registry
+    needs: [publish, github-release]
+    if: >-
+      vars.MCP_REGISTRY_PUBLISH == 'true'
+      && needs.publish.result == 'success'
+      && needs.github-release.result == 'success'
+    permissions:
+      contents: read
+      id-token: write # the OIDC credential, for this job only
+    uses: ./.github/workflows/registry.yml
+    with:
+      tag: ${{ github.ref_name }}

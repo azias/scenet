@@ -102,20 +102,48 @@ It is a real trade. Releases stop being synchronous, which matters when the pers
 tagged is not around to approve; and the gate protects against a mistake that cannot be
 undone. Decide once, deliberately, rather than discovering it mid-release.
 
-## Publishing to the MCP registry
+## Listing in the MCP registry
 
 Optional, and after PyPI has the release. The
 [official MCP registry](https://github.com/modelcontextprotocol/registry) stores metadata only:
 `server.json` describes how to launch `scenet mcp` from the PyPI package, and the registry checks
 that the package's description — the README — carries the `mcp-name` marker for the
-`io.github.creatoan/scenet` namespace. Ownership of that namespace is proved by signing in as the
-GitHub organisation that owns the repository:
+`io.github.creatoan/scenet` namespace.
+
+**This is done by a workflow, not from a laptop.** `mcp-publisher login github` — the interactive
+login — fails for an organisation namespace: the registry's GitHub App is not installed on the
+organisation, so the registry sees only `io.github.<your-user>/*` and answers 403 for
+`io.github.creatoan/*`, whatever the role and whatever the membership visibility. That is an open
+upstream bug reported by several people
+([#1468](https://github.com/modelcontextprotocol/registry/issues/1468),
+[#1537](https://github.com/modelcontextprotocol/registry/issues/1537),
+[#1649](https://github.com/modelcontextprotocol/registry/issues/1649)). The workflow,
+`.github/workflows/registry.yml`, logs in the other way the registry supports — GitHub's OIDC token,
+which proves the namespace through the repository it runs in — and needs no secret.
+
+To list a release that already exists, once: **Actions → MCP Registry → Run workflow**, giving the
+tag (`v0.8.0`). To list every future release automatically, set the opt-in variable, which makes
+`release.yml` call the same workflow after the release is out:
 
 ```bash
-mcp-publisher login github
-mcp-publisher publish --dry-run   # validate first
-mcp-publisher publish
+gh variable set MCP_REGISTRY_PUBLISH --body true
 ```
+
+Nothing waits on it: a failed listing leaves a complete release and can be re-run from the Actions
+tab. Leave the variable unset until a hand-run has succeeded once — that login route is unproven
+for this namespace until it has.
+
+The workflow checks that `server.json` names the tag's version and that the version is on PyPI,
+then runs `mcp-publisher validate`, `login github-oidc` and `publish`. **`publish` has no dry-run
+flag**: an unknown flag is ignored, so `publish --dry-run` publishes. Use `validate`, which checks
+the manifest against the live registry and changes nothing.
+
+`mcp-publisher` is pinned to a version and a SHA-256 in the workflow, because it runs with the
+credential in reach. To update it, download the new `linux_amd64` tarball, check it, and replace
+both values.
+
+A listing can be withdrawn. `mcp-publisher status --status deprecated|deleted <name> <version>`
+(or `--all-versions`) changes a version's status, with an optional `--message`.
 
 ## PyPI is opt-in
 

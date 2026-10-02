@@ -246,6 +246,7 @@ A mapping of actor id to properties. Ids are chosen by the author and referenced
 | `reference` | asset name | Which puppet to pull from the library |
 | `pose` | pose name | A named joint configuration declared by that puppet |
 | `expression` | expression name | A named face declared by that puppet |
+| `marks` | list of marks | Emanata drawn around the character: `plewds`, `squeans`, `grawlixes`, `briffits` |
 | `at` | anchor | Horizontal placement preference |
 | `facing` | `left`, `right` | Which way the figure is turned |
 
@@ -262,6 +263,49 @@ and how to give your own puppet one, is in the [asset contract](https://creatoan
 A character's pupils follow whoever they are `looking_at`. Nothing else about the face depends on the
 rest of the panel, and nothing about the face changes the layout: to the solver a face is still one
 disc that balloons may not cover.
+
+### `marks`
+
+```yaml
+cast:
+  alice: {reference: alice, expression: angry, marks: [grawlixes, plewds]}
+```
+
+`marks` are what a comic draws *around* a character rather than on them. The vocabulary is Mort
+Walker's, from *The Lexicon of Comicana*, and it is closed:
+
+| Mark | What is drawn | What it says |
+|---|---|---|
+| `plewds` | Droplets flying off the head, mostly off the back | sweating: effort, heat, nerves |
+| `squeans` | Little starbursts and circles in an arc over the head | dizzy, drunk, or sick |
+| `grawlixes` | A spiral, a star, a bolt and a `#` over the head | swearing |
+| `briffits` | Puffs of dust at the feet, behind the figure | gone, fast |
+
+They are a **list**, not a second `expression:`, because they compose: a character can be angry *and*
+sweating. Order does not matter, and a mark listed twice is an error. They need nothing from the
+puppet — every mark is placed from the face circle, the facing and the feet — so every character can
+have every mark. In a scene, `marks: []` under `over:` clears the ones a panel inherited, because
+lists replace rather than merge.
+
+Emanata are drawn **outside** the head, in the space balloons are placed in, so unlike a face they
+matter to the layout — but only softly:
+
+- **They never move anybody.** They stay out of the hull, so staging, the camera and every figure are
+  exactly where they would be without them.
+- **A balloon prefers not to cover them.** Each mark has a zone the solver reads as a cost, weighted
+  above covering a body, with no forgiveness for the speaker. A crowded panel still compiles: a balloon
+  covers a mark before it fails.
+- **The camera makes no room for them.** It frames by body landmarks, so a tight shot — or the head of
+  the tallest character, which the frame is fitted to — can crop marks over the head, and a shot that
+  cuts at the waist leaves briffits below the frame. `scenet build` reports any mark that runs off the
+  panel.
+
+At a wide framing a plewd is a dot: below a head size, each mark collapses to a dot where it would
+have been drawn, and a character too small to have a face has no marks at all. See the
+[asset contract](https://creatoan.github.io/scenet/reference/asset_contract.html#emanata).
+
+An oath written in a balloon — `"@#$%!"` — is dialogue, and already works. `grawlixes` is the other
+convention, the symbols over a head.
 
 `reference`, `pose` and `expression` are validated against the puppet library, not just against the
 language's own grammar — a misspelled pose is a perfectly good string as far as the grammar is

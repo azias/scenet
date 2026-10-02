@@ -135,6 +135,39 @@ dozen panel units across, and five features inside it stop being a face and beco
 is why a cartoonist leaves them out too. `scripts/contact_sheet.py` renders every expression at every
 shot type onto one page, which is the only way to decide where that threshold belongs.
 
+## Emanata
+
+Marks drawn **around** a character — plewds, squeans, grawlixes, briffits; see
+[the language reference](language.md#marks). A puppet declares nothing for them. Each is placed from
+three things every puppet already exposes: the face circle, the facing direction, and the `feet`
+landmark. So hand-drawn artwork meets this part of the contract for free.
+
+They are drawn with the same two primitives as a face — sampled strokes and discs — and, like a face,
+resolved to numbers in Panel Core so the emitter makes no decision. What differs is where they sit:
+**outside** the face circle, which is what makes them the solver's business. Each mark therefore
+also yields a **zone**, a padded convex polygon around everything it draws, and the zone is all the
+solver ever sees of it.
+
+| Mark | Placed |
+|---|---|
+| `plewds` | Three drops just past the face circle — two off the back of the head, one off the front |
+| `squeans` | Five symbols in an arc over the head |
+| `grawlixes` | Four symbols in an arc over the head |
+| `briffits` | Puffs on the ground behind the figure, and two trailing strokes |
+
+Zones are **not** in the hull. The hull is what staging spaces characters by and what the camera
+fits; a character who starts sweating must not stand further from everyone else. Zones are a
+separate soft cost instead — see [design decisions](../explanation/design_decisions.md).
+
+### Level of detail
+
+Two thresholds on the face radius. At or above `MIN_EMANATA_DETAIL`, marks are drawn in full. Below
+it, each symbol collapses to a filled dot where it would have been — a plewd at `long_shot` is a dot
+— except briffit puffs, which are already as simple as a puff of dust gets, and their trailing
+strokes, which are dropped. Below the face's own threshold nothing is drawn: a character too small to
+have a face is too small to be sweating. `scripts/contact_sheet.py --marks` renders every mark across
+the shot ladder, which is where the first threshold was set.
+
 ## Derived at compile time
 
 Forward kinematics resolves the skeleton into, per actor:
@@ -147,6 +180,8 @@ Forward kinematics resolves the skeleton into, per actor:
 | Gaze vector | Balloon placement bias, `looking_at` resolution |
 | Gaze *aim* | Pupil direction. Computed after placement, since it needs both actors |
 | Face marks | Rendering only. The solver never sees them |
+| Emanata | Rendering |
+| Emanata zones | Balloon and caption placement (soft cost). Never staging, never the camera |
 | Bounding polygon (hull) | Occlusion cost, inter-actor spacing |
 
 Face marks are **not** in the hull. The head blob already is, and the features sit inside it, so a

@@ -70,3 +70,6 @@ examples:
   - file: 22-caption-tones.panel.yaml
     title: "Caption tones, and what they read against"
     kind: panel
+  - file: 23-emanata.scene.yaml
+    title: "Emanata: sweat, dizziness, oaths and dust"
+    kind: scene

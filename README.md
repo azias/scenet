@@ -95,7 +95,7 @@ computational geometry. The same input always produces byte-identical output.
 
 **Alpha — panels and sequences compile end to end, from the command line, the
 browser, or an editor.** Framing, actor placement, balloon
-and caption placement, reading order, tail routing, drawn faces, tonal backdrops
+and caption placement, reading order, tail routing, drawn faces and the marks around them, tonal backdrops
 and SVG emission all
 work, from either of two frontends. Not yet built: page composition (tiers, panels of varying size) and the
 interpretation layer that would give a panel a *style*. See
@@ -132,7 +132,7 @@ same Python, unmodified — in your browser under WebAssembly via
 wheel `uv build` produces, so there is no second copy of the geometry to drift out of step.
 
 Its worked examples cover every shot type, every balloon kind, every caption kind, every
-expression, every mass kind and place, both frontends and the constraint priorities. Each one is a real file under
+expression and mark, every mass kind and place, both frontends and the constraint priorities. Each one is a real file under
 [`examples/gallery/`](examples/gallery/) that the test suite compiles, so the playground
 cannot offer an example that does not work.
 

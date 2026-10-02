@@ -269,6 +269,29 @@ preserve the space the art establishes, keep the reading order flowing. All thre
 implemented for balloons, which is the argument for captions going through the same solver rather
 than a parallel one.
 
+### Mort Walker, *The Lexicon of Comicana* (1980)
+
+[Wikipedia](https://en.wikipedia.org/wiki/The_Lexicon_of_Comicana) ·
+[Internet Archive](https://archive.org/details/lexicon-of-comicana)
+
+Walker's catalogue of the marks comics draw around characters and objects, grown out of his 1964
+National Cartoonists Society piece "Let's Get Down to Grawlixes" and since reprinted by New York
+Review Comics. It is written tongue-in-cheek, but the terms entered real use, appear in dictionaries
+and are taught in art schools — comics-native, closed and citable, the same three properties that
+made Comic Chat the source for faces and Blambot the source for captions.
+
+Taken: **the `marks` vocabulary**. `plewds` (flying sweat), `squeans` (starbursts and circles for
+dizziness or drink), `grawlixes` (symbols standing in for an oath) and `briffits` (the dust cloud of a
+hasty exit), with *emanata*, his general term, naming the module and the Core field that draw them.
+
+Strictly, Walker's word for the whole family of swearing symbols is *maladicta*, and within it
+grawlixes are the squiggles, jarns the spirals, nittles the bursting stars and quimps the astrological
+signs. "Grawlix" has since come to mean the whole set, which is the sense the mark is named in; what
+it draws is a jarn, a nittle, a bolt and a hash.
+
+Not taken, yet: the rest of the Lexicon — agitrons, solrads, waftaroms and the others. Most attach to
+objects rather than to a character's state, and the language has no objects.
+
 ## Future
 
 ### L-systems

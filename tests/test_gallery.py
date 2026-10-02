@@ -21,6 +21,7 @@ from scenet import (
     CaptionKind,
     CaptionTone,
     Horizon,
+    Mark,
     MassKind,
     Place,
     PlacementZone,
@@ -135,6 +136,13 @@ class TestTheGalleryCoversTheLanguage:
         text = self._all_text()
         names = sorted(default_library().get("alice").expressions)
         missing = [name for name in names if name not in text]
+        assert missing == []
+
+    def test_every_mark_appears(self):
+        """Emanata are drawn outside the head, where balloons go, so each one is a
+        layout question as well as a drawing one. Both get looked at here."""
+        text = self._all_text()
+        missing = [mark.value for mark in Mark if mark.value not in text]
         assert missing == []
 
     @pytest.mark.parametrize(

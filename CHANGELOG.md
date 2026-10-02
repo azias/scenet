@@ -12,6 +12,21 @@ below 1.0 means.
 
 ### Added
 
+- **Emanata: what a comic draws around a character.** A cast member takes `marks:`, a list
+  from Mort Walker's *Lexicon of Comicana*: `plewds` (sweat flying off the head), `squeans`
+  (dizziness), `grawlixes` (an oath, as a spiral, a star, a bolt and a hash) and `briffits`
+  (the dust of a hasty exit). A list rather than a second `expression:`, because they compose
+  — a character can be angry *and* sweating. Every puppet gets every mark; nothing new is
+  declared per puppet. At `long_shot` each mark collapses to a dot, and a figure too small to
+  have a face has none. (#21)
+- **Marks cost a balloon space, and never move anybody.** They are drawn outside the head,
+  where balloons go, so each mark has a zone that balloons and captions pay to cover —
+  weighted above covering a body, with no discount for the speaker. They stay out of the
+  hull, so staging, the camera and every figure are exactly where they would be without them,
+  and a crowded panel still compiles. The camera makes no room for them either, so a mark
+  cropped by a tight shot is reported in the compile notes. The debug overlay draws the zones.
+- `scripts/contact_sheet.py --marks` renders every mark across the shot ladder, and the
+  gallery gains `23-emanata.scene.yaml`.
 - **A way to tell a model how to write Scenet.** The **spec pack** puts the language
   reference, the shot types, the comic-script format, the shipped characters, every
   diagnostic rule, the JSON Schema and the whole gallery in one file, published at
@@ -31,6 +46,13 @@ below 1.0 means.
   a how-to for each kind of client, and two entries in prior art: WordsEye, the ancestor of
   text-to-scene, and Gumin et al. 2025, the strongest argument against a declarative
   language, recorded for what it actually found. (#11)
+
+### Changed
+
+- **Panel Core actors gain `marks`, `emanata` and `emanata_zones`.** All default to empty, so
+  `format_version` stays 1 and a Core document written before them still reads. Every actor
+  now serialises the three keys, so a golden file captured against 0.7.0 will differ by them
+  — and by nothing else: every example in the repository lays out byte-identically.
 
 ### Fixed
 

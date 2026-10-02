@@ -15,7 +15,7 @@ from typing import Any, Literal, Self
 from pydantic import BaseModel, ConfigDict
 
 from scenet.geom import PRECISION, BBox, Circle, Point, Vector, rounded
-from scenet.ir import BalloonKind, CaptionKind, MassKind, Plane, TimeOfDay, Weather
+from scenet.ir import BalloonKind, CaptionKind, Mark, MassKind, Plane, TimeOfDay, Weather
 
 CORE_FORMAT_VERSION = 1
 
@@ -188,7 +188,8 @@ class FaceDisc(CoreModel):
     width: float = 0.0
 
 
-#: One mark on a drawn face. Tagged by a defaulted literal rather than a pydantic
+#: One mark on a drawn face, or of the emanata drawn around it -- they are made of the
+#: same two primitives. Tagged by a defaulted literal rather than a pydantic
 #: discriminator, for the same reason `ScriptEvent` is: a discriminator would require
 #: the tag in every hand-written document.
 FaceMark = FaceStroke | FaceDisc
@@ -333,6 +334,14 @@ class CoreActor(CoreModel):
         face_marks: The drawn face -- brows, eyes, pupils, nose, mouth -- as resolved
             numeric primitives. Empty when the puppet declares no features, or when
             the figure is too small for features to read as anything but a smudge.
+        marks: Which emanata were asked for -- `plewds`, `grawlixes`, and so on.
+        emanata: The marks drawn around the character, as the same strokes and discs
+            a face is made of. Empty when there are no marks, or when the figure is too
+            small to have a face. Ids are numbered per mark: `plewd_0`, `plewd_1`, ...
+        emanata_zones: One polygon per mark, enclosing what it draws. Balloons and
+            captions pay to cover these and are never forbidden to. Kept apart from
+            `hull` on purpose: the hull is what staging spaces characters by, and a
+            character who starts sweating must not move.
         hull: Convex silhouette, used for the soft occlusion cost.
         capsules: Limb segments, as thick rounded lines.
         blobs: Rounded masses such as the head.
@@ -350,6 +359,9 @@ class CoreActor(CoreModel):
     expression: str = "neutral"
     gaze_aim: tuple[float, float] | None = None
     face_marks: tuple[FaceMark, ...] = ()
+    marks: tuple[Mark, ...] = ()
+    emanata: tuple[FaceMark, ...] = ()
+    emanata_zones: tuple[tuple[tuple[float, float], ...], ...] = ()
     capsules: tuple[Capsule, ...] = ()
     blobs: tuple[Blob, ...] = ()
     # Painter's order: lower values are drawn first, so higher values sit in front.

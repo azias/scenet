@@ -323,6 +323,7 @@ A mapping of actor id to properties. Ids are chosen by the author and referenced
 | `reference` | asset name | Which puppet to pull from the library |
 | `pose` | pose name | A named joint configuration declared by that puppet |
 | `expression` | expression name | A named face declared by that puppet |
+| `marks` | list of marks | Emanata drawn around the character: `plewds`, `squeans`, `grawlixes`, `briffits` |
 | `at` | anchor | Horizontal placement preference |
 | `facing` | `left`, `right` | Which way the figure is turned |
 
@@ -339,6 +340,49 @@ and how to give your own puppet one, is in the [asset contract](https://creatoan
 A character's pupils follow whoever they are `looking_at`. Nothing else about the face depends on the
 rest of the panel, and nothing about the face changes the layout: to the solver a face is still one
 disc that balloons may not cover.
+
+### `marks`
+
+```yaml
+cast:
+  alice: {reference: alice, expression: angry, marks: [grawlixes, plewds]}
+```
+
+`marks` are what a comic draws *around* a character rather than on them. The vocabulary is Mort
+Walker's, from *The Lexicon of Comicana*, and it is closed:
+
+| Mark | What is drawn | What it says |
+|---|---|---|
+| `plewds` | Droplets flying off the head, mostly off the back | sweating: effort, heat, nerves |
+| `squeans` | Little starbursts and circles in an arc over the head | dizzy, drunk, or sick |
+| `grawlixes` | A spiral, a star, a bolt and a `#` over the head | swearing |
+| `briffits` | Puffs of dust at the feet, behind the figure | gone, fast |
+
+They are a **list**, not a second `expression:`, because they compose: a character can be angry *and*
+sweating. Order does not matter, and a mark listed twice is an error. They need nothing from the
+puppet — every mark is placed from the face circle, the facing and the feet — so every character can
+have every mark. In a scene, `marks: []` under `over:` clears the ones a panel inherited, because
+lists replace rather than merge.
+
+Emanata are drawn **outside** the head, in the space balloons are placed in, so unlike a face they
+matter to the layout — but only softly:
+
+- **They never move anybody.** They stay out of the hull, so staging, the camera and every figure are
+  exactly where they would be without them.
+- **A balloon prefers not to cover them.** Each mark has a zone the solver reads as a cost, weighted
+  above covering a body, with no forgiveness for the speaker. A crowded panel still compiles: a balloon
+  covers a mark before it fails.
+- **The camera makes no room for them.** It frames by body landmarks, so a tight shot — or the head of
+  the tallest character, which the frame is fitted to — can crop marks over the head, and a shot that
+  cuts at the waist leaves briffits below the frame. `scenet build` reports any mark that runs off the
+  panel.
+
+At a wide framing a plewd is a dot: below a head size, each mark collapses to a dot where it would
+have been drawn, and a character too small to have a face has no marks at all. See the
+[asset contract](https://creatoan.github.io/scenet/reference/asset_contract.html#emanata).
+
+An oath written in a balloon — `"@#$%!"` — is dialogue, and already works. `grawlixes` is the other
+convention, the symbols over a head.
 
 `reference`, `pose` and `expression` are validated against the puppet library, not just against the
 language's own grammar — a misspelled pose is a perfectly good string as far as the grammar is
@@ -1063,7 +1107,7 @@ Conforming to it is necessary, not sufficient: see the note on schema validity i
     },
     "CastMember": {
       "additionalProperties": false,
-      "description": "One character present in the panel.\n\nAttributes:\n    reference: Name of a puppet in the library. This is what gets drawn; the key\n        this member is filed under in `cast` is the actor id used everywhere else.\n    pose: Named pose from that puppet's declared set.\n    expression: Named expression from that puppet's declared set. Selected by name\n        exactly as a pose is, because a face is the same kind of thing as a body:\n        a small closed set of arrangements the character can be in.\n    at: Preferred horizontal anchor.\n    facing: Which way the figure is turned.\n\nThe split between actor id and `reference` is what lets one puppet appear twice in\na panel as two different people:\n\n    cast:\n      guard_left:  {reference: bob, pose: arms_crossed}\n      guard_right: {reference: bob, pose: standing_neutral, facing: left}",
+      "description": "One character present in the panel.\n\nAttributes:\n    reference: Name of a puppet in the library. This is what gets drawn; the key\n        this member is filed under in `cast` is the actor id used everywhere else.\n    pose: Named pose from that puppet's declared set.\n    expression: Named expression from that puppet's declared set. Selected by name\n        exactly as a pose is, because a face is the same kind of thing as a body:\n        a small closed set of arrangements the character can be in.\n    marks: Emanata drawn around the character -- sweat, dizziness, swearing, a\n        hasty exit. A list, because they compose with each other and with the\n        expression. Kept sorted, so the order they were written in never\n        changes the output.\n    at: Preferred horizontal anchor.\n    facing: Which way the figure is turned.\n\nThe split between actor id and `reference` is what lets one puppet appear twice in\na panel as two different people:\n\n    cast:\n      guard_left:  {reference: bob, pose: arms_crossed}\n      guard_right: {reference: bob, pose: standing_neutral, facing: left}",
       "properties": {
         "at": {
           "$ref": "#/$defs/AnchorX",
@@ -1077,6 +1121,14 @@ Conforming to it is necessary, not sufficient: see the note on schema validity i
         "facing": {
           "$ref": "#/$defs/Facing",
           "default": "right"
+        },
+        "marks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Mark"
+          },
+          "title": "Marks",
+          "type": "array"
         },
         "pose": {
           "default": "standing_neutral",
@@ -1111,6 +1163,17 @@ Conforming to it is necessary, not sufficient: see the note on schema validity i
         "low"
       ],
       "title": "Horizon",
+      "type": "string"
+    },
+    "Mark": {
+      "description": "Something drawn around a character, rather than on them, to say how they are.\n\nThe vocabulary is Mort Walker's, from *The Lexicon of Comicana* (1980), which grew\nout of his 1964 National Cartoonists Society piece \"Let's Get Down to Grawlixes\".\nThe book is tongue-in-cheek, but the terms entered real use, and they are comics'\nown names for comics' own conventions. So the set is closed and citable, and nothing\nin it is invented here.\n\n| Mark | What it is | What it says |\n|---|---|---|\n| `plewds` | Droplets flying off the head | sweating: effort, heat, nerves |\n| `squeans` | Little starbursts and circles over the head | dizzy, drunk, or sick |\n| `grawlixes` | Symbols over the head standing in for words | swearing |\n| `briffits` | A dust cloud left at the feet | gone, fast |\n\n\"Emanata\" is Walker's general term for these, which is why it names the module that\ndraws them and the Core field that holds them.\n\nA mark is not an expression. A character can be angry *and* sweating, so marks are\na list that composes with `expression:` rather than a second one. Grawlixes are\ndrawn as symbols -- a jarn (spiral), a nittle (bursting star), a bolt and a hash --\nrather than typed: an oath written as `@#$%!` already works, as dialogue.\n\nAll four are drawn **outside** the head circle, in the space balloons are placed\nin. They never move a character. A balloon prefers not to cover them, and covers\nthem anyway rather than fail when a panel is too crowded to oblige.",
+      "enum": [
+        "plewds",
+        "squeans",
+        "grawlixes",
+        "briffits"
+      ],
+      "title": "Mark",
       "type": "string"
     },
     "Mass": {
@@ -2321,4 +2384,79 @@ script:
   - caption: {text: "Noon. Nothing for miles.", kind: locale, tone: paper, prefer: top_left}
   - caption: {text: "She had walked since dawn.", kind: monologue, tone: pale, prefer: top_right}
   - caption: {text: "Continued next issue.", kind: editorial, tone: ink, prefer: bottom_right}
+```
+
+## Emanata: sweat, dizziness, oaths and dust
+
+`23-emanata.scene.yaml`
+
+```yaml
+# Emanata: what a comic draws around a character, rather than on them.
+#
+# Mort Walker named them in The Lexicon of Comicana, and four of his names are the
+# vocabulary: `plewds` fly off a sweating head, `squeans` circle a dizzy one,
+# `grawlixes` stand in for an oath, and `briffits` are the dust somebody leaves behind.
+#
+# They are a list, not a second `expression:`, because they compose -- Alice is scared
+# *and* sweating, angry *and* swearing.
+#
+# Unlike a face, they are drawn outside the head, in the space balloons go, so they
+# matter to the layout. How much is the decision this example shows: a balloon pays to
+# cover them, so in `oath` Alice's line settles beside her grawlixes rather than on
+# them. But they never move anybody. Strip every mark from this file and both
+# characters stand exactly where they stand now.
+#
+# That cuts both ways. The camera frames by the body and makes no room for marks, so
+# over the taller character's head, at this framing, they would run off the top of the
+# panel -- which is why they are on Alice. Try them on Bob: `scenet build` says so.
+
+panel:
+  size: [1000, 700]
+
+camera:
+  shot: medium_shot
+
+cast:
+  alice: {reference: alice, at: left_third}
+  bob:   {reference: bob,   pose: arms_crossed, at: right_third, facing: left}
+
+staging:
+  - alice left_of bob
+  - alice ground_shared_with bob
+  - alice looking_at bob
+  - bob looking_at alice
+
+panels:
+  heat:
+    cast:
+      alice: {expression: scared, marks: [plewds]}
+      bob:   {expression: angry}
+    script:
+      - say: {by: bob, text: "Where is my umbrella?"}
+
+  oath:
+    over: heat
+    cast:
+      alice: {expression: angry, marks: [grawlixes]}
+    script:
+      - say: {by: alice, text: "It was hideous!", prefer: top_left}
+
+  dizzy:
+    over: heat
+    cast:
+      alice: {expression: sad, marks: [squeans]}
+      bob:   {expression: bored}
+    script:
+      - say: {by: alice, text: "I spun it round. Very fast. Then it was gone."}
+
+  gone:
+    camera: {shot: full_shot}
+    cast:
+      alice: {expression: surprise}
+      bob:   {pose: pointing, expression: shouting, marks: [briffits], facing: right}
+    staging:
+      - alice left_of bob
+      - alice ground_shared_with bob
+    script:
+      - say: {by: alice, text: "Bob?"}
 ```

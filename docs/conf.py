@@ -14,6 +14,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+# The MCP SDK is imported here, before any extension runs, and not left for autodoc to
+# reach. sphinx-autodoc-typehints executes the `if TYPE_CHECKING:` block of each module
+# whose annotations it resolves -- pydantic's among them -- and once it has done that to
+# pydantic, a model declaring `extra="allow"` no longer builds. The SDK defines several,
+# so `scenet.mcp` failed to import part-way through the build. Built first, they are
+# already built.
+import mcp  # noqa: F401
+
 # -- Project ------------------------------------------------------------------
 
 project = "Scenet"

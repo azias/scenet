@@ -254,6 +254,43 @@ PANEL 2
         panels = parse_script("\n\n---\ncast: {A: {reference: alice}}\n---\nPANEL 1\n")
         assert list(panels) == ["1"]
 
+    @pytest.mark.parametrize(
+        ("text", "line"),
+        [
+            # No front matter: the body is the file.
+            ("\n\nstray prose\nPANEL 1\n", 3),
+            # Front matter occupies lines 1-4, so the stray line is the file's line 6.
+            ("---\ncast: {A: {reference: alice}}\nscene: x\n---\n\nstray prose\nPANEL 1\n", 6),
+            # Blank lines before the opening fence count too.
+            ("\n\n---\ncast: {A: {reference: alice}}\n---\nstray prose\nPANEL 1\n", 6),
+        ],
+        ids=["no-front-matter", "after-front-matter", "after-leading-blank-lines"],
+    )
+    def test_a_line_number_counts_from_the_top_of_the_file(self, text: str, line: int):
+        """Not from the end of the front matter: an editor jumping to "line 2" of a
+        script whose first five lines are YAML lands on the cast, not the fault."""
+        with pytest.raises(ScriptSyntaxError, match=f"line {line}:") as caught:
+            parse_script(text)
+        assert caught.value.line == line
+
+    def test_a_directive_fault_is_located_in_the_file(self):
+        text = "---\ncast: {A: {reference: alice}}\n---\nPANEL 1\n@weather: [unclosed\n"
+        with pytest.raises(ScriptSyntaxError) as caught:
+            parse_script(text)
+        assert caught.value.line == 5
+
+    def test_a_panel_that_does_not_validate_is_located_at_its_heading(self):
+        """It used to carry no line at all, so `scenet check` pointed at line 1 -- the
+        front-matter fence -- whichever panel was wrong."""
+        text = (
+            "---\ncast: {A: {reference: alice}}\n---\n"
+            "PANEL 1\nA\nHello.\n\n"
+            "PANEL 2\n@shot: extremely_wide\n"
+        )
+        with pytest.raises(ScriptSyntaxError, match="in PANEL 2") as caught:
+            parse_script(text)
+        assert caught.value.line == 8
+
     def test_shipped_script_example_parses(self):
         panels = load_script(EXAMPLES / "umbrella.script")
         assert list(panels) == ["1", "2"]

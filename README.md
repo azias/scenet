@@ -131,7 +131,7 @@ same Python, unmodified — in your browser under WebAssembly via
 [Pyodide](https://pyodide.org/). It is not a reimplementation: the page installs the exact
 wheel `uv build` produces, so there is no second copy of the geometry to drift out of step.
 
-Twenty-three worked examples, covering every shot type, every balloon kind, every caption kind, every
+Its worked examples cover every shot type, every balloon kind, every caption kind, every
 expression and mark, every mass kind and place, both frontends and the constraint priorities. Each one is a real file under
 [`examples/gallery/`](examples/gallery/) that the test suite compiles, so the playground
 cannot offer an example that does not work.
@@ -147,6 +147,26 @@ The [VS Code extension](editor/) gives completion and inline validation for pane
 documents, plus a side-by-side preview. Its JSON Schema is *generated from the
 compiler's own models* by `scenet schema`, so what the editor offers is what actually
 compiles. A test fails if the shipped schema goes stale.
+
+## Using it from a model
+
+No model knows Scenet from training, so the project hands the language over instead.
+[Driving Scenet from a model](docs/howto/drive_from_a_model.md) covers each kind of client:
+
+- **A chat app that cannot run code** — NotebookLM, the Gemini app — gets the
+  [spec pack](https://creatoan.github.io/scenet/scenet-spec.md): the language, the
+  comic-script format, the characters, every diagnostic and the whole gallery, in one file.
+- **An agent that loads skills** gets [`skills/scenet`](skills/scenet/), an
+  [Agent Skills](https://agentskills.io/) folder.
+- **An MCP client** gets `scenet mcp`, whose tools validate, compile and render, so the model
+  can read its own errors and fix them.
+
+```bash
+pip install 'scenet[mcp]'
+scenet mcp
+```
+
+<!-- mcp-name: io.github.creatoan/scenet -->
 
 ## Install
 
@@ -196,6 +216,7 @@ source under [`docs/`](docs/), which GitHub renders without a build step.
 | [Shot types](docs/reference/shot_types.md) | Normative camera framing table |
 | [Panel Core](docs/reference/panel_core.md) | The resolved intermediate format |
 | [Asset contract](docs/reference/asset_contract.md) | What a character puppet must declare |
+| [MCP server](docs/reference/mcp.md) | The tools `scenet mcp` serves to a model |
 | [API reference](docs/reference/api/index.md) | Every public name |
 | [Design decisions](docs/explanation/design_decisions.md) | Why it is shaped this way |
 | [Prior art](docs/explanation/prior_art.md) | What already exists, and what was taken from it |

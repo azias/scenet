@@ -1,0 +1,30 @@
+# Depth, and the two ways to say every ordering.
+#
+# `in_front_of` and `behind` set painter order, so one figure is drawn over another.
+# Non-overlap is a REQUIRED constraint and the solver normally pushes actors apart;
+# depth is what lets them share space on purpose.
+#
+# `left_of` and `right_of` are the same relation written from either end. Both are
+# resolved into a single linear ordering at parse time, because Cassowary is a linear
+# solver and cannot express the disjunction "A left of B OR B left of A". Any construct
+# that reintroduces a disjunction has to be resolved in the frontend, not the solver.
+
+panel:
+  size: [1200, 800]
+
+camera:
+  shot: medium_shot
+
+cast:
+  back:  {reference: alice, pose: hands_on_hips, at: left_third}
+  near:  {reference: bob,   pose: arms_crossed,  at: center, facing: left}
+  far:   {reference: alice, pose: pointing,      at: right_third}
+
+staging:
+  - back left_of near
+  - far right_of near
+  - near in_front_of far
+  - back behind near
+
+script:
+  - say: {by: far, text: "Move.", prefer: top_right}

@@ -22,6 +22,7 @@ worth having if it is not owned.
 | | |
 |---|---|
 | [Command line](cli.md) | Every command and flag |
+| [MCP server](mcp.md) | The tools `scenet mcp` serves to a model |
 | [Python API](api/index.md) | Every public name, and the internals behind them |
 
 ## Version and status
@@ -39,5 +40,6 @@ shot_types
 panel_core
 asset_contract
 cli
+mcp
 api/index
 ```

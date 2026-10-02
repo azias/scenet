@@ -69,7 +69,7 @@ from scenet.frontends.positions import (
     locate,
     syntax_error_region,
 )
-from scenet.frontends.script_front import parse_script
+from scenet.frontends.script_front import FRONT_MATTER, parse_script
 from scenet.ir import PanelIR
 from scenet.pipeline import compile_ir
 
@@ -713,12 +713,39 @@ def _diagnose_scene(
     defaults = {key: value for key, value in data.items() if key != "panels"}
     for name, document in composed.items():
         merged = merge(defaults, document) if defaults else document
-        found.extend(
-            _diagnose_panel(
-                merged, text, source, prefix=("panels", name), library=library, deep=deep
-            )
-        )
+        prefix = ("panels", name)
+        for item in _diagnose_panel(
+            merged, text, source, prefix=prefix, library=library, deep=deep
+        ):
+            # A fault in a default is inherited by every panel that does not override
+            # it, so checking panel by panel finds it once per panel, located at the
+            # panel. It is one fault, written once: report it there, once.
+            rest = item.path[len(prefix) :]
+            if rest and not _has_path(document, rest) and _has_path(defaults, rest):
+                item = Diagnostic(  # noqa: PLW2901 -- replaced, deliberately
+                    rule=item.rule,
+                    message=item.message,
+                    path=rest,
+                    source=source,
+                    region=locate(text, rest) or DOCUMENT_START,
+                )
+            if item not in found:
+                found.append(item)
     return found
+
+
+def _has_path(document: object, path: tuple[str | int, ...]) -> bool:
+    """Whether `path` names a value actually written in `document`."""
+    node = document
+    for step in path:
+        match node, step:
+            case dict(), _ if step in node:
+                node = node[step]
+            case list(), int() if 0 <= step < len(node):
+                node = node[step]
+            case _:
+                return False
+    return True
 
 
 def diagnose_source(
@@ -849,9 +876,7 @@ def diagnose_script(
             )
         ]
 
-    found: list[Diagnostic] = []
-    for name, panel in panels.items():
-        found.extend(_diagnose_cast(panel, text, source, prefix=(name,), library=library))
+    found = _diagnose_script_cast(text, panels, source, library=library)
     if found:
         return _in_source_order(found)
 
@@ -872,6 +897,65 @@ def diagnose_script(
                 ]
 
     return []
+
+
+def _script_front_matter(text: str) -> tuple[str, dict[str, Any]]:
+    """A script's front matter as a YAML document whose positions are the file's.
+
+    The whole script is not YAML, so nothing can be located in it directly. The front
+    matter is, and padding it with one empty line per line that precedes it in the file
+    makes every mark it yields a line and column a person would recognise.
+
+    Returns:
+        The padded YAML, and what it holds -- both empty when there is no front matter.
+    """
+    normalised = text.replace("\r\n", "\n").replace("\r", "\n")
+    match = FRONT_MATTER.match(normalised)
+    if not match:
+        return "", {}
+    padded = "\n" * normalised.count("\n", 0, match.start(1)) + match.group(1) + "\n"
+    # parse_script has already loaded this successfully, so it cannot fail here.
+    loaded = yaml.safe_load(padded)
+    return padded, loaded if isinstance(loaded, dict) else {}
+
+
+def _diagnose_script_cast(
+    text: str,
+    panels: dict[str, PanelIR],
+    source: Path | None,
+    *,
+    library: PuppetLibrary | None,
+) -> list[Diagnostic]:
+    """Resolve a script's cast, reporting each front-matter fault once, where it is.
+
+    Every panel inherits the front-matter cast, so checking panel by panel finds the
+    same bad name once per panel. A fault in a member the front matter declares is
+    reported once, against the front matter, with no panel in its path. A member a
+    panel introduces itself -- through an `@cast:` directive -- keeps its panel name,
+    and the start of the document, since no line of YAML holds it.
+    """
+    front, declared = _script_front_matter(text)
+    cast = declared.get("cast")
+    shared = cast if isinstance(cast, dict) else {}
+
+    found: list[Diagnostic] = []
+    for name, panel in panels.items():
+        for item in _diagnose_cast(panel, front, source, prefix=(), library=library):
+            actor = item.path[1]
+            if actor in shared:
+                if item not in found:
+                    found.append(item)
+            else:
+                found.append(
+                    Diagnostic(
+                        rule=item.rule,
+                        message=item.message,
+                        path=(name, *item.path),
+                        source=source,
+                        region=DOCUMENT_START,
+                    )
+                )
+    return found
 
 
 def diagnose_file(

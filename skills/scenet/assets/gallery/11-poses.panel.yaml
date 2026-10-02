@@ -1,0 +1,26 @@
+# A pose is a set of joint angles, not a drawing -- which is what avoids one image
+# per pose per expression per facing direction.
+#
+# All four shipped poses. Note that `a` and `c` use the SAME puppet: the key in `cast`
+# is the actor id, `reference` is which character gets drawn, and the two are
+# independent. That is what lets one puppet play two parts.
+
+panel:
+  size: [1500, 700]
+
+camera:
+  shot: full_shot
+
+cast:
+  a: {reference: alice, pose: standing_neutral, at: left_edge}
+  b: {reference: bob,   pose: arms_crossed,     at: left_third}
+  c: {reference: alice, pose: pointing,         at: right_third}
+  d: {reference: bob,   pose: hands_on_hips,    at: right_edge, facing: left}
+
+staging:
+  - a left_of b
+  - b left_of c
+  - c left_of d
+  - a ground_shared_with b
+  - b ground_shared_with c
+  - c ground_shared_with d

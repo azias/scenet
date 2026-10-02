@@ -109,9 +109,10 @@ jobs:
           enable-cache: true
 
       # Runtime dependencies only: these are what ship to users. Dev tooling is
-      # never distributed, so it is deliberately out of scope here.
+      # never distributed, so it is deliberately out of scope here. Optional extras are
+      # in scope -- `pip install 'scenet[mcp]'` ships them to users just the same.
       - name: Sync runtime dependencies only
-        run: uv sync --frozen --no-dev
+        run: uv sync --frozen --no-dev --all-extras
 
       - name: Check licenses are permissive
         run: |
@@ -171,7 +172,8 @@ jobs:
         run: |
           set +e
           uv run scenet check --format sarif -o results.sarif \
-            examples/gallery/*.panel.yaml examples/gallery/*.scene.yaml
+            examples/gallery/*.panel.yaml examples/gallery/*.scene.yaml \
+            examples/gallery/*.script
           echo "status=$?" >> "$GITHUB_OUTPUT"
 
       # A pull request from a fork gets a read-only token, so this cannot work there and

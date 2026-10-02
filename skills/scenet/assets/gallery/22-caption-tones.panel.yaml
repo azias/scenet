@@ -1,0 +1,33 @@
+# Three caption tones, over the background that makes the point.
+#
+# A caption box is opaque, so its lettering was never at risk: the text sits on the fill
+# whatever is behind it. What was at risk is the *box*. On a clear day the atmosphere is
+# `#eeeeee`, and the white box that every caption has been since captions shipped is
+# 1.16:1 against it -- legible, and invisible. Only the stroke separates it at all.
+#
+# So the failing case is the pale end, not the dark one, and this panel is that case:
+# a noon sky, with the same three boxes tucked into three corners of it. `paper` all but
+# vanishes into the sky, `pale` sits on it quietly, and `ink` reads at 17.16:1 -- which
+# costs the lettering an inversion, because black type on a near-black box is not
+# lettering, it is a filled rectangle.
+#
+# The values are rungs of the same ladder the backdrop uses, not a second palette.
+
+panel:
+  size: [1400, 900]
+
+camera:
+  shot: long_shot
+
+setting:
+  place: field
+  horizon: low
+  time: day
+
+cast:
+  alice: {reference: alice, pose: standing_neutral, at: center}
+
+script:
+  - caption: {text: "Noon. Nothing for miles.", kind: locale, tone: paper, prefer: top_left}
+  - caption: {text: "She had walked since dawn.", kind: monologue, tone: pale, prefer: top_right}
+  - caption: {text: "Continued next issue.", kind: editorial, tone: ink, prefer: bottom_right}

@@ -29,6 +29,14 @@ dependencies = [
     "font-source-sans-pro>=0.0.1",
 ]
 
+# Optional, so the compiler itself stays the eight dependencies above. The playground
+# installs the base wheel into Pyodide, where an HTTP server stack has nothing to do --
+# and anyone who only wants `scenet build` should not have to put one through their
+# own licence review. `pip install 'scenet[mcp]'` adds the MCP server; see
+# docs/howto/drive_from_a_model.md.
+[project.optional-dependencies]
+mcp = ["mcp>=2.2"]
+
 # Deliberately no `author_email`. A published address on PyPI is a well-known spam
 # magnet, and the project has no need for one: bug reports and questions belong in the
 # issue tracker below, which PyPI renders as the contact route.
@@ -59,6 +67,10 @@ dev = [
     # Validates every example against the shipped JSON Schema. Comparing the schema to
     # itself cannot catch it describing the wrong syntax, which it once did.
     "jsonschema>=4.23",
+    # The MCP server is an optional extra for users, but not for contributors: its tests,
+    # its doctests and its API reference page all need it importable. `dev` is one of
+    # uv's default groups, so the documentation build gets it too.
+    "scenet[mcp]",
 ]
 docs = [
     "sphinx>=9.1",

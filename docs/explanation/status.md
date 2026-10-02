@@ -26,6 +26,7 @@ attribution. A notation is only worth having if it is not owned.
 | 7 | Machine-readable diagnostics: `scenet check`, in SARIF | **Done** |
 | 8 | Captions, faces, and the setting layer — places, masses, planes, atmosphere | **Done** |
 | 9 | Emanata — plewds, squeans, grawlixes, briffits — as a soft placement cost | **Done** |
+| 10 | The agent-facing surface: spec pack and `llms.txt`, Agent Skill, MCP server | **Done** |
 
 Single panels compile end to end. Constructs described in `language.md` are the specification,
 not a report of what is implemented — the table above is authoritative on what actually runs.
@@ -38,7 +39,6 @@ dependency between them is stated in the tickets rather than implied by this tab
 | Scope | Ticket |
 |---|---|
 | Tinted caption boxes | [#28](https://github.com/creatoan/scenet/issues/28) |
-| The agent-facing surface — spec pack, skill, MCP server | [#11](https://github.com/creatoan/scenet/issues/11) |
 
 Still further out, and not yet ticketed: page composition (tiers, panels of varying size) and the
 interpretation layer that would give a panel a *style*.

@@ -27,6 +27,25 @@ below 1.0 means.
   cropped by a tight shot is reported in the compile notes. The debug overlay draws the zones.
 - `scripts/contact_sheet.py --marks` renders every mark across the shot ladder, and the
   gallery gains `23-emanata.scene.yaml`.
+- **A way to tell a model how to write Scenet.** The **spec pack** puts the language
+  reference, the shot types, the comic-script format, the shipped characters, every
+  diagnostic rule, the JSON Schema and the whole gallery in one file, published at
+  [`/scenet-spec.md`](https://creatoan.github.io/scenet/scenet-spec.md) beside an
+  [`llms.txt`](https://creatoan.github.io/scenet/llms.txt). It is what to hand a chat app
+  that cannot run code, such as NotebookLM, which can then write a comic script for you to
+  compile. [`skills/scenet`](https://github.com/creatoan/scenet/tree/main/skills/scenet) is
+  an [Agent Skill](https://agentskills.io/) for coding agents. All of it is generated from
+  the compiler's own sources, and a test fails if a committed copy goes stale. (#11)
+- **`scenet mcp`, an MCP server**, so a model can validate its own panel, read findings
+  that name the rule, the line and the fix, and render the result with nobody relaying
+  errors. Five read-only tools — `get_spec`, `list_puppets`, `validate`, `compile`,
+  `render` — over stdio or Streamable HTTP, on protocol revision 2026-07-28. It needs the
+  new optional extra: `pip install 'scenet[mcp]'`. A `server.json` describes it for the
+  official MCP registry. (#11)
+- [Driving Scenet from a model](https://creatoan.github.io/scenet/howto/drive_from_a_model.html),
+  a how-to for each kind of client, and two entries in prior art: WordsEye, the ancestor of
+  text-to-scene, and Gumin et al. 2025, the strongest argument against a declarative
+  language, recorded for what it actually found. (#11)
 
 ### Changed
 
@@ -34,6 +53,26 @@ below 1.0 means.
   `format_version` stays 1 and a Core document written before them still reads. Every actor
   now serialises the three keys, so a golden file captured against 0.7.0 will differ by them
   — and by nothing else: every example in the repository lays out byte-identically.
+
+### Fixed
+
+- **A comic script's line numbers counted from the end of its front matter**, not from the
+  top of the file, so `scenet check` and the playground pointed several lines above the
+  fault in any script with a cast block — which is nearly all of them.
+- **A panel in a comic script that failed validation** — a misspelled `@shot:`, say — was
+  reported at line 1 whichever panel it was. It is now reported at that panel's `PANEL`
+  heading.
+- **A bad name in a shared cast was reported once per panel**, every copy pointing at the
+  panel rather than at the line that was wrong — in a comic script's front matter, all
+  of them at line 1. A fault in a scene's defaults or a script's front matter is now
+  reported once, where it is written. A panel's own mistakes still carry its name.
+- **`scenet build` printed a traceback for a file with an unsupported extension**, and
+  `scenet check` called the same file `ok`. Both now report it as a usage error, exit 2.
+- **`scenet build foo.panel.yml` wrote `foo.panel.yml.svg`.** `.yml` is now named
+  exactly as `.yaml` is: `foo.svg`.
+- The command-line reference's `scenet check examples/gallery/*.yaml` examples failed,
+  because the glob also matched the gallery's manifest. CI's gallery check now includes
+  the gallery's comic script, which it had skipped.
 
 ## [0.7.0] - 2026-10-02
 

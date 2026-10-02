@@ -43,6 +43,15 @@ All runtime dependencies are permissively licensed. CI enforces this on every bu
 License strings above are reproduced exactly as each package declares them in its metadata, which
 is what the CI gate compares against.
 
+### The optional `mcp` extra
+
+`pip install 'scenet[mcp]'` adds the MCP server, and with it the official
+[MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk) (`mcp`, `mcp-types`: MIT) and
+the HTTP stack it brings: `starlette`, `uvicorn`, `sse-starlette`, `httpx2`, `httpcore2`
+(BSD-3-Clause), `anyio`, `pyjwt`, `jsonschema` (MIT), `opentelemetry-api`, `python-multipart`
+(Apache-2.0), `cryptography` (Apache-2.0 OR BSD-3-Clause) and `cffi` (MIT-0), among smaller
+support packages. None of it is installed without the extra. The CI gate checks this tree too.
+
 ## Prior art used as reference, not as code
 
 ### Comic Chat (Microsoft Research, 1996)

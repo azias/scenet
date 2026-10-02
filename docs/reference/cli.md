@@ -4,8 +4,8 @@
 scenet [--version] <command> [options]
 ```
 
-Three commands: `build` compiles a document, `check` validates one without compiling it,
-and `schema` emits the JSON Schema. A bare `scenet` prints help to stderr and exits **2**
+Four commands: `build` compiles a document, `check` validates one without compiling it,
+`schema` emits the JSON Schema, and `mcp` serves all of that to a model. A bare `scenet` prints help to stderr and exits **2**
 — it did nothing, and a script chaining off its status should not read that as success.
 
 ## `scenet build`
@@ -67,7 +67,7 @@ sequence.scene.yaml  →  sequence.establishing.svg
 |---|---|
 | 0 | Compiled |
 | 1 | The document could not be compiled — reported as a plain message, not a traceback |
-| 2 | Usage error, or the source file does not exist |
+| 2 | Usage error, or the source file does not exist or has an extension no frontend reads |
 
 Every error the compiler raises inherits `ScenetError`, and all of them mean "your panel
 cannot be compiled" rather than "scenet broke". They print as one line. A traceback from
@@ -151,7 +151,7 @@ published schema — are what make a generate/validate/repair loop work.
 |---|---|
 | 0 | Every document is valid |
 | 1 | At least one finding |
-| 2 | Usage error, or a source file does not exist |
+| 2 | Usage error, or a source file does not exist or has an extension no frontend reads |
 
 The status means the same thing in both formats, so CI can key off it without parsing
 anything.
@@ -211,7 +211,7 @@ scenet check examples/duel.panel.yaml
 ```
 
 ```bash
-scenet check examples/gallery/*.yaml
+scenet check examples/gallery/*.panel.yaml examples/gallery/*.scene.yaml
 ```
 
 ```bash
@@ -219,14 +219,16 @@ scenet check --format sarif examples/duel.panel.yaml > results.sarif
 ```
 
 ```bash
-scenet check --deep examples/gallery/*.yaml
+scenet check --deep examples/gallery/*.panel.yaml examples/gallery/*.scene.yaml
 ```
 
 Uploading to GitHub code scanning, which is how findings become annotations on a pull
 request:
 
 ```yaml
-- run: uv run scenet check --format sarif -o results.sarif examples/gallery/*.yaml
+- run: >-
+    uv run scenet check --format sarif -o results.sarif
+    examples/gallery/*.panel.yaml examples/gallery/*.scene.yaml
 - uses: github/codeql-action/upload-sarif@v4
   with:
     sarif_file: results.sarif
@@ -294,6 +296,54 @@ scenet schema --scene -o scene.schema.json
 ```
 
 The output is sorted and indented, so it is stable under version control.
+
+## `scenet mcp`
+
+```
+scenet mcp [--transport {stdio,streamable-http}] [--host HOST] [--port PORT]
+```
+
+Runs an [MCP](https://modelcontextprotocol.io/) server whose tools read the specification,
+list the characters, validate, compile and render — so a model can check the panel it
+wrote, read what is wrong and fix it, with nobody copying error text between windows. The
+tools themselves are documented in [the MCP server reference](mcp.md).
+
+Needs the optional extra, which brings the official `mcp` SDK:
+
+```bash
+pip install 'scenet[mcp]'
+```
+
+Without it, the command says so on stderr and exits **2**. Every other command works
+without the extra.
+
+`--transport stdio` (default)
+: For a client that launches the server itself, which is how desktop and editor clients
+  run a local server. **Nothing but protocol messages reaches stdout** — the server never
+  prints, and the compiler's notes travel inside tool results.
+
+`--transport streamable-http`
+: Listens for remote clients over
+  [Streamable HTTP](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports).
+  There is no authentication, so put it behind something that provides it before
+  exposing it beyond your own machine. SSE is not offered: the protocol deprecated it in
+  favour of Streamable HTTP.
+
+`--host HOST`, `--port PORT`
+: Where Streamable HTTP listens. Defaults to `127.0.0.1` and `8000`, so it is reachable
+  only from the same machine unless you say otherwise.
+
+### Exit status
+
+| Code | Meaning |
+|---|---|
+| 0 | The client disconnected |
+| 2 | Usage error, or the `mcp` extra is not installed |
+
+```bash
+scenet mcp
+scenet mcp --transport streamable-http --port 8765
+```
 
 ## `scenet --version`
 

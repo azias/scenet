@@ -1,0 +1,27 @@
+# Script order IS reading order, and it is enforced rather than preferred.
+#
+# A balloon may never sit above AND left of one that precedes it -- checked against
+# every predecessor, not just the last one, because the relation is not transitive.
+#
+# Try reordering these four lines. The layout changes, but it never asks you to read
+# up and to the left.
+
+panel:
+  size: [1200, 800]
+
+camera:
+  shot: medium_full
+
+cast:
+  alice: {reference: alice, at: left_third}
+  bob:   {reference: bob,   at: right_third, facing: left}
+
+staging:
+  - alice left_of bob
+  - alice ground_shared_with bob
+
+script:
+  - say: {by: alice, text: "First."}
+  - say: {by: bob,   text: "Second."}
+  - say: {by: alice, text: "Third."}
+  - say: {by: bob,   text: "Fourth."}

@@ -1,0 +1,115 @@
+name: MCP Registry
+
+# Lists a release in the official MCP registry (https://registry.modelcontextprotocol.io),
+# which holds metadata only: server.json, pointing at the package on PyPI.
+#
+# Why this is a workflow and not `mcp-publisher login github` on somebody's machine: the
+# interactive login asks a GitHub App for the user's organisations, and for an
+# organisation namespace that comes back without them -- the registry then offers only
+# `io.github.<user>/*` and answers 403 for `io.github.creatoan/*`, whatever the role or
+# the membership visibility. Open upstream, reported by several people with the same
+# symptoms: modelcontextprotocol/registry#1468, #1537, #1649. The registry supports a
+# second route made for exactly this -- the workflow proves the namespace through the
+# repository it runs in, with GitHub's OIDC token, and no organisation lookup is involved.
+# That is the route used here.
+#
+# Two ways in:
+#
+#   - by hand, for a release that already exists (Actions -> MCP Registry -> Run
+#     workflow, giving the tag). The first listing, and any retry, goes this way.
+#   - from release.yml, after the release is out, once the repository variable
+#     MCP_REGISTRY_PUBLISH is "true". Opt-in, like PYPI_TRUSTED_PUBLISHER, because the
+#     login route is unproven for this namespace until it has worked once.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to list, such as v0.8.0"
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to list, such as v0.8.0"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: List ${{ inputs.tag }} in the registry
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # The credential. Set on this job only: every other job in this repository would
+      # otherwise be able to mint a token that speaks for the namespace, and the registry
+      # lets a token for an organisation namespace publish -- and overwrite -- anything
+      # under it.
+      id-token: write
+    env:
+      TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          persist-credentials: false
+
+      # server.json names a version, and the registry verifies the package at that
+      # version. Catching a mismatch here gives a message about this repository rather
+      # than a registry error about a package.
+      - name: server.json must describe this tag
+        run: |
+          VERSION="${TAG#v}"
+          python3 - "$VERSION" <<'PY'
+          import json, sys
+          version = sys.argv[1]
+          manifest = json.load(open("server.json", encoding="utf-8"))
+          found = {manifest["version"], *(p["version"] for p in manifest["packages"])}
+          assert found == {version}, f"server.json says {sorted(found)}, the tag is {version}"
+          print(f"server.json: {manifest['name']} {version}")
+          PY
+
+      # The registry reads the PyPI description for the `mcp-name` marker, so the release
+      # has to be there. A tag push uploads to PyPI first, but the index can lag behind
+      # the upload by a little; this waits rather than failing a run that would pass a
+      # minute later.
+      - name: The version must be on PyPI
+        run: |
+          VERSION="${TAG#v}"
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS "https://pypi.org/pypi/scenet/${VERSION}/json" >/dev/null; then
+              echo "scenet ${VERSION} is on PyPI"
+              exit 0
+            fi
+            echo "attempt ${attempt}: not on PyPI yet"
+            sleep 30
+          done
+          echo "::error::scenet ${VERSION} is not on PyPI, so the registry cannot verify it"
+          exit 1
+
+      # Pinned and checksummed. This binary runs with the OIDC credential in reach, so it
+      # is not `latest`, and not whatever a mutable URL serves on the day. To move to a
+      # newer release: download its linux_amd64 tarball, check it, and replace both lines.
+      - name: Install mcp-publisher
+        env:
+          VERSION: v1.8.1
+          SHA256: a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc
+        run: |
+          curl -fsSL -o mcp-publisher.tar.gz \
+            "https://github.com/modelcontextprotocol/registry/releases/download/${VERSION}/mcp-publisher_linux_amd64.tar.gz"
+          echo "${SHA256}  mcp-publisher.tar.gz" | sha256sum --check
+          tar xzf mcp-publisher.tar.gz mcp-publisher
+          ./mcp-publisher --version
+
+      # `validate` and not a dry run: publish has no such flag, so a flag that looks like
+      # one would simply publish.
+      - name: Validate server.json
+        run: ./mcp-publisher validate
+
+      - name: Authenticate with the repository's identity
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish
+        run: ./mcp-publisher publish

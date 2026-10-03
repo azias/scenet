@@ -3,7 +3,7 @@
   "name": "io.github.creatoan/scenet",
   "title": "Scenet",
   "description": "Write, check and render comic panels as SVG: a deterministic compiler, no image model.",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "websiteUrl": "https://creatoan.github.io/scenet/",
   "repository": {
     "url": "https://github.com/creatoan/scenet",
@@ -14,7 +14,7 @@
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
       "identifier": "scenet",
-      "version": "0.8.0",
+      "version": "0.9.0",
       "runtimeHint": "uvx",
       "runtimeArguments": [
         {

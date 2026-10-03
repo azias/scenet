@@ -10,6 +10,28 @@ below 1.0 means.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-03
+
+A release for maintainers: Scenet can now be listed in the MCP registry from a workflow. The
+language, the compiler and the `scenet mcp` server are unchanged from 0.8.0.
+
+### Added
+
+- **A workflow lists releases in the MCP registry.** `mcp-publisher login github` cannot publish
+  under an organisation namespace, because the registry's GitHub App is not installed on the
+  organisation and `io.github.creatoan/*` answers 403 whatever the role. The new
+  `.github/workflows/registry.yml` logs in with the workflow's OIDC token instead, which proves the
+  namespace through the repository and needs no secret. Run it by hand for an existing tag, or set
+  the repository variable `MCP_REGISTRY_PUBLISH` to have `release.yml` call it after each release.
+  It checks that `server.json` names the tag's version and that the version is on PyPI before it
+  publishes, and pins `mcp-publisher` to a version and a SHA-256. (#60)
+
+### Fixed
+
+- **The release guide advised `mcp-publisher publish --dry-run`, which publishes.** `publish` has no
+  such flag, so an unknown one is ignored and the listing happens. The guide now says to use
+  `validate`, which checks the manifest against the live registry and changes nothing. (#60)
+
 ## [0.8.0] - 2026-10-02
 
 Models can now be told how to write Scenet, and can check what they wrote: a spec pack, an
@@ -646,7 +668,9 @@ or has drifted out of step with the code fails the build.
 - `long_shot` and `full_shot` crop at the same landmark, so with no environment to show
   they can differ only by headroom.
 
-[Unreleased]: https://github.com/creatoan/scenet/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/creatoan/scenet/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/creatoan/scenet/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/creatoan/scenet/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/creatoan/scenet/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/creatoan/scenet/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/creatoan/scenet/compare/v0.4.0...v0.5.0
